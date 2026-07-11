@@ -49,3 +49,21 @@ The React app uses the same Stitch screen HTML body, local assets, page body cla
 
 - For a production build that does not depend on Tailwind CDN, migrate the Stitch Tailwind configuration into a local Tailwind/PostCSS setup.
 - If Chinese localization is required for this visual pass, translate visible copy through the planned i18n layer while preserving the same layout metrics.
+
+## MVP Foundation Verification - 2026-07-11
+
+Result: partially passed
+
+Checked:
+
+- `npm run build` passes after the MVP foundation changes.
+- Vite dev server is available at `http://localhost:5173/`.
+- `http://localhost:5173/` returns HTTP 200.
+- `http://localhost:5173/app` returns HTTP 200.
+- `/app` is wired as the business-backed Today page entry.
+- Existing Stitch prototype routes remain available through the prototype router.
+
+Not completed:
+
+- In-app browser automation could not connect because the Browser plugin failed while writing local runtime assets with `系统找不到指定的路径。 (os error 3)`.
+- Because browser automation was unavailable, click-level verification for meal confirmation, daily check-in, Agent draft confirmation, and language switching remains a follow-up manual/browser QA task.
