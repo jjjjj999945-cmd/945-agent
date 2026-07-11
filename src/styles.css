@@ -119,6 +119,246 @@ body {
   color: #434656;
 }
 
+.today-page {
+  display: grid;
+  gap: 24px;
+}
+
+.today-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.today-header p {
+  margin: 0 0 6px;
+  color: #0041dc;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.today-header h1 {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1;
+}
+
+.today-header span {
+  display: block;
+  margin-top: 10px;
+  color: #434656;
+}
+
+.prototype-link {
+  border: 1px solid rgba(0, 65, 220, 0.18);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: white;
+  color: #0036bb;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.business-notice {
+  border: 1px solid rgba(0, 65, 220, 0.18);
+  border-radius: 16px;
+  padding: 12px 16px;
+  background: #dde1ff;
+  color: #0036bb;
+  font-weight: 800;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.metric-card,
+.business-card {
+  border: 1px solid rgba(196, 197, 217, 0.5);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+.metric-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.metric-card span,
+.metric-card small {
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.metric-card strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.today-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.business-card {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 22px;
+}
+
+.primary-card {
+  grid-row: span 2;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  color: #6b7280;
+  font-weight: 800;
+}
+
+.section-heading strong {
+  color: #0041dc;
+}
+
+.business-card h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.business-card p {
+  margin: 0;
+  color: #434656;
+}
+
+.exercise-list,
+.meal-list {
+  display: grid;
+  gap: 10px;
+}
+
+.exercise-row,
+.meal-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid rgba(196, 197, 217, 0.45);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(246, 250, 254, 0.72);
+}
+
+.exercise-row div,
+.meal-row div {
+  display: grid;
+  gap: 4px;
+}
+
+.exercise-row span,
+.meal-row span {
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.business-card button {
+  border: 0;
+  border-radius: 999px;
+  background: #0041dc;
+  padding: 10px 14px;
+  color: white;
+  font: 800 13px/1 Inter, sans-serif;
+  cursor: pointer;
+}
+
+.business-card button.ghost {
+  border: 1px solid rgba(0, 65, 220, 0.18);
+  background: white;
+  color: #0036bb;
+}
+
+.business-card button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.progress-block {
+  display: grid;
+  gap: 8px;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #434656;
+  font-size: 13px;
+}
+
+.progress-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dde1ff;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #0041dc;
+}
+
+.checkin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.checkin-grid label,
+.business-card textarea {
+  display: grid;
+  gap: 6px;
+  color: #6b7280;
+  font: 700 12px/1.2 Inter, sans-serif;
+}
+
+.checkin-grid input,
+.business-card textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(196, 197, 217, 0.75);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: white;
+  color: #171c1f;
+  font: 600 14px/1.2 Inter, sans-serif;
+}
+
+.business-card textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.advice-card small {
+  color: #6b7280;
+  line-height: 1.5;
+}
+
 @media (max-width: 800px) {
   .business-shell {
     grid-template-columns: 1fr;
@@ -131,6 +371,16 @@ body {
 
   .business-nav {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .metric-grid,
+  .today-layout,
+  .checkin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .today-header {
+    flex-direction: column;
   }
 }
 
