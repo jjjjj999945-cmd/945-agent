@@ -3,3 +3,4 @@ dist/
 *.log
 qa-shots/
 .superpowers/
+.worktrees/
