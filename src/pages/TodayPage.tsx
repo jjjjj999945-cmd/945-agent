@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { ConfirmDialog } from "../components/business/ConfirmDialog";
 import { MetricCard } from "../components/business/MetricCard";
 import { ProgressBar } from "../components/business/ProgressBar";
 import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/mockApi";
-import type { DailyCheckin, Locale, PlannedMeal, TodayResponseData } from "../types/domain";
+import type { DailyCheckin, Locale, PlannedMeal, RecordDraft, TodayResponseData } from "../types/domain";
 
 type TodayPageProps = {
   locale: Locale;
@@ -30,6 +31,9 @@ export function TodayPage({ locale }: TodayPageProps) {
   const t = createTranslator(locale);
   const [today, setToday] = useState<TodayResponseData | null>(null);
   const [checkin, setCheckin] = useState<CheckinForm>(initialCheckinForm);
+  const [agentMessage, setAgentMessage] = useState("");
+  const [agentReply, setAgentReply] = useState("");
+  const [recordDraft, setRecordDraft] = useState<RecordDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -102,6 +106,35 @@ export function TodayPage({ locale }: TodayPageProps) {
 
     setNotice(t("status.saved"));
     await loadToday();
+  }
+
+  async function sendAgentMessage() {
+    if (!agentMessage.trim()) return;
+
+    const response = await api.sendAgentMessage({
+      user_id: DEMO_USER_ID,
+      locale,
+      message: agentMessage,
+      context: {
+        current_page: "today",
+        date: TODAY_DATE
+      }
+    });
+
+    if (response.error) {
+      setNotice(response.error.message);
+      return;
+    }
+
+    setAgentReply(response.data.content);
+    setRecordDraft(response.data.record_draft ?? null);
+    setAgentMessage("");
+  }
+
+  function confirmRecordDraft() {
+    if (!recordDraft) return;
+    setNotice(`${recordDraft.type} ${t("status.saved")}`);
+    setRecordDraft(null);
   }
 
   if (!today || !summary) {
@@ -266,7 +299,39 @@ export function TodayPage({ locale }: TodayPageProps) {
             <p>{t("empty.noAdvice")}</p>
           )}
         </article>
+
+        <article className="business-card agent-card">
+          <div className="section-heading">
+            <span>{t("nav.agent")}</span>
+            <strong>{t("safety.nonMedical")}</strong>
+          </div>
+          <p>Ask about today's plan or type a workout or meal note.</p>
+          {agentReply ? <div className="agent-reply">{agentReply}</div> : null}
+          <div className="agent-input-row">
+            <input
+              value={agentMessage}
+              onChange={(event) => setAgentMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void sendAgentMessage();
+              }}
+              placeholder="今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。"
+            />
+            <button onClick={() => void sendAgentMessage()}>{t("actions.send")}</button>
+          </div>
+        </article>
       </section>
+
+      <ConfirmDialog
+        cancelLabel={t("actions.cancel")}
+        confirmLabel={t("actions.confirm")}
+        onCancel={() => setRecordDraft(null)}
+        onConfirm={confirmRecordDraft}
+        open={Boolean(recordDraft)}
+        title="Confirm Agent Draft"
+      >
+        <p>Agent prepared a structured record draft. Confirm before saving.</p>
+        <pre>{JSON.stringify(recordDraft?.payload ?? {}, null, 2)}</pre>
+      </ConfirmDialog>
     </div>
   );
 }
