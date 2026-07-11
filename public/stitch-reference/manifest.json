@@ -1,0 +1,509 @@
+﻿{
+    "projectId":  "8561810328811889297",
+    "title":  "UI Prototype Generation",
+    "exportedAt":  "2026-07-11T01:49:33.8536527+08:00",
+    "proxyUsed":  "http://127.0.0.1:7890",
+    "screens":  [
+                    {
+                        "index":  1,
+                        "title":  "945 - Today Dashboard (Refined Glacier Light)",
+                        "screenId":  "d8d7d3d76d3f4c0ebfdb6c1c62acc757",
+                        "folder":  "01-945-today-dashboard-refined-glacier-light-d8d7d3d7",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  127433,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLtg7snQEBCD2bH51A9pEX5jNe76tSd4HcQv5jktT0HqQhV_fp05if58KZnKKLJzNtMSHj66jTxVV51yOIN1BkBUh1mp6u0Op8gu7b9UfhxAskh7EebqoCsrYXvWP5Y-Hw4SEGdoRauGIOW1Ni1ZwlLQxCdcTxTBB9Hp-CegDK7vZe9045xzRxDoMD0DuFsOdwO7bbBUm68M7PjxxUFRVuRvWAhPKSJY-WFDkkFpG6x5drA_4QzJety65g"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  27766,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQzZTNmNWJkMjQwMmE5YjQ2ZGRiMTQ5ODFjEgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=swap",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900\u0026amp;family=Manrope:wght@400;500;600;700;800\u0026amp;display=swap",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  1035
+                                       },
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuAZZ8clIcHsc9cMqo0FWDFWeJkXiSRIrNLyf4iD84cjOkqGuNwLo4osK2VaPwhu4yJMqFMOKpj9oMZGANDByp7Ns7SdnJrDxtEheQi_-rsYWNBtx0ltS53e0cTPx5j6gUimdIKhyXh3uv_z07mofWPVtsP0uldNt0nciFYfUjvTPi-xJOHX2_vRuCPYn3O_tIMPrCyWQYWxfCBG51f1N5EQjz25EWTxq8La2aQppsJEafyVix1qpXEJ",
+                                           "file":  "assets/asset-004.bin",
+                                           "bytes":  43479
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuBfKxaNgMeDXoBJDlF-RHZiXyZUAmP-3oyuRK3hVXwL5mCDwePpqvXMMSwlC2GY3lC3q_NLTt69Qnh5jM72vS2pi6vbuBoKV_IzRFby0fXuQtcaXbRdHoSpmO5CM0nKbWqfDjkMtrzbjJizeGTmbssb9fS372VQrEWlQq01jftjUZrW5mSHg1EH6Hyj8V2QbO_RTnqLkHmexwIvLHrqtceRxZL9vSpeitLM-2u8IS2_13aYGdK2HWLW",
+                                           "file":  "assets/asset-005.bin",
+                                           "bytes":  40090
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  2,
+                        "title":  "945 - Workout Detail (Refined Glacier Light) v3",
+                        "screenId":  "d558e695c5aa43f7807dc6525017bd5e",
+                        "folder":  "02-945-workout-detail-refined-glacier-light-v3-d558e695",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  102911,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLvGikrCJvVfPVB4xN_nRFD8yQ62Pb4QWAOiiOfknl4YICFOa3JXp9eLukLO4kawYJn96jqSUD0Q4uuY0alcxU9-qkqrMYuDCcJ7I_6wzjJwt2_189y-HpHKQhewbx0BVvpkgqccT0dMRHTfB7-op_myTQPIWiOPcnmFu2B01FQ6Nh3Ew7CUqGb5HZByqZ-WN3LxFJVr6Q3pI2vSVYMZKtfO7P5nI3O5UrMF-7X66QT1SeLDgDJGdnyGXw"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  27567,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQ0MTg1ZmNiNDcwNGVhYjIyNGQ3MGM2Njk4EgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=swap",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900\u0026amp;family=Manrope:wght@400;500;600;700;800\u0026amp;display=swap",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  1242
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuBfKxaNgMeDXoBJDlF-RHZiXyZUAmP-3oyuRK3hVXwL5mCDwePpqvXMMSwlC2GY3lC3q_NLTt69Qnh5jM72vS2pi6vbuBoKV_IzRFby0fXuQtcaXbRdHoSpmO5CM0nKbWqfDjkMtrzbjJizeGTmbssb9fS372VQrEWlQq01jftjUZrW5mSHg1EH6Hyj8V2QbO_RTnqLkHmexwIvLHrqtceRxZL9vSpeitLM-2u8IS2_13aYGdK2HWLW",
+                                           "file":  "assets/asset-004.bin",
+                                           "bytes":  40090
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuAZZ8clIcHsc9cMqo0FWDFWeJkXiSRIrNLyf4iD84cjOkqGuNwLo4osK2VaPwhu4yJMqFMOKpj9oMZGANDByp7Ns7SdnJrDxtEheQi_-rsYWNBtx0ltS53e0cTPx5j6gUimdIKhyXh3uv_z07mofWPVtsP0uldNt0nciFYfUjvTPi-xJOHX2_vRuCPYn3O_tIMPrCyWQYWxfCBG51f1N5EQjz25EWTxq8La2aQppsJEafyVix1qpXEJ",
+                                           "file":  "assets/asset-005.bin",
+                                           "bytes":  43479
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  3,
+                        "title":  "945 - Settings \u0026 Preferences (Refined Glacier Light) v2",
+                        "screenId":  "055ec8f854424e6090dcf6e37be9b17e",
+                        "folder":  "03-945-settings-preferences-refined-glacier-light-v2-055ec8f8",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  112700,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLu94chMrGNpeMlIlyMAtxKnCkqvbQnG6nrb45QsL0wFS7YSn2L6j42MgUXiLglKZh9c1B1HUW1bQVX65xBBpE9QwL7YTdCfIBkkBnmMEYOiA7KeqJ5XIxEwjKWLhYsHqS9uCT6LWOZTKuitt7puLDhcvsG41tiJ0kp5k3-sffHhcCVAwmpw7VCONHyUcroQJBKwR4_KA1e0l_oPOOonaK6GeX4yITitTzU0mdfwKjKLG8MNgrN6FQSFiVI"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  25659,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQ0MTg3YzRiYTQwMWE2MTFmOThlMmM4Mzc3EgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900\u0026amp;display=swap",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  1242
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=block",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuAZZ8clIcHsc9cMqo0FWDFWeJkXiSRIrNLyf4iD84cjOkqGuNwLo4osK2VaPwhu4yJMqFMOKpj9oMZGANDByp7Ns7SdnJrDxtEheQi_-rsYWNBtx0ltS53e0cTPx5j6gUimdIKhyXh3uv_z07mofWPVtsP0uldNt0nciFYfUjvTPi-xJOHX2_vRuCPYn3O_tIMPrCyWQYWxfCBG51f1N5EQjz25EWTxq8La2aQppsJEafyVix1qpXEJ",
+                                           "file":  "assets/asset-004.bin",
+                                           "bytes":  43479
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuBfKxaNgMeDXoBJDlF-RHZiXyZUAmP-3oyuRK3hVXwL5mCDwePpqvXMMSwlC2GY3lC3q_NLTt69Qnh5jM72vS2pi6vbuBoKV_IzRFby0fXuQtcaXbRdHoSpmO5CM0nKbWqfDjkMtrzbjJizeGTmbssb9fS372VQrEWlQq01jftjUZrW5mSHg1EH6Hyj8V2QbO_RTnqLkHmexwIvLHrqtceRxZL9vSpeitLM-2u8IS2_13aYGdK2HWLW",
+                                           "file":  "assets/asset-005.bin",
+                                           "bytes":  40090
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuDLOPIieJtXCz3sgW5oJz75E2pgTJBYIl_DTQQkzCLjC5grVoJoymfOBbusMsiVg029O99O0LBECTAuWFSq4hPVz-kDXn8Yk4fesazzIRaXjWsLUfVQ3DuM_FbhbghTNYLpiNhLPMDxU-B8fTqaW246E-oFjI54v5x-KdSbe_AhY_qjaQjTuoT29O63ca4RJIoHQrIoUZDMTF2G0Fo4incdFNUy730fwMKmImRtDbx7AFOOOx1EXjAg",
+                                           "file":  "assets/asset-006.bin",
+                                           "bytes":  23554
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  4,
+                        "title":  "945 - Weekly Summary (Refined Glacier Light) v2",
+                        "screenId":  "989cb9386e114392b63d324be70870c3",
+                        "folder":  "04-945-weekly-summary-refined-glacier-light-v2-989cb938",
+                        "width":  "2560",
+                        "height":  "2718",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  11337,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLvg4k53T96L3tWGK4gM-egzuXNbc1VcMCHGaMk0M0EukKCNop2r3HzhWL21cNov1hFXPfkl8P8J7MKoPINT5Vdh6a-s1MZtcZFNv5Bo7mwbX0iZLr7k0ZIXq770Rs-Af2KIHj2gW3PDueWw6zw5nkSi_7oYExLpoHjKmZS75CCc-n6CUSk10TdgPB9UknrCfNPMdk1JwvDXtTeAHYAZeMOz8iKcDJexBQ7FcKllweGfd_ZS3N_CNQdTdQ0"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  28879,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQ0MjI5MGM5MDIwMWVlNjhjMTMyMGMxMDhmEgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=block",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900\u0026amp;display=swap",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  1035
+                                       },
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuAZZ8clIcHsc9cMqo0FWDFWeJkXiSRIrNLyf4iD84cjOkqGuNwLo4osK2VaPwhu4yJMqFMOKpj9oMZGANDByp7Ns7SdnJrDxtEheQi_-rsYWNBtx0ltS53e0cTPx5j6gUimdIKhyXh3uv_z07mofWPVtsP0uldNt0nciFYfUjvTPi-xJOHX2_vRuCPYn3O_tIMPrCyWQYWxfCBG51f1N5EQjz25EWTxq8La2aQppsJEafyVix1qpXEJ",
+                                           "file":  "assets/asset-004.bin",
+                                           "bytes":  43479
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuBfKxaNgMeDXoBJDlF-RHZiXyZUAmP-3oyuRK3hVXwL5mCDwePpqvXMMSwlC2GY3lC3q_NLTt69Qnh5jM72vS2pi6vbuBoKV_IzRFby0fXuQtcaXbRdHoSpmO5CM0nKbWqfDjkMtrzbjJizeGTmbssb9fS372VQrEWlQq01jftjUZrW5mSHg1EH6Hyj8V2QbO_RTnqLkHmexwIvLHrqtceRxZL9vSpeitLM-2u8IS2_13aYGdK2HWLW",
+                                           "file":  "assets/asset-005.bin",
+                                           "bytes":  40090
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  5,
+                        "title":  "945 - Agent Chat (Refined Glacier Light) v3",
+                        "screenId":  "72fba57927cb46cfad3c4ef710b5ef5f",
+                        "folder":  "05-945-agent-chat-refined-glacier-light-v3-72fba579",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  115477,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLv847BPXtYT7hNiBdGpwv-OTQbUfYI9iCJCjHE1VfHVLIQK55lTaRRO-43B0Vp0ASsjCnDp7XOQA5B5GH86ErGiprTIJuxf2o-_Laz7w1hW5mdMmwnu8Gfjuz8L0LBKIun9msfRlGchUTXcVWIVcl0MSo46eLEc9UlPOmGOkfy6ghbBYAYhm2_cGNNZShmXvjxSv5HndzmVlScfR6By3kUj1eD6eX8Rmfih3OiYVW4AK4TkMqLMQUmRlXw"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  23731,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQ0MThhNjVjYTEwN2M0ZDMxZDgwMGVhMjdiEgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=swap",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900\u0026amp;family=Manrope:wght@400;500;600;700;800\u0026amp;display=swap",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  1035
+                                       },
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuBnJswreeCQI1SBG9bG87xvaacF8bTTEy2JPNPKT_r6f7SIQRsFIkSJPfNEUBPE2urDcg25xOdCHJe-CxG7kr0rEWWzO4EpOdoyqeena5q-CVZxBzZziXfJyOLsvJJk6k1FePuAfC564SL_oEwZobONNFQtvtB-N0BRH4U-fECu4UGk7g8_H0n9RPACwz8njiOCw0Bfw_JTuHvVGBXyNsmyNimoqs8a1oVk6Be4rJneik-snZtTrJ_R",
+                                           "file":  "assets/asset-004.bin",
+                                           "bytes":  34858
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuChtprByaM-ICnE08uQynseJvxJ_lUrP3cpyRBJrUoAHsSWN8BXo0MFKsiApjAFnjLcaxUglHwHv9OtrwUSBj3i1ux8Q8vBVmDb4vWSzay6P5ViuOi-BCtOBLuwlmneQpVfEj7YCBltx7OH8twfz0pK89qlTYUq2AACCer0vYCPeFqgWix5AJz_TF3Aff6mf8O8dEOPIsQH0AIzLlI4fo7yuwUKtBRF6QWO8mm1Sv337bqDkHuyjoHB",
+                                           "file":  "assets/asset-005.bin",
+                                           "bytes":  17037
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  6,
+                        "title":  "945 - Diet Tracker (Refined Glacier Light) v2",
+                        "screenId":  "6685d645a1c1432999842c682525549a",
+                        "folder":  "06-945-diet-tracker-refined-glacier-light-v2-6685d645",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  118515,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLulqJWc3VNVZ_B84CQ7XVXa3Pbr4uobJrsBqy3vR3H4WWWMgLsFSkIA6SzEgU8MIxKoUl6thb6odJ3oON5WUA9amRXkmRnfqC02aTdieF5r8kAqgy03hd1owW_ONXfxeLrNqza6I0NpgXBAwMEQYiyCWOJccn6pApRYztpkBdNBoUcEPbRttjGxdvpFnPCXgk1nRYhKWMQoYh2pfHar0h0qHshgSskUtFNgUcsaAYXfrB9wSjCa8Mw4aaQ"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  30969,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQ0MTkzYTRmZjgwMmE5YTk1NDI1MDZiYWY1EgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=swap",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900\u0026amp;family=Manrope:wght@400;500;600;700;800\u0026amp;display=swap",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  1035
+                                       },
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuAZZ8clIcHsc9cMqo0FWDFWeJkXiSRIrNLyf4iD84cjOkqGuNwLo4osK2VaPwhu4yJMqFMOKpj9oMZGANDByp7Ns7SdnJrDxtEheQi_-rsYWNBtx0ltS53e0cTPx5j6gUimdIKhyXh3uv_z07mofWPVtsP0uldNt0nciFYfUjvTPi-xJOHX2_vRuCPYn3O_tIMPrCyWQYWxfCBG51f1N5EQjz25EWTxq8La2aQppsJEafyVix1qpXEJ",
+                                           "file":  "assets/asset-004.bin",
+                                           "bytes":  43479
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuBfKxaNgMeDXoBJDlF-RHZiXyZUAmP-3oyuRK3hVXwL5mCDwePpqvXMMSwlC2GY3lC3q_NLTt69Qnh5jM72vS2pi6vbuBoKV_IzRFby0fXuQtcaXbRdHoSpmO5CM0nKbWqfDjkMtrzbjJizeGTmbssb9fS372VQrEWlQq01jftjUZrW5mSHg1EH6Hyj8V2QbO_RTnqLkHmexwIvLHrqtceRxZL9vSpeitLM-2u8IS2_13aYGdK2HWLW",
+                                           "file":  "assets/asset-005.bin",
+                                           "bytes":  40090
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuAof4sXQA8P0udN6ijYjM1_7ZRR322jF8z5m3PRExTIZfV2J_adAzHePMkL2JMylaPsXCBB1xpxhIjIV6gzdQdygZpUKH5fahxPO6DgeejOiqpt-kqQB2eb0ulKxKNiviIOHJmwTBF3Kzwk_sAy4jbwTHLPG-yHmUuD7YEC6d-OhZNz_SQFGe-B7sk1t8IfvxEzNdjY-gUxtC1K1iaTj5UG7EW-q0oXuhpLAdjZaCkqDl8-10_HLcfA",
+                                           "file":  "assets/asset-006.bin",
+                                           "bytes":  31562
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuD3aL1ba7jOcggmFWs5XLAyKXKYiGKk6dtiXXrHW6oskj9KV-tV-3GOkrrOVzzWL1QT5mTLhqeN5vDlXPVx3yzJ55Kw_zIB3HF49d6BK2JTQucrDYpu7HJDh0GJREaqZ_dmRKxaGzf0lhkLZLSsv9XhTx64i8rGRXuckb48Lz5TnDEfW9PdHOwb9YE8jPsZnfbHDx0i4JS_pP4CxjCPuII8kdogsxkOp89IeYc_rQ9capjs9VdPKmUC",
+                                           "file":  "assets/asset-007.bin",
+                                           "bytes":  38327
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  7,
+                        "title":  "945 - Workout Detail (Refined Glacier Light)",
+                        "screenId":  "f59fdfcfdcb64453811642e82bec7a08",
+                        "folder":  "07-945-workout-detail-refined-glacier-light-f59fdfcf",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  54416,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLt7bVoXmz8y7we2_7skUBbOj_wiVqReNXcJ-1RBwiL2COkOCEd3MhWqb4a38h3rgSyUiWNjzDU8t9Z00viuJPUJc7dHYtcKaxJCw34MFkahDYA-fBDcFGXxQvxkqo_E9jxABP0-dG6SRFrqapDTwBZfkbbiSCMcCVqVHs0jDHolZqvrfvQQLk2Z3kogENe6GrwCE1zUelqayvff4zojRssInuhoMEqK1du8oB6YUa3z9xgUvDE6Rfd5DA"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  22183,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQzZTJlMjNiODMwMzgzOGVkYjlmMjViYzE1EgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=swap",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800\u0026amp;display=swap",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  980
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  8,
+                        "title":  "945 - Agent Chat (Refined Glacier Light) Final Calibration",
+                        "screenId":  "61a5ca3f6cf541d8a04a1413574b84d9",
+                        "folder":  "08-945-agent-chat-refined-glacier-light-final-calibration-61a5ca3f",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  60671,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLspQLOlD1-VcxpL4laadfjQlTVUp6lWZINiJP11lm0rsXX6HzyC5d0dM0My7fKCnrspZyLvkromtba6Zu0IcznT4d8gRdYIMVC2dyZq5flz_zTMcMH5ff-qTKTZxZoSFqncrDrgeNHnQ9O4nofnLW_bru1etLI7UedCMCSGorONOi7gr_QkUFOIF4oN4A93Q5zNecsX9goR6Zo1QbrKMjF32l5oYK9KdakBeQXeeg1XVEZ8-mfkoLcEKJQ"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  22285,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQ0MjZjY2Q5NjcwNGVhYjIyNGQ3MGM2Njk4EgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900\u0026amp;display=swap",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  1035
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=swap",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuBnJswreeCQI1SBG9bG87xvaacF8bTTEy2JPNPKT_r6f7SIQRsFIkSJPfNEUBPE2urDcg25xOdCHJe-CxG7kr0rEWWzO4EpOdoyqeena5q-CVZxBzZziXfJyOLsvJJk6k1FePuAfC564SL_oEwZobONNFQtvtB-N0BRH4U-fECu4UGk7g8_H0n9RPACwz8njiOCw0Bfw_JTuHvVGBXyNsmyNimoqs8a1oVk6Be4rJneik-snZtTrJ_R",
+                                           "file":  "assets/asset-004.bin",
+                                           "bytes":  34858
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuChtprByaM-ICnE08uQynseJvxJ_lUrP3cpyRBJrUoAHsSWN8BXo0MFKsiApjAFnjLcaxUglHwHv9OtrwUSBj3i1ux8Q8vBVmDb4vWSzay6P5ViuOi-BCtOBLuwlmneQpVfEj7YCBltx7OH8twfz0pK89qlTYUq2AACCer0vYCPeFqgWix5AJz_TF3Aff6mf8O8dEOPIsQH0AIzLlI4fo7yuwUKtBRF6QWO8mm1Sv337bqDkHuyjoHB",
+                                           "file":  "assets/asset-005.bin",
+                                           "bytes":  17037
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  9,
+                        "title":  "945 - Onboarding (Refined Glacier Light)",
+                        "screenId":  "1ba4e0920f004d8293d11362a4fae863",
+                        "folder":  "09-945-onboarding-refined-glacier-light-1ba4e092",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  5842,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLsTANDheadVt6awQOp6TBSbMfk3FPO1JxI-npEbB28zSkFe6S2vDR-5MAmSy7HVEuO3w8-OnH8PZ2FQwWqj7rYfs-CFNtvzDCSABqngyRU-UEx3Ftwft7yKCLfAaxiAu5yCehCSYfreo9w6n9jVszBfGDhqbpv-AMxOOcjlt96-4eqSsFT6VHgzfqrmh4vzHkRYMC9zRaCEbXn8Mbw43uiflpv2ONpOyApOHNak0a2ux4GLCaYNd961Z2o"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  16284,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQzZmZmZGNmYzcwMWE2MTFmOThlMmM4Mzc3EgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=block",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  418973
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  10,
+                        "title":  "945 - AI Adjustment Analysis",
+                        "screenId":  "cdef0de723ca47c5a7c9485397fd8336",
+                        "folder":  "10-945-ai-adjustment-analysis-cdef0de7",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  39014,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLu-hMgitmG9OdyjTVxZjjsC_Hx3DrnHZFSUD8gI4mYG-u0AGpJABzh3Hc7NJrSIP20gk9_bmIEXInpR6jg2gZsvDb-kaSxYizBTlTJlS7kOwqB-jPf7DC9kN4QmcXt2fI0rcaiw3LhZSSdhHQKC70KxkH3H_zL2nn792694D8wnKmKKlv5HUx_VH1eOOmg1y1ttCTFjcy4IfgpCVD71iXOtc-aLCM6RSmeEd1yjt1iDoiGfK91xAlakQHk"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  20626,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQzOGQ0MmNhMjkwOTI1YzdjMjU2MTAyMDhkEgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900\u0026amp;display=swap",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  1035
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=swap",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuAdQ-KXh4lb9cGXnUbxoO13FfQkjEfgMOEJd_veWXxfMSAf1Go90vuQDFGL1uv0Kp1DEyYgWWCblwPOMNCEglO7lyIXM0Wcc5jT-oH-Tre8GFsZyn8qm9Z89Tcz43KmQ1k-pChwtF9BMDBRNWp80luUng6XYiVXQPvSwkzeoJa3OM_2vP9cKafHFddwxjC4E8xNHs20gXOccTcF7Wz90kFzEaICoD9NUBhP04Qx9wlL5gkW22tajSOO",
+                                           "file":  "assets/asset-004.bin",
+                                           "bytes":  34335
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuDbJiau59uJSqIfkUfNUJgE27sHKvQaUmpI2CKoovu66LPY27cpyPfDDtxgJmuIP9ykzI8EvOUcxeaTPXI-6tcGel8kSkU1Lu30J4L9LkToDo36bXIV5wKdVYB2GO_dEfrqcq5mehiucaVNf-wYIc0W-z2lOoHam6Dd4lKEoyrVUOJiLTd0fwe463b-Lg9O6NoLI8pGwoZsVE-zAXw9lC_IEBa3Jpi_mFCiZ_cnrXlv_-7bIwT5TzsM",
+                                           "file":  "assets/asset-005.bin",
+                                           "bytes":  46809
+                                       }
+                                   ]
+                    },
+                    {
+                        "index":  11,
+                        "title":  "945 - Diet Tracker (Refined Glacier Light)",
+                        "screenId":  "c1f8ff1407fd444ab65c4e3a17c8189e",
+                        "folder":  "11-945-diet-tracker-refined-glacier-light-c1f8ff14",
+                        "width":  "2560",
+                        "height":  "2048",
+                        "deviceType":  "DESKTOP",
+                        "screenshot":  {
+                                           "file":  "screenshot.png",
+                                           "bytes":  36870,
+                                           "url":  "https://lh3.googleusercontent.com/aida/AP1WRLtgiZl_86G5T9VW7iZSuv5WjmB3ovL9l0-VcTvrnSVv0dUIXGCMrYpWkAKSx9skQuvhetrXyn8iuANJrezF9zsc91LQBlXjxvFYBLird56gWrDg67Yj8mJRyKApXLVX2bsH1CHjL3SI1cB3370-WDTNWUxt4dITeWkParjSSGnxRtDd-mZ16lTh0BYhPR2oPAFcdabR57nGEq7Vt7CnbQiK88nu1bvYOA34jgGNlil4X_3ym--4x0ctsQ"
+                                       },
+                        "html":  {
+                                     "file":  "screen.html",
+                                     "bytes":  31486,
+                                     "url":  "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1NjQzZmZlZmJmMDUwMzM4NDVlZDBmMmEyNTNmEgsSBxDA26S48hIYAZIBIwoKcHJvamVjdF9pZBIVQhM4NTYxODEwMzI4ODExODg5Mjk3\u0026filename=\u0026opi=89354086"
+                                 },
+                        "assets":  [
+                                       {
+                                           "url":  "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+                                           "file":  "assets/asset-001.bin",
+                                           "bytes":  418973
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800\u0026amp;display=swap",
+                                           "file":  "assets/asset-002.bin",
+                                           "bytes":  980
+                                       },
+                                       {
+                                           "url":  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1\u0026amp;display=swap",
+                                           "file":  "assets/asset-003.bin",
+                                           "bytes":  2444
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuC-9sFVM1A-cJchZxRI1GppkUHLMn9Fww20JoaCQ7ouOocsTrrDfyBucIpbFgJiZ50jYH61OxvlMXlZl2kftFXb7dffccTuhQbtj7k0z1uQcvZuqEb7CxRl8GSa1d2vCm0DnUSPTolDWlhHoymkE3XYAtSqVCMPQaRBcVb4RbEd-MgckZ_5_tkpg-BMMMZbIF8vx0x0pTIEZv30XA2mBJGJEW6JFc5CyuHmGRJcHG1WFrcpQaAahhqV",
+                                           "file":  "assets/asset-004.bin",
+                                           "bytes":  19913
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuAof4sXQA8P0udN6ijYjM1_7ZRR322jF8z5m3PRExTIZfV2J_adAzHePMkL2JMylaPsXCBB1xpxhIjIV6gzdQdygZpUKH5fahxPO6DgeejOiqpt-kqQB2eb0ulKxKNiviIOHJmwTBF3Kzwk_sAy4jbwTHLPG-yHmUuD7YEC6d-OhZNz_SQFGe-B7sk1t8IfvxEzNdjY-gUxtC1K1iaTj5UG7EW-q0oXuhpLAdjZaCkqDl8-10_HLcfA",
+                                           "file":  "assets/asset-005.bin",
+                                           "bytes":  31562
+                                       },
+                                       {
+                                           "url":  "https://lh3.googleusercontent.com/aida-public/AB6AXuD3aL1ba7jOcggmFWs5XLAyKXKYiGKk6dtiXXrHW6oskj9KV-tV-3GOkrrOVzzWL1QT5mTLhqeN5vDlXPVx3yzJ55Kw_zIB3HF49d6BK2JTQucrDYpu7HJDh0GJREaqZ_dmRKxaGzf0lhkLZLSsv9XhTx64i8rGRXuckb48Lz5TnDEfW9PdHOwb9YE8jPsZnfbHDx0i4JS_pP4CxjCPuII8kdogsxkOp89IeYc_rQ9capjs9VdPKmUC",
+                                           "file":  "assets/asset-006.bin",
+                                           "bytes":  38327
+                                       }
+                                   ]
+                    }
+                ]
+}

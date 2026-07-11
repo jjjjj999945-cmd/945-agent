@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet"/><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">try{
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#f6fafe",
+                        "on-error-container": "#93000a",
+                        "accent-teal": "#2DD4BF",
+                        "surface-dim": "#d6dade",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#eeeeff",
+                        "glass-border": "rgba(255, 255, 255, 0.4)",
+                        "on-tertiary-container": "#ffebe5",
+                        "surface-container-low": "#f0f4f8",
+                        "on-tertiary-fixed": "#380d00",
+                        "status-danger": "#FEE2E2",
+                        "tertiary": "#993100",
+                        "on-surface": "#171c1f",
+                        "inverse-primary": "#b8c4ff",
+                        "status-success-text": "#365314",
+                        "on-secondary-container": "#004b65",
+                        "surface-container": "#eaeef2",
+                        "on-primary-fixed-variant": "#0036bb",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#b8c4ff",
+                        "tertiary-fixed": "#ffdbcf",
+                        "surface-bright": "#f6fafe",
+                        "background": "#f6fafe",
+                        "inverse-on-surface": "#edf1f5",
+                        "on-error": "#ffffff",
+                        "glass-surface": "rgba(255, 255, 255, 0.65)",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed-dim": "#75d1ff",
+                        "on-background": "#171c1f",
+                        "surface-tint": "#094af0",
+                        "on-tertiary-fixed-variant": "#822800",
+                        "inverse-surface": "#2c3134",
+                        "error": "#ba1a1a",
+                        "on-secondary-fixed-variant": "#004d67",
+                        "outline-variant": "#c4c5d9",
+                        "surface-container-high": "#e4e9ed",
+                        "on-primary-fixed": "#001354",
+                        "on-surface-variant": "#434656",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed": "#001e2b",
+                        "primary-container": "#2a5bff",
+                        "secondary": "#006688",
+                        "primary": "#0041dc",
+                        "primary-fixed": "#dde1ff",
+                        "surface-variant": "#dfe3e7",
+                        "secondary-container": "#00c1fd",
+                        "status-success": "#D9F99D",
+                        "status-warning": "#FEF08A",
+                        "surface-container-highest": "#dfe3e7",
+                        "tertiary-fixed-dim": "#ffb59b",
+                        "outline": "#747688",
+                        "tertiary-container": "#c24000",
+                        "secondary-fixed": "#c2e8ff",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-md": "1rem",
+                        "container-margin": "2rem",
+                        "gutter": "1.5rem",
+                        "stack-sm": "0.5rem",
+                        "card-padding": "1.5rem",
+                        "stack-lg": "2rem"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Inter"],
+                        "body-secondary": ["Inter"],
+                        "body-primary": ["Inter"],
+                        "data-mono": ["Inter"],
+                        "title-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "display-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["11px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-secondary": ["13px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "body-primary": ["15px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "data-mono": ["16px", { "lineHeight": "1", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+                        "title-md": ["18px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600" }]
+                    }
+                },
+            },
+        }
+    }catch(_e){}</script><style>
+        .glass-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(240, 244, 248, 0.6) 100%);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+        }
+        
+        .wavy-bg {
+            background-color: #f6fafe;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 65, 220, 0.04), transparent 40%),
+                radial-gradient(circle at 85% 30%, rgba(45, 212, 191, 0.04), transparent 40%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-input {
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(12px);
+            color: #171c1f;
+        }
+        
+        .glass-input:focus {
+            outline: none;
+            border-color: #0041dc;
+            box-shadow: 0 0 0 2px rgba(0, 65, 220, 0.1);
+        }
+    </style></head><body class="wavy-bg text-on-surface font-body-primary min-h-screen flex flex-col md:flex-row antialiased selection:bg-primary-container selection:text-on-primary-container overflow-x-hidden">
+<!-- Desktop SideNav -->
+<nav class="hidden md:flex fixed left-0 top-0 h-screen z-50 w-20 flex-col items-center py-6 border-r border-glass-border backdrop-blur-[24px] bg-surface-container-lowest/40">
+<!-- Brand -->
+<div class="mb-stack-lg">
+<span class="font-headline-lg text-headline-lg font-black text-primary">9</span>
+</div>
+<!-- Main Links -->
+<div class="flex-1 w-full flex flex-col items-center gap-stack-sm">
+<a class="w-12 h-12 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl duration-200 Active: scale-95" href="#" title="Today">
+<span class="material-symbols-outlined">calendar_today</span>
+</a>
+<a class="w-12 h-12 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl duration-200 Active: scale-95" href="#" title="Workout">
+<span class="material-symbols-outlined">fitness_center</span>
+</a>
+<a class="w-12 h-12 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl duration-200 Active: scale-95" href="#" title="Diet">
+<span class="material-symbols-outlined">restaurant</span>
+</a>
+<a class="w-12 h-12 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl duration-200 Active: scale-95" href="#" title="Metrics">
+<span class="material-symbols-outlined">monitoring</span>
+</a>
+<a class="w-12 h-12 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl duration-200 Active: scale-95" href="#" title="Advice">
+<span class="material-symbols-outlined">auto_awesome</span>
+</a>
+<a class="w-12 h-12 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl duration-200 Active: scale-95" href="#" title="Agent">
+<span class="material-symbols-outlined">smart_toy</span>
+</a>
+<a class="w-12 h-12 flex items-center justify-center bg-primary/10 text-primary border border-primary/20 rounded-xl shadow-sm scale-105 group transition-all" href="#" title="Settings">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+</a>
+</div>
+<!-- Footer Link -->
+<div class="mt-auto">
+<a class="w-12 h-12 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl duration-200" href="#" title="Profile">
+<img class="w-8 h-8 rounded-full object-cover ring-2 ring-glass-border" data-alt="A small circular avatar showing a professional but approachable user profile photo in a light, bright setting. The subject is slightly smiling, reflecting a positive, health-oriented mindset." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZZ8clIcHsc9cMqo0FWDFWeJkXiSRIrNLyf4iD84cjOkqGuNwLo4osK2VaPwhu4yJMqFMOKpj9oMZGANDByp7Ns7SdnJrDxtEheQi_-rsYWNBtx0ltS53e0cTPx5j6gUimdIKhyXh3uv_z07mofWPVtsP0uldNt0nciFYfUjvTPi-xJOHX2_vRuCPYn3O_tIMPrCyWQYWxfCBG51f1N5EQjz25EWTxq8La2aQppsJEafyVix1qpXEJ"/>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-20 flex flex-col min-h-screen relative z-10">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-8 py-4 sticky top-0 z-40 backdrop-blur-md bg-surface-container-lowest/20 border-b border-glass-border">
+<div>
+<h1 class="font-headline-lg text-headline-lg font-bold text-on-surface hidden md:block tracking-tight">945 Workbench</h1>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-on-surface block md:hidden tracking-tight">945</h1>
+</div>
+<!-- Mobile Top Nav Links (Hidden on mobile per rules, using bottom nav if needed, but this is a top-level dest) -->
+<div class="hidden md:flex gap-6 items-center">
+<a class="text-on-surface-variant hover:text-on-surface font-title-md text-title-md px-2 py-1 hover:opacity-80 transition-opacity" href="#">Dashboard</a>
+<a class="text-on-surface-variant hover:text-on-surface font-title-md text-title-md px-2 py-1 hover:opacity-80 transition-opacity" href="#">Analytics</a>
+<a class="text-on-surface-variant hover:text-on-surface font-title-md text-title-md px-2 py-1 hover:opacity-80 transition-opacity" href="#">Schedule</a>
+<a class="text-primary border-b-2 border-primary font-bold font-title-md text-title-md px-2 py-1" href="#">Settings</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-on-surface hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-on-surface hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined">history_edu</span>
+</button>
+<button class="hidden md:flex items-center gap-2 bg-primary/10 text-primary border border-primary/30 px-5 py-2 rounded-full font-label-caps text-label-caps uppercase hover:bg-primary/20 transition-all shadow-sm">
+<span class="material-symbols-outlined text-[16px]">sync</span>
+                    Sync Agent
+                </button>
+<img class="w-10 h-10 rounded-full object-cover border border-glass-border md:hidden" data-alt="User profile avatar showing a fit individual in athletic wear, well lit against a neutral background, conveying health and vitality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfKxaNgMeDXoBJDlF-RHZiXyZUAmP-3oyuRK3hVXwL5mCDwePpqvXMMSwlC2GY3lC3q_NLTt69Qnh5jM72vS2pi6vbuBoKV_IzRFby0fXuQtcaXbRdHoSpmO5CM0nKbWqfDjkMtrzbjJizeGTmbssb9fS372VQrEWlQq01jftjUZrW5mSHg1EH6Hyj8V2QbO_RTnqLkHmexwIvLHrqtceRxZL9vSpeitLM-2u8IS2_13aYGdK2HWLW"/>
+</div>
+</header>
+<!-- Canvas -->
+<div class="flex-1 p-gutter max-w-7xl mx-auto w-full flex flex-col gap-gutter pb-32 md:pb-gutter pt-4">
+<!-- Header -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-stack-md">
+<div>
+<h2 class="font-display-lg text-headline-lg-mobile md:text-display-lg text-on-surface mb-1">Settings &amp; Preferences</h2>
+<p class="font-body-primary text-body-primary text-on-surface-variant">Manage your profile, training parameters, and agent behavior.</p>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- Column 1: Profile & Core -->
+<div class="md:col-span-8 flex flex-col gap-gutter">
+<!-- Profile Section -->
+<section class="glass-card rounded-2xl p-card-padding flex flex-col gap-stack-md relative overflow-hidden">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">person</span>
+<h2 class="font-title-md text-title-md text-on-surface">User Profile</h2>
+</div>
+<div class="flex flex-col md:flex-row gap-stack-lg items-start">
+<div class="flex flex-col items-center gap-3">
+<div class="relative group cursor-pointer">
+<img class="w-24 h-24 rounded-full border border-glass-border object-cover transition-transform group-hover:scale-105 shadow-sm" data-alt="A highly detailed, professional headshot of a fitness enthusiast, softly lit to match a pristine, light-mode glassmorphism interface. The avatar sits within a circular frame, radiating health and focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLOPIieJtXCz3sgW5oJz75E2pgTJBYIl_DTQQkzCLjC5grVoJoymfOBbusMsiVg029O99O0LBECTAuWFSq4hPVz-kDXn8Yk4fesazzIRaXjWsLUfVQ3DuM_FbhbghTNYLpiNhLPMDxU-B8fTqaW246E-oFjI54v5x-KdSbe_AhY_qjaQjTuoT29O63ca4RJIoHQrIoUZDMTF2G0Fo4incdFNUy730fwMKmImRtDbx7AFOOOx1EXjAg"/>
+<div class="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+<span class="material-symbols-outlined text-white">photo_camera</span>
+</div>
+</div>
+<span class="font-label-caps text-label-caps text-primary cursor-pointer hover:underline">Change Photo</span>
+</div>
+<div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-stack-md w-full">
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Full Name</label>
+<input class="glass-input w-full rounded-lg px-4 py-2.5 font-body-primary text-on-surface focus:ring-0" type="text" value="Alex Rivera"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Email Address</label>
+<input class="glass-input w-full rounded-lg px-4 py-2.5 font-body-primary text-on-surface focus:ring-0" type="email" value="alex.rivera@example.com"/>
+</div>
+<div class="flex flex-col gap-1 md:col-span-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Bio / Goal Statement</label>
+<textarea class="glass-input w-full rounded-lg px-4 py-2.5 font-body-primary text-on-surface focus:ring-0 resize-none h-20">Preparing for the Berlin Marathon while maintaining upper body strength.</textarea>
+</div>
+</div>
+</div>
+</section>
+<!-- Training & Goals -->
+<section class="glass-card rounded-2xl p-card-padding flex flex-col gap-stack-md">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">flag</span>
+<h2 class="font-title-md text-title-md text-on-surface">Training Goals</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-stack-md">
+<div class="glass-input rounded-xl p-stack-md flex flex-col items-center justify-center gap-2 cursor-pointer bg-primary/10 border-primary/30 transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl">directions_run</span>
+<span class="font-data-mono text-data-mono text-primary text-center">Endurance</span>
+<div class="w-2 h-2 rounded-full bg-primary mt-1 shadow-[0_2px_10px_rgba(0,65,220,0.4)]"></div>
+</div>
+<div class="glass-input rounded-xl p-stack-md flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-surface-container-lowest/50 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl">fitness_center</span>
+<span class="font-data-mono text-data-mono text-on-surface text-center">Hypertrophy</span>
+</div>
+<div class="glass-input rounded-xl p-stack-md flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-surface-container-lowest/50 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl">monitor_weight</span>
+<span class="font-data-mono text-data-mono text-on-surface text-center">Weight Loss</span>
+</div>
+</div>
+<div class="flex flex-col gap-stack-sm mt-4">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Weekly Volume Target (Hours)</label>
+<div class="relative w-full h-2 bg-surface-container-lowest rounded-full overflow-hidden border border-glass-border/50">
+<div class="absolute h-full bg-primary rounded-full shadow-[0_2px_10px_rgba(0,65,220,0.4)]" style="width: 40%"></div>
+<input class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" max="20" min="1" type="range" value="8"/>
+</div>
+<div class="flex justify-between font-label-caps text-label-caps text-on-surface-variant mt-1">
+<span class="">1 hr</span>
+<span class="text-primary font-bold">8 hrs</span>
+<span class="">20 hrs</span>
+</div>
+</div>
+</section>
+<!-- Action Buttons -->
+<div class="flex justify-end gap-stack-md mt-4">
+<button class="px-6 py-2.5 rounded-full glass-input font-body-primary text-body-primary font-medium text-on-surface hover:bg-surface-container-lowest/50 transition-colors">Cancel</button>
+<button class="px-6 py-2.5 rounded-full bg-primary text-on-primary font-body-primary text-body-primary font-medium hover:bg-primary-fixed-dim transition-all shadow-[0_4px_15px_rgba(0,65,220,0.2)]">Save Changes</button>
+</div>
+</div>
+<!-- Column 2: Preferences & Agent -->
+<div class="md:col-span-4 flex flex-col gap-gutter">
+<!-- Preferences -->
+<section class="glass-card rounded-2xl p-card-padding flex flex-col gap-stack-md">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">tune</span>
+<h2 class="font-title-md text-title-md text-on-surface">Preferences</h2>
+</div>
+<div class="flex flex-col gap-stack-md">
+<div class="flex justify-between items-center py-2 border-b border-glass-border/50">
+<div>
+<div class="font-body-primary text-body-primary text-on-surface font-medium">Metric System</div>
+<div class="font-body-secondary text-body-secondary text-on-surface-variant">Use kg and km</div>
+</div>
+<div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-primary appearance-none cursor-pointer z-10 top-0 opacity-0" id="metric-toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-dim cursor-pointer peer-checked:bg-primary" for="metric-toggle"></label>
+</div>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-glass-border/50">
+<div>
+<div class="font-body-primary text-body-primary text-on-surface font-medium">Push Notifications</div>
+<div class="font-body-secondary text-body-secondary text-on-surface-variant">Workout reminders</div>
+</div>
+<div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-primary appearance-none cursor-pointer z-10 top-0 opacity-0" id="notif-toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-dim cursor-pointer peer-checked:bg-primary" for="notif-toggle"></label>
+</div>
+</div>
+<div class="flex justify-between items-center py-2">
+<div>
+<div class="font-body-primary text-body-primary text-on-surface font-medium">Public Profile</div>
+<div class="font-body-secondary text-body-secondary text-on-surface-variant">Share stats with friends</div>
+</div>
+<div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-primary appearance-none cursor-pointer z-10 top-0 opacity-0" id="public-toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-dim cursor-pointer peer-checked:bg-primary" for="public-toggle"></label>
+</div>
+</div>
+</div>
+</section>
+<!-- Agent Configuration -->
+<section class="glass-card rounded-2xl p-card-padding flex flex-col gap-stack-md border-l-[3px] border-l-primary relative overflow-hidden h-full">
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="flex items-center gap-3 mb-2 relative z-10">
+<div class="w-10 h-10 rounded-xl bg-primary/20 text-primary border border-primary/30 flex items-center justify-center">
+<span class="material-symbols-outlined">smart_toy</span>
+</div>
+<h2 class="font-title-md text-title-md font-semibold text-on-surface">Agent Tone</h2>
+</div>
+<p class="font-body-secondary text-body-secondary text-on-surface-variant mb-2 relative z-10">Adjust how the 945 AI communicates insights and advice to you.</p>
+<div class="flex flex-col gap-2 relative z-10">
+<label class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-lowest/50 cursor-pointer transition-colors border border-transparent">
+<input class="text-primary focus:ring-primary/50" name="agent_tone" type="radio" value="clinical"/>
+<span class="font-body-primary text-body-primary text-on-surface">Clinical &amp; Precise (Data heavy)</span>
+</label>
+<label class="flex items-center gap-3 p-3 rounded-xl bg-surface-container-lowest/60 cursor-pointer transition-colors border border-glass-border shadow-sm">
+<input checked="" class="text-primary focus:ring-primary/50" name="agent_tone" type="radio" value="encouraging"/>
+<span class="font-body-primary text-body-primary font-medium text-primary">Encouraging &amp; Coach-like</span>
+</label>
+<label class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-lowest/50 cursor-pointer transition-colors border border-transparent">
+<input class="text-primary focus:ring-primary/50" name="agent_tone" type="radio" value="tough"/>
+<span class="font-body-primary text-body-primary text-on-surface">Tough Love (Strict adherence)</span>
+</label>
+</div>
+</section>
+</div>
+</div>
+</div>
+</main>
+<!-- Mobile Bottom Navigation (Visible only on small screens) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full h-20 bg-surface-container-lowest/80 backdrop-blur-xl border-t border-glass-border flex justify-around items-center px-4 z-50 pb-safe">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-on-surface transition-colors" href="#">
+<div class="w-12 h-8 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">calendar_today</span>
+</div>
+<span class="font-label-caps text-[10px] uppercase font-bold">Today</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-on-surface transition-colors" href="#">
+<div class="w-12 h-8 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">fitness_center</span>
+</div>
+<span class="font-label-caps text-[10px] uppercase font-bold">Workout</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-on-surface transition-colors" href="#">
+<div class="w-12 h-8 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">auto_awesome</span>
+</div>
+<span class="font-label-caps text-[10px] uppercase font-bold">Agent</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<div class="w-12 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+</div>
+<span class="font-label-caps text-[10px] uppercase font-bold">Settings</span>
+</a>
+</nav>
+<script>
+        // Simple logic to add a slight glow effect on cards when hovered
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.borderColor = 'rgba(0, 65, 220, 0.3)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+            });
+        });
+    </script>
+</body></html>
