@@ -119,6 +119,117 @@ body {
   color: #434656;
 }
 
+.business-page {
+  display: grid;
+  gap: 24px;
+}
+
+.page-header {
+  display: grid;
+  gap: 8px;
+}
+
+.page-header p {
+  margin: 0;
+  color: #0041dc;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1;
+}
+
+.page-header span {
+  color: #434656;
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.business-panel {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  border: 1px solid rgba(196, 197, 217, 0.5);
+  border-radius: 24px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+.business-panel.compact {
+  gap: 12px;
+}
+
+.business-panel label {
+  display: grid;
+  gap: 6px;
+  color: #6b7280;
+  font: 700 12px/1.2 Inter, sans-serif;
+}
+
+.business-panel input,
+.business-panel select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(196, 197, 217, 0.75);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: white;
+  color: #171c1f;
+  font: 600 14px/1.2 Inter, sans-serif;
+}
+
+.business-panel button {
+  width: fit-content;
+  border: 0;
+  border-radius: 999px;
+  background: #0041dc;
+  padding: 10px 14px;
+  color: white;
+  font: 800 13px/1 Inter, sans-serif;
+  cursor: pointer;
+}
+
+.business-panel button.ghost,
+.business-panel button:disabled {
+  border: 1px solid rgba(0, 65, 220, 0.18);
+  background: white;
+  color: #0036bb;
+}
+
+.business-panel button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.agent-thread {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-bubble {
+  display: grid;
+  gap: 4px;
+  width: fit-content;
+  max-width: min(680px, 100%);
+  border: 1px solid rgba(196, 197, 217, 0.5);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #f6fafe;
+}
+
+.agent-bubble.agent {
+  background: #eef4ff;
+  color: #0036bb;
+}
+
 .today-page {
   display: grid;
   gap: 24px;
@@ -444,6 +555,7 @@ body {
   }
 
   .metric-grid,
+  .page-grid,
   .today-layout,
   .checkin-grid {
     grid-template-columns: 1fr;

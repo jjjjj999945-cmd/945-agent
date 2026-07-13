@@ -136,7 +136,7 @@ export function StitchPrototype() {
 
   return (
     <>
-      <div className="prototype-reference-badge">Stitch reference</div>
+      <div className="prototype-reference-badge">Stitch reference: {current.shortTitle}</div>
       <div className="prototype-switcher" aria-label="Stitch prototype screens">
         <select
           value={current.route}

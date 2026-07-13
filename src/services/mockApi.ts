@@ -3,18 +3,27 @@ import {
   TODAY_DATE,
   createInitialTodayData,
   demoAdvice,
+  demoBodyMetrics,
   demoPlan,
   demoProfile,
-  demoUser
+  demoUser,
+  demoWeeklyAdvice
 } from "../data/demoData";
 import type {
+  AdvicePageData,
   AgentMessage,
+  AgentAdvice,
+  BodyMetric,
+  BodyPageData,
   DailyCheckin,
+  DietPageData,
   FoodLog,
   MealLog,
+  SettingsData,
   TodayResponseData,
   User,
   UserProfile,
+  WorkoutPageData,
   WorkoutLog
 } from "../types/domain";
 import { fail, ok, type ApiResponse } from "./apiTypes";
@@ -35,6 +44,8 @@ let dailyCheckins: DailyCheckin[] = [];
 let workoutLogs: WorkoutLog[] = [];
 let mealLogs: MealLog[] = [];
 let agentMessages: AgentMessage[] = [];
+let bodyMetrics: BodyMetric[] = [...demoBodyMetrics];
+let adviceItems: AgentAdvice[] = [demoAdvice, demoWeeklyAdvice];
 
 function timestamp() {
   return new Date().toISOString();
@@ -125,6 +136,134 @@ export const api = {
     return ok({
       ...todayData,
       date: input.date ?? TODAY_DATE
+    });
+  },
+
+  async getWorkout(user_id = DEMO_USER_ID): Promise<ApiResponse<WorkoutPageData>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+
+    const plannedSets = demoPlan.workout_plan.days.reduce(
+      (sum, day) => sum + day.exercises.reduce((inner, exercise) => inner + exercise.sets, 0),
+      0
+    );
+
+    return ok({
+      plan: demoPlan,
+      selected_day: demoPlan.workout_plan.days[0],
+      logs: workoutLogs,
+      completion_rate: todayData.status_summary.weekly_workouts_completed / todayData.status_summary.weekly_workouts_planned,
+      weekly_volume_sets: plannedSets
+    });
+  },
+
+  async getDiet(user_id = DEMO_USER_ID): Promise<ApiResponse<DietPageData>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+
+    return ok({
+      plan: demoPlan,
+      selected_day: demoPlan.meal_plan.days[0],
+      logs: mealLogs,
+      targets: demoPlan.meal_plan.daily_targets
+    });
+  },
+
+  async getBodyMetrics(user_id = DEMO_USER_ID): Promise<ApiResponse<BodyPageData>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+
+    const sorted = [...bodyMetrics].sort((a, b) => a.date.localeCompare(b.date));
+    const latest = sorted[sorted.length - 1];
+    const first = sorted[0] ?? latest;
+
+    return ok({
+      profile: currentProfile,
+      metrics: sorted,
+      latest_metric: latest,
+      trend_7_day_kg: latest.weight_kg - first.weight_kg,
+      trend_30_day_kg: latest.weight_kg - first.weight_kg,
+      trend_90_day_kg: latest.weight_kg - first.weight_kg
+    });
+  },
+
+  async saveBodyMetric(input: Omit<BodyMetric, "metric_id" | "created_at">): Promise<ApiResponse<BodyMetric>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+
+    const saved: BodyMetric = {
+      ...input,
+      metric_id: `metric-${input.date}-${Date.now()}`,
+      created_at: timestamp()
+    };
+
+    bodyMetrics = [...bodyMetrics.filter((metric) => !(metric.user_id === input.user_id && metric.date === input.date)), saved];
+    return ok(saved);
+  },
+
+  async getAdvice(user_id = DEMO_USER_ID): Promise<ApiResponse<AdvicePageData>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+
+    return ok({
+      daily: adviceItems.find((item) => item.type === "daily_advice") ?? null,
+      weekly: adviceItems.find((item) => item.type === "weekly_summary") ?? null,
+      adjustments: adviceItems.filter((item) => item.type === "plan_adjustment")
+    });
+  },
+
+  async updateAdviceStatus(input: {
+    user_id: string;
+    advice_id: string;
+    accepted_status: AgentAdvice["accepted_status"];
+  }): Promise<ApiResponse<AgentAdvice>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+
+    const existing = adviceItems.find((item) => item.advice_id === input.advice_id);
+    if (!existing) return fail("NOT_FOUND", "Advice not found.", input);
+
+    const updated = { ...existing, accepted_status: input.accepted_status };
+    adviceItems = adviceItems.map((item) => (item.advice_id === input.advice_id ? updated : item));
+    return ok(updated);
+  },
+
+  async getSettings(user_id = DEMO_USER_ID): Promise<ApiResponse<SettingsData>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+
+    return ok({
+      user: currentUser,
+      profile: currentProfile,
+      language: currentUser.locale,
+      unit_system: currentUser.unit_system
+    });
+  },
+
+  async saveSettings(input: Partial<SettingsData> & { user_id: string }): Promise<ApiResponse<SettingsData>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+
+    currentUser = {
+      ...currentUser,
+      locale: input.language ?? currentUser.locale,
+      unit_system: input.unit_system ?? currentUser.unit_system,
+      updated_at: timestamp()
+    };
+
+    if (input.profile) {
+      currentProfile = {
+        ...currentProfile,
+        ...input.profile,
+        updated_at: timestamp()
+      };
+    }
+
+    return ok({
+      user: currentUser,
+      profile: currentProfile,
+      language: currentUser.locale,
+      unit_system: currentUser.unit_system
     });
   },
 

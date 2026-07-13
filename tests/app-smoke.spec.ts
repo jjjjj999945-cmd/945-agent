@@ -16,8 +16,8 @@ test.describe("945 business Today page smoke QA", () => {
     await firstMealConfirm.click();
     await expect(page.getByText("1548 / 2300")).toBeVisible();
 
-    await page.getByLabel("Weight kg").fill("75.4");
-    await page.getByLabel("Sleep h").fill("7.5");
+    await page.getByLabel("体重 kg").fill("75.4");
+    await page.getByLabel("睡眠小时").fill("7.5");
     await page.getByRole("button", { name: "保存" }).click();
     await expect(page.getByText("已保存").first()).toBeVisible();
 
@@ -25,10 +25,10 @@ test.describe("945 business Today page smoke QA", () => {
       .getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。")
       .fill("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。");
     await page.getByRole("button", { name: "发送" }).click();
-    await expect(page.getByRole("heading", { name: "Confirm Agent Draft" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "确认 Agent 草稿" })).toBeVisible();
     await expect(page.getByText("exercise_name")).toBeVisible();
     await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
-    await expect(page.getByRole("heading", { name: "Confirm Agent Draft" })).toBeHidden();
+    await expect(page.getByRole("heading", { name: "确认 Agent 草稿" })).toBeHidden();
 
     await page.getByRole("combobox").selectOption("en-US");
     await expect(page.getByRole("button", { name: "Today", exact: true })).toBeVisible();

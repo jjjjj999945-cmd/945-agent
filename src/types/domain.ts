@@ -201,7 +201,7 @@ export type AgentAdvice = {
   related_data: string[];
   recommended_actions: string[];
   risk_level: "low" | "medium" | "high";
-  accepted_status: "pending" | "accepted" | "dismissed";
+  accepted_status: "pending" | "accepted" | "dismissed" | "deferred";
   created_at: string;
 };
 
@@ -229,4 +229,41 @@ export type TodayResponseData = {
   today_meals: PlannedMeal[];
   daily_checkin: DailyCheckin | null;
   latest_advice: AgentAdvice | null;
+};
+
+export type WorkoutPageData = {
+  plan: Plan;
+  selected_day: WorkoutPlanDay;
+  logs: WorkoutLog[];
+  completion_rate: number;
+  weekly_volume_sets: number;
+};
+
+export type DietPageData = {
+  plan: Plan;
+  selected_day: MealPlanDay;
+  logs: MealLog[];
+  targets: MacroTargets;
+};
+
+export type BodyPageData = {
+  profile: UserProfile;
+  metrics: BodyMetric[];
+  latest_metric: BodyMetric;
+  trend_7_day_kg: number;
+  trend_30_day_kg: number;
+  trend_90_day_kg: number;
+};
+
+export type AdvicePageData = {
+  daily: AgentAdvice | null;
+  weekly: AgentAdvice | null;
+  adjustments: AgentAdvice[];
+};
+
+export type SettingsData = {
+  user: User;
+  profile: UserProfile;
+  language: Locale;
+  unit_system: UnitSystem;
 };
