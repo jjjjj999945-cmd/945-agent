@@ -1,4 +1,4 @@
-# 945 API Contract
+# 945 API 接口契约
 
 版本：v0.1  
 日期：2026-07-11  
@@ -10,7 +10,7 @@
 
 ## 2. 通用约定
 
-Base URL:
+基础路径：
 
 ```text
 /api
@@ -82,7 +82,7 @@ type AdviceType = "daily_advice" | "weekly_summary" | "plan_adjustment" | "safet
 
 返回当前本地 demo 用户。
 
-Response:
+响应：
 
 ```json
 {
@@ -100,7 +100,7 @@ Response:
 
 创建或覆盖 demo 用户资料。
 
-Request:
+请求：
 
 ```json
 {
@@ -123,7 +123,7 @@ Request:
 }
 ```
 
-Response:
+响应：
 
 ```json
 {
@@ -151,7 +151,7 @@ Response:
 
 生成训练计划和饮食计划。
 
-Request:
+请求：
 
 ```json
 {
@@ -163,7 +163,7 @@ Request:
 }
 ```
 
-Response:
+响应：
 
 ```json
 {
@@ -243,7 +243,7 @@ Response:
 
 用户确认后调整计划。
 
-Request:
+请求：
 
 ```json
 {
@@ -260,7 +260,7 @@ Request:
 
 返回今日页面所需聚合数据。
 
-Response:
+响应：
 
 ```json
 {
@@ -294,7 +294,7 @@ Response:
 
 ### POST `/api/workout-logs`
 
-Request:
+请求：
 
 ```json
 {
@@ -332,7 +332,7 @@ Request:
 
 确认计划餐完成。
 
-Request:
+请求：
 
 ```json
 {
@@ -347,7 +347,7 @@ Request:
 
 手动记录饮食。
 
-Request:
+请求：
 
 ```json
 {
@@ -373,7 +373,7 @@ Request:
 
 ### POST `/api/body-metrics`
 
-Request:
+请求：
 
 ```json
 {
@@ -388,7 +388,7 @@ Request:
 
 ### POST `/api/daily-checkins`
 
-Request:
+请求：
 
 ```json
 {
@@ -410,7 +410,7 @@ Request:
 
 根据近期记录生成每日建议。
 
-Request:
+请求：
 
 ```json
 {
@@ -419,7 +419,7 @@ Request:
 }
 ```
 
-Response:
+响应：
 
 ```json
 {
@@ -442,7 +442,7 @@ Response:
 
 Agent 对话。
 
-Request:
+请求：
 
 ```json
 {
@@ -456,7 +456,7 @@ Request:
 }
 ```
 
-Response:
+响应：
 
 ```json
 {
@@ -478,4 +478,3 @@ Response:
   "error": null
 }
 ```
-

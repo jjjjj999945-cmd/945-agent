@@ -1,4 +1,4 @@
-# 945 Data Model
+# 945 数据模型
 
 版本：v0.1  
 日期：2026-07-11  
@@ -17,7 +17,7 @@
 - 时间戳使用 ISO 8601。
 - 单位字段显式写出单位，例如 `weight_kg`、`height_cm`。
 
-## 3. Collections / Stores
+## 3. 数据集合 / 存储
 
 MVP 需要这些数据集合：
 
@@ -44,7 +44,7 @@ type User = {
 };
 ```
 
-MVP demo user:
+MVP demo 用户：
 
 ```json
 {
@@ -295,4 +295,3 @@ type RecordDraft = {
   payload: Record<string, unknown>;
 };
 ```
-

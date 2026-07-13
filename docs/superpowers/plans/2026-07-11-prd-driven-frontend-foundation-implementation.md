@@ -1,14 +1,14 @@
 # 945 PRD 驱动前端基础实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **给 agentic worker：** 必须使用子技能：推荐 `superpowers:subagent-driven-development`，或使用 `superpowers:executing-plans`，按任务逐步执行本计划。步骤使用 checkbox（`- [ ]`）语法跟踪。
 
-**Goal:** 将当前 Stitch 包装层迁移为 PRD 驱动的真实 React 前端基础，保留 Stitch 到 `/prototype/*` 作为视觉参考。
+**目标：** 将当前 Stitch 包装层迁移为 PRD 驱动的真实 React 前端基础，保留 Stitch 到 `/prototype/*` 作为视觉参考。
 
-**Architecture:** 主产品入口由 `src/App.tsx` 和真实 route config 驱动，渲染 `AppShell` 与 `src/pages/*` 页面骨架。Stitch 原型保留在 prototype 命名空间，不再作为主产品路由。Mock API 使用内存状态模拟未来后端边界，页面通过 mock API 呈现和更新 demo 数据。
+**架构：** 主产品入口由 `src/App.tsx` 和真实 route config 驱动，渲染 `AppShell` 与 `src/pages/*` 页面骨架。Stitch 原型保留在 prototype 命名空间，不再作为主产品路由。Mock API 使用内存状态模拟未来后端边界，页面通过 mock API 呈现和更新 demo 数据。
 
-**Tech Stack:** Vite, React 19, TypeScript 5.8, local CSS, local mock data, no new routing/state/UI/chart dependency.
+**技术栈：** Vite、React 19、TypeScript 5.8、本地 CSS、本地 mock 数据，不新增 routing、状态管理、UI 或图表依赖。
 
-## Global Constraints
+## 全局约束
 
 - `PRD.md` 是产品单一事实来源。
 - `docs/FRONTEND_REQUIREMENTS.md` 是前端细化依据；与 `PRD.md` 冲突时以 `PRD.md` 为准。
@@ -24,9 +24,9 @@
 
 ---
 
-## File Structure
+## 文件结构
 
-### Create
+### 创建
 
 ```text
 src/routes.ts
@@ -44,7 +44,7 @@ src/prototype/stitchDom.ts
 docs/PRD_FRONTEND_FOUNDATION_QA.md
 ```
 
-### Modify
+### 修改
 
 ```text
 src/App.tsx
@@ -60,7 +60,7 @@ src/types/domain.ts
 src/styles.css
 ```
 
-### Preserve
+### 保留
 
 ```text
 stitch-reference/
@@ -71,20 +71,20 @@ design-qa.md
 
 ---
 
-## Task 1: 真实路由配置和 App 入口
+## 任务 1：真实路由配置和 App 入口
 
-**Files:**
-- Create: `src/routes.ts`
-- Modify: `src/App.tsx`
-- Modify: `src/components/business/AppShell.tsx`
+**文件：**
+- 创建：`src/routes.ts`
+- 修改：`src/App.tsx`
+- 修改：`src/components/business/AppShell.tsx`
 
-**Interfaces:**
-- Produces: `RouteId`, `AppRoute`, `primaryRoutes`, `prototypeRoutes`, `getRouteByPath(pathname)`
-- Consumes: existing `Locale`, `AppShell`, `TodayPage`, `PrototypeRouter`
+**接口：**
+- 产出：`RouteId`、`AppRoute`、`primaryRoutes`、`prototypeRoutes`、`getRouteByPath(pathname)`
+- 消费：现有 `Locale`、`AppShell`、`TodayPage`、`PrototypeRouter`
 
-- [ ] **Step 1: 创建 route config**
+- [ ] **步骤 1：创建 route config**
 
-Create `src/routes.ts`:
+创建 `src/routes.ts`：
 
 ```ts
 export type RouteId =
@@ -134,7 +134,7 @@ export function isPrototypePath(pathname: string) {
 }
 ```
 
-- [ ] **Step 2: 更新 App 入口**
+- [ ] **步骤 2：更新 App 入口**
 
 Modify `src/App.tsx` so main product routes are primary and `/prototype/*` renders Stitch:
 
@@ -207,7 +207,7 @@ function renderPage(routeId: RouteId, locale: Locale, navigate: (path: string) =
 }
 ```
 
-- [ ] **Step 3: 更新 AppShell  props 和导航**
+- [ ] **步骤 3：更新 AppShell props 和导航**
 
 Modify `src/components/business/AppShell.tsx` to use `primaryRoutes` and `onNavigate`:
 
@@ -256,39 +256,39 @@ export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, chil
 }
 ```
 
-- [ ] **Step 4: 验证构建**
+- [ ] **步骤 4：验证构建**
 
-Run: `npm run build`
+运行：`npm run build`
 
-Expected: TypeScript and Vite build pass.
+预期：TypeScript 和 Vite 构建通过。
 
 ---
 
-## Task 2: Prototype 命名空间迁移
+## 任务 2：Prototype 命名空间迁移
 
-**Files:**
-- Create: `src/prototype/StitchPrototype.tsx`
-- Create: `src/prototype/screens.ts`
-- Create: `src/prototype/stitchDom.ts`
-- Modify: `src/pages/PrototypeRouter.tsx`
-- Modify: `src/screens.ts`
+**文件：**
+- 创建：`src/prototype/StitchPrototype.tsx`
+- 创建：`src/prototype/screens.ts`
+- 创建：`src/prototype/stitchDom.ts`
+- 修改：`src/pages/PrototypeRouter.tsx`
+- 修改：`src/screens.ts`
 
-**Interfaces:**
-- Produces: `/prototype/*` Stitch reference routes
-- Consumes: existing Stitch `screens` metadata and HTML extraction logic
+**接口：**
+- 产出：`/prototype/*` Stitch reference routes
+- 消费：现有 Stitch `screens` metadata 和 HTML extraction logic
 
-- [ ] **Step 1: 移动 Stitch screen metadata**
+- [ ] **步骤 1：移动 Stitch screen metadata**
 
-Move existing `src/screens.ts` contents to `src/prototype/screens.ts`. Leave `src/screens.ts` as a compatibility re-export:
+将现有 `src/screens.ts` 内容移动到 `src/prototype/screens.ts`。保留 `src/screens.ts` 作为兼容 re-export：
 
 ```ts
 export { screens } from "./prototype/screens";
 export type { StitchScreen } from "./prototype/screens";
 ```
 
-- [ ] **Step 2: 提取 Stitch DOM helpers**
+- [ ] **步骤 2：提取 Stitch DOM helpers**
 
-Create `src/prototype/stitchDom.ts` with the existing helper functions from `PrototypeRouter.tsx`:
+创建 `src/prototype/stitchDom.ts`，放入来自 `PrototypeRouter.tsx` 的现有 helper functions：
 
 ```ts
 import { screens } from "./screens";
@@ -325,7 +325,7 @@ function localAssetFor(url: string, folder: string) {
 }
 ```
 
-- [ ] **Step 3: 更新 prototype route path parsing**
+- [ ] **步骤 3：更新 prototype route path parsing**
 
 Modify `src/pages/PrototypeRouter.tsx` so `/prototype` maps to the first Stitch screen and `/prototype/diet` maps to the Stitch diet screen:
 
@@ -341,23 +341,23 @@ function prototypeHref(screen: StitchScreen) {
 }
 ```
 
-Use `prototypeHref` anywhere `navigate` currently writes `/${screen.route}`.
+当前 `navigate` 写入 `/${screen.route}` 的位置都改用 `prototypeHref`。
 
-- [ ] **Step 4: 保留原型交互但标记 reference**
+- [ ] **步骤 4：保留原型交互但标记 reference**
 
-Add a visible but compact prototype label in `PrototypeRouter`:
+在 `PrototypeRouter` 中添加一个可见但紧凑的原型标签：
 
 ```tsx
 <div className="prototype-reference-badge">Stitch reference</div>
 ```
 
-Style it in `src/styles.css` with fixed positioning and low visual weight.
+在 `src/styles.css` 中设置固定定位和低视觉权重样式。
 
-- [ ] **Step 5: 验证**
+- [ ] **步骤 5：验证**
 
-Run: `npm run build`
+运行：`npm run build`
 
-Manual/browser checks:
+手动/浏览器检查：
 
 ```text
 http://localhost:5173/               -> real Today page
@@ -367,20 +367,20 @@ http://localhost:5173/prototype/diet -> Stitch Diet reference
 
 ---
 
-## Task 3: Mock API 和领域类型补全
+## 任务 3：Mock API 和领域类型补全
 
-**Files:**
-- Modify: `src/types/domain.ts`
-- Modify: `src/data/demoData.ts`
-- Modify: `src/services/mockApi.ts`
+**文件：**
+- 修改：`src/types/domain.ts`
+- 修改：`src/data/demoData.ts`
+- 修改：`src/services/mockApi.ts`
 
-**Interfaces:**
-- Produces: `WorkoutPageData`, `DietPageData`, `BodyPageData`, `AdvicePageData`, `SettingsData`
-- Produces API: `getWorkout`, `getDiet`, `getBodyMetrics`, `saveBodyMetric`, `getAdvice`, `updateAdviceStatus`, `getSettings`, `saveSettings`
+**接口：**
+- 产出：`WorkoutPageData`、`DietPageData`、`BodyPageData`、`AdvicePageData`、`SettingsData`
+- 产出 API：`getWorkout`、`getDiet`、`getBodyMetrics`、`saveBodyMetric`、`getAdvice`、`updateAdviceStatus`、`getSettings`、`saveSettings`
 
-- [ ] **Step 1: 增加页面数据类型**
+- [ ] **步骤 1：增加页面数据类型**
 
-Append to `src/types/domain.ts`:
+追加到 `src/types/domain.ts`：
 
 ```ts
 export type WorkoutPageData = {
@@ -421,9 +421,9 @@ export type SettingsData = {
 };
 ```
 
-- [ ] **Step 2: 补 demo 数据**
+- [ ] **步骤 2：补 demo 数据**
 
-Update `src/data/demoData.ts` with:
+更新 `src/data/demoData.ts`，增加：
 
 ```ts
 export const demoBodyMetrics: BodyMetric[] = [
@@ -448,9 +448,9 @@ export const demoWeeklyAdvice: AgentAdvice = {
 };
 ```
 
-- [ ] **Step 3: 补 mock API**
+- [ ] **步骤 3：补 mock API**
 
-Add methods to `api` in `src/services/mockApi.ts`:
+在 `src/services/mockApi.ts` 的 `api` 中添加 methods：
 
 ```ts
 async getWorkout(user_id = DEMO_USER_ID): Promise<ApiResponse<WorkoutPageData>> {
@@ -477,29 +477,29 @@ async getDiet(user_id = DEMO_USER_ID): Promise<ApiResponse<DietPageData>> {
 },
 ```
 
-Also add `getBodyMetrics`, `saveBodyMetric`, `getAdvice`, `updateAdviceStatus`, `getSettings`, and `saveSettings` using the same `ensureDemoUser` pattern.
+同时使用相同的 `ensureDemoUser` 模式添加 `getBodyMetrics`、`saveBodyMetric`、`getAdvice`、`updateAdviceStatus`、`getSettings` 和 `saveSettings`。
 
-- [ ] **Step 4: 验证**
+- [ ] **步骤 4：验证**
 
-Run: `npm run build`
+运行：`npm run build`
 
-Expected: all new domain imports compile.
+预期：所有新增 domain import 均可编译。
 
 ---
 
-## Task 4: PRD 页面骨架
+## 任务 4：PRD 页面骨架
 
-**Files:**
-- Create: all missing files under `src/pages/`
-- Modify: `src/pages/TodayPage.tsx`
+**文件：**
+- 创建：`src/pages/` 下所有缺失页面文件
+- 修改：`src/pages/TodayPage.tsx`
 
-**Interfaces:**
-- Consumes: `locale`, `api`, `createTranslator`
-- Produces: real skeletons for `/onboarding`, `/plan`, `/workout`, `/diet`, `/body`, `/advice`, `/agent`, `/settings`
+**接口：**
+- 消费：`locale`、`api`、`createTranslator`
+- 产出：`/onboarding`、`/plan`、`/workout`、`/diet`、`/body`、`/advice`、`/agent`、`/settings` 的真实页面骨架
 
-- [ ] **Step 1: 创建通用页面骨架模式**
+- [ ] **步骤 1：创建通用页面骨架模式**
 
-Each page should follow this shape:
+每个页面遵循此结构：
 
 ```tsx
 import { useEffect, useState } from "react";
@@ -529,88 +529,88 @@ export function ExamplePage({ locale }: PageProps) {
 }
 ```
 
-- [ ] **Step 2: OnboardingPage**
+- [ ] **步骤 2：OnboardingPage**
 
-Create `src/pages/OnboardingPage.tsx` with fields from PRD:
+创建 `src/pages/OnboardingPage.tsx`，包含 PRD 中的字段：
 
 ```tsx
 type OnboardingPageProps = { locale: Locale; onNavigate: (path: string) => void };
 ```
 
-Show nickname, age, height, weight, goal, training days, dietary preference, constraints. `Initialize demo profile` calls `onNavigate("/plan")`.
+展示昵称、年龄、身高、体重、目标、训练天数、饮食偏好和限制条件。`Initialize demo profile` 调用 `onNavigate("/plan")`。
 
-- [ ] **Step 3: PlanPage**
+- [ ] **步骤 3：PlanPage**
 
-Create `src/pages/PlanPage.tsx`:
+创建 `src/pages/PlanPage.tsx`：
 
-- user goal summary
-- training settings summary
-- diet settings summary
-- generated workout preview
-- generated meal preview
-- buttons: generate, accept, ask Agent
+- 用户目标摘要
+- 训练设置摘要
+- 饮食设置摘要
+- 已生成训练预览
+- 已生成餐食预览
+- 按钮：generate、accept、ask Agent
 
-`Accept plan` navigates to `/`.
+`Accept plan` 导航到 `/`。
 
-- [ ] **Step 4: WorkoutPage**
+- [ ] **步骤 4：WorkoutPage**
 
-Create `src/pages/WorkoutPage.tsx`:
+创建 `src/pages/WorkoutPage.tsx`：
 
-- load `api.getWorkout`
-- render weekly plan
-- render selected day exercise list
-- set completion buttons mutate local UI state
-- save workout log via `api.saveWorkoutLog`
+- 加载 `api.getWorkout`
+- 渲染周训练计划
+- 渲染选中日期的动作列表
+- 组完成按钮会改变本地 UI 状态
+- 通过 `api.saveWorkoutLog` 保存训练记录
 
-- [ ] **Step 5: DietPage**
+- [ ] **步骤 5：DietPage**
 
-Create `src/pages/DietPage.tsx`:
+创建 `src/pages/DietPage.tsx`：
 
-- load `api.getDiet`
-- render macro progress
-- render planned meals
-- confirm planned meal via `api.confirmPlannedMeal`
-- manual meal mini form via `api.saveManualMeal`
+- 加载 `api.getDiet`
+- 渲染宏量营养进度
+- 渲染计划餐
+- 通过 `api.confirmPlannedMeal` 确认计划餐
+- 通过 `api.saveManualMeal` 实现手动餐食 mini form
 
-- [ ] **Step 6: BodyPage**
+- [ ] **步骤 6：BodyPage**
 
-Create `src/pages/BodyPage.tsx`:
+创建 `src/pages/BodyPage.tsx`：
 
-- load `api.getBodyMetrics`
-- render latest weight and BMI
-- render 7/30/90 day trend text
-- save weight input through `api.saveBodyMetric`
+- 加载 `api.getBodyMetrics`
+- 渲染最新体重和 BMI
+- 渲染 7/30/90 天趋势文案
+- 通过 `api.saveBodyMetric` 保存体重输入
 
-- [ ] **Step 7: AdvicePage**
+- [ ] **步骤 7：AdvicePage**
 
-Create `src/pages/AdvicePage.tsx`:
+创建 `src/pages/AdvicePage.tsx`：
 
-- load `api.getAdvice`
-- render daily advice, weekly summary, and plan adjustment cards
-- accept/dismiss/defer actions call `api.updateAdviceStatus`
-- Weekly Summary appears here, not under Schedule.
+- 加载 `api.getAdvice`
+- 渲染每日建议、周总结和计划调整卡片
+- accept/dismiss/defer 操作调用 `api.updateAdviceStatus`
+- Weekly Summary 显示在这里，不放在 Schedule 下。
 
-- [ ] **Step 8: AgentPage**
+- [ ] **步骤 8：AgentPage**
 
-Create `src/pages/AgentPage.tsx`:
+创建 `src/pages/AgentPage.tsx`：
 
-- load existing messages with `api.getAgentMessages`
-- send prompt with `api.sendAgentMessage`
-- show confirmation dialog when `record_draft.requires_confirmation`
-- confirmation shows notice but does not silently write data.
+- 通过 `api.getAgentMessages` 加载已有消息
+- 通过 `api.sendAgentMessage` 发送 prompt
+- 当 `record_draft.requires_confirmation` 为真时显示确认弹窗
+- 确认只显示 notice，不静默写入数据。
 
-- [ ] **Step 9: SettingsPage**
+- [ ] **步骤 9：SettingsPage**
 
-Create `src/pages/SettingsPage.tsx`:
+创建 `src/pages/SettingsPage.tsx`：
 
-- load `api.getSettings`
-- show demo profile, unit system, language, safety disclaimer
-- language select calls parent `onLocaleChange`
-- export data button is disabled and labelled as future capability.
+- 加载 `api.getSettings`
+- 展示 demo profile、unit system、language 和 safety disclaimer
+- 语言选择调用父级 `onLocaleChange`
+- 数据导出按钮禁用，并标记为未来能力。
 
-- [ ] **Step 10: TodayPage navigation prop**
+- [ ] **步骤 10：TodayPage navigation prop**
 
-Modify `src/pages/TodayPage.tsx` props:
+修改 `src/pages/TodayPage.tsx` props：
 
 ```ts
 type TodayPageProps = {
@@ -619,7 +619,7 @@ type TodayPageProps = {
 };
 ```
 
-Change the Stitch link to:
+将 Stitch 链接改为：
 
 ```tsx
 <button className="prototype-link" onClick={() => onNavigate?.("/prototype")} type="button">
@@ -627,29 +627,29 @@ Change the Stitch link to:
 </button>
 ```
 
-- [ ] **Step 11: 验证**
+- [ ] **步骤 11：验证**
 
-Run: `npm run build`
+运行：`npm run build`
 
-Expected: all route page imports compile.
+预期：所有 route page import 均可编译。
 
 ---
 
-## Task 5: i18n 和样式收口
+## 任务 5：i18n 和样式收口
 
-**Files:**
-- Modify: `src/i18n/types.ts`
-- Modify: `src/i18n/zh-CN.ts`
-- Modify: `src/i18n/en-US.ts`
-- Modify: `src/styles.css`
+**文件：**
+- 修改：`src/i18n/types.ts`
+- 修改：`src/i18n/zh-CN.ts`
+- 修改：`src/i18n/en-US.ts`
+- 修改：`src/styles.css`
 
-**Interfaces:**
-- Produces: all keys used by new routes
-- Produces: responsive product shell styles
+**接口：**
+- 产出：新路由使用的所有 key
+- 产出：响应式产品 shell 样式
 
-- [ ] **Step 1: 增加 i18n keys**
+- [ ] **步骤 1：增加 i18n keys**
 
-Add page keys:
+添加页面 key：
 
 ```ts
 "nav.onboarding": string;
@@ -674,11 +674,11 @@ Add page keys:
 "page.settings.description": string;
 ```
 
-Add action/status keys for save, confirm, dismiss, defer, generate, accept, future capability, and mock saved notices.
+添加 save、confirm、dismiss、defer、generate、accept、future capability 和 mock saved notice 所需的 action/status key。
 
-- [ ] **Step 2: 补中文词典**
+- [ ] **步骤 2：补中文词典**
 
-Use Chinese as the primary MVP copy. Examples:
+中文作为 MVP 主文案。示例：
 
 ```ts
 "page.body.title": "身体数据",
@@ -688,9 +688,9 @@ Use Chinese as the primary MVP copy. Examples:
 "status.futureCapability": "后续能力",
 ```
 
-- [ ] **Step 3: 补英文词典**
+- [ ] **步骤 3：补英文词典**
 
-Keep English structurally complete:
+英文保持结构完整：
 
 ```ts
 "page.body.title": "Body Data",
@@ -700,9 +700,9 @@ Keep English structurally complete:
 "status.futureCapability": "Future capability",
 ```
 
-- [ ] **Step 4: 样式补齐**
+- [ ] **步骤 4：样式补齐**
 
-Add CSS classes:
+添加 CSS classes：
 
 ```css
 .business-page {}
@@ -715,7 +715,7 @@ Add CSS classes:
 .mobile-bottom-nav {}
 ```
 
-Responsive rules:
+响应式规则：
 
 ```css
 @media (max-width: 860px) {
@@ -726,46 +726,46 @@ Responsive rules:
 }
 ```
 
-- [ ] **Step 5: 验证**
+- [ ] **步骤 5：验证**
 
-Run: `npm run build`
+运行：`npm run build`
 
-Open desktop and mobile widths in browser automation.
+在浏览器自动化中打开桌面和移动端宽度进行检查。
 
 ---
 
-## Task 6: 验收 QA 和文档
+## 任务 6：验收 QA 和文档
 
-**Files:**
-- Create: `docs/PRD_FRONTEND_FOUNDATION_QA.md`
-- Modify: `design-qa.md` only if needed to clarify Stitch-specific QA remains historical
+**文件：**
+- 创建：`docs/PRD_FRONTEND_FOUNDATION_QA.md`
+- 仅在需要澄清 Stitch-specific QA 属于历史记录时修改 `design-qa.md`
 
-**Interfaces:**
-- Produces: QA evidence for build, routes, interactions, prototype access
+**接口：**
+- 产出：build、routes、interactions 和 prototype access 的 QA 证据
 
-- [ ] **Step 1: 构建验证**
+- [ ] **步骤 1：构建验证**
 
-Run:
+运行：
 
 ```powershell
 npm run build
 ```
 
-Expected: exit code 0.
+预期：退出码为 0。
 
-- [ ] **Step 2: 启动本地服务**
+- [ ] **步骤 2：启动本地服务**
 
-Run:
+运行：
 
 ```powershell
 npm run dev -- --port 5173 --strictPort
 ```
 
-If port 5173 is already listening, reuse it.
+如果 5173 端口已在监听，复用它。
 
-- [ ] **Step 3: Browser route smoke**
+- [ ] **步骤 3：浏览器路由 smoke**
 
-Use Chrome/Playwright to verify:
+使用 Chrome/Playwright 验证：
 
 ```text
 / -> Today
@@ -779,11 +779,11 @@ Use Chrome/Playwright to verify:
 /prototype/diet -> Stitch Diet reference
 ```
 
-Expected: 0 console errors.
+预期：0 个控制台错误。
 
-- [ ] **Step 4: Interaction smoke**
+- [ ] **步骤 4：交互 smoke**
 
-Verify at least:
+至少验证：
 
 ```text
 Today: save check-in
@@ -795,51 +795,51 @@ Agent: send message and confirm draft
 Settings: switch language
 ```
 
-Expected: visible notice or state change for each.
+预期：每一项都有可见 notice 或状态变化。
 
-- [ ] **Step 5: 写 QA 文档**
+- [ ] **步骤 5：写 QA 文档**
 
-Create `docs/PRD_FRONTEND_FOUNDATION_QA.md`:
+创建 `docs/PRD_FRONTEND_FOUNDATION_QA.md`：
 
 ```md
-# PRD Frontend Foundation QA
+# PRD 前端基础层 QA
 
-final result: passed
+最终结果：通过
 
-## Scope
+## 范围
 
-This QA validates the first PRD-driven functional foundation. It is not a full Stitch pixel-match pass.
+本 QA 验证第一版 PRD 驱动的功能基础层。它不是完整 Stitch 像素级还原验证。
 
-## Evidence
+## 证据
 
-- `npm run build` passed.
-- Primary product routes render without console errors.
-- `/prototype/*` routes remain available for Stitch reference.
-- Main navigation no longer exposes Schedule as a misleading top-level route.
-- Core mock interactions were checked on Today, Workout, Diet, Body, Advice, Agent, and Settings.
+- `npm run build` 通过。
+- 主产品路由渲染时没有控制台错误。
+- `/prototype/*` 路由仍可作为 Stitch reference 访问。
+- 主导航不再暴露容易误导的 Schedule 顶层路由。
+- 已检查 Today、Workout、Diet、Body、Advice、Agent 和 Settings 的核心 mock 交互。
 
-## Remaining Work
+## 剩余工作
 
-- Convert each page from information-architecture skeleton to high-fidelity React components using Stitch references.
-- Replace in-memory mock API with backend/API integration when ready.
-- Expand automated tests when a test framework is added.
+- 使用 Stitch reference 将每个页面从信息架构骨架转换为高保真 React 组件。
+- 后端/API 准备好后，用真实集成替换内存 mock API。
+- 测试框架加入后扩展自动化测试。
 ```
 
-- [ ] **Step 6: 最终状态检查**
+- [ ] **步骤 6：最终状态检查**
 
-Run:
+运行：
 
 ```powershell
 git status --short
 ```
 
-Report changed files and verification evidence.
+报告变更文件和验证证据。
 
 ---
 
-## Self-Review
+## 自检
 
-### Spec Coverage
+### 规格覆盖
 
 - App Shell and PRD primary routes: Task 1
 - Prototype route namespace: Task 2
@@ -848,7 +848,7 @@ Report changed files and verification evidence.
 - i18n and responsive shell styling: Task 5
 - Build/browser/interaction QA: Task 6
 
-### Known Non-Goals
+### 已知非目标
 
 - This plan does not complete full Stitch pixel migration.
 - This plan does not add backend persistence.
