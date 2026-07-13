@@ -164,7 +164,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
           value={`${summary.weekly_workouts_completed}/${summary.weekly_workouts_planned}`}
           detail={t("today.weeklyProgress")}
         />
-        <MetricCard label={t("metrics.weightTrend")} value={`${summary.weight_7_day_delta_kg}kg`} detail="7 days" />
+        <MetricCard label={t("metrics.weightTrend")} value={`${summary.weight_7_day_delta_kg}kg`} detail={t("metrics.days7")} />
         <MetricCard label={t("metrics.recovery")} value={summary.recovery_status} />
       </section>
 
@@ -172,7 +172,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
         <article className="business-card primary-card">
           <div className="section-heading">
             <span>{t("today.workout")}</span>
-            <strong>{workout?.duration_minutes ?? 0} min</strong>
+            <strong>{workout?.duration_minutes ?? 0} {t("metrics.durationMinutes")}</strong>
           </div>
           {workout ? (
             <>
@@ -205,7 +205,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
         <article className="business-card">
           <div className="section-heading">
             <span>{t("today.diet")}</span>
-            <strong>{mealTotal.calories} kcal planned</strong>
+            <strong>{mealTotal.calories} {t("metrics.kcalPlanned")}</strong>
           </div>
           <ProgressBar label={t("metrics.calories")} value={summary.calories_logged} max={summary.calories_target} />
           <ProgressBar label={t("metrics.protein")} value={summary.protein_logged_g} max={summary.protein_target_g} suffix="g" />
@@ -215,7 +215,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
                 <div>
                   <strong>{meal.name}</strong>
                   <span>
-                    {meal.total_macros.calories} kcal · {meal.total_macros.protein_g}g protein
+                    {meal.total_macros.calories} {t("metrics.kcal")} · {meal.total_macros.protein_g}{t("metrics.proteinGrams")}
                   </span>
                 </div>
                 <button disabled={saving} onClick={() => void confirmMeal(meal)}>
@@ -233,7 +233,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
           </div>
           <div className="checkin-grid">
             <label>
-              Weight kg
+              {t("form.weightKg")}
               <input
                 value={checkin.weight_kg}
                 onChange={(event) => setCheckin((value) => ({ ...value, weight_kg: event.target.value }))}
@@ -242,7 +242,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
               />
             </label>
             <label>
-              Sleep h
+              {t("form.sleepHours")}
               <input
                 value={checkin.sleep_hours}
                 onChange={(event) => setCheckin((value) => ({ ...value, sleep_hours: event.target.value }))}
@@ -251,7 +251,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
               />
             </label>
             <label>
-              Fatigue
+              {t("form.fatigue")}
               <input
                 max="5"
                 min="1"
@@ -261,7 +261,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
               />
             </label>
             <label>
-              Soreness
+              {t("form.soreness")}
               <input
                 max="5"
                 min="1"
@@ -274,7 +274,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
           <textarea
             value={checkin.notes}
             onChange={(event) => setCheckin((value) => ({ ...value, notes: event.target.value }))}
-            placeholder="Notes"
+            placeholder={t("form.notes")}
           />
           <button disabled={saving} onClick={() => void saveCheckin()}>
             {saving ? t("status.saving") : t("actions.save")}
@@ -306,7 +306,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
             <span>{t("nav.agent")}</span>
             <strong>{t("safety.nonMedical")}</strong>
           </div>
-          <p>Ask about today's plan or type a workout or meal note.</p>
+          <p>{t("agent.todayPrompt")}</p>
           {agentReply ? <div className="agent-reply">{agentReply}</div> : null}
           <div className="agent-input-row">
             <input
@@ -315,7 +315,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
               onKeyDown={(event) => {
                 if (event.key === "Enter") void sendAgentMessage();
               }}
-              placeholder="今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。"
+              placeholder={t("agent.inputPlaceholder")}
             />
             <button onClick={() => void sendAgentMessage()}>{t("actions.send")}</button>
           </div>
@@ -328,9 +328,9 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
         onCancel={() => setRecordDraft(null)}
         onConfirm={confirmRecordDraft}
         open={Boolean(recordDraft)}
-        title="Confirm Agent Draft"
+        title={t("agent.confirmDraftTitle")}
       >
-        <p>Agent prepared a structured record draft. Confirm before saving.</p>
+        <p>{t("agent.confirmDraftBody")}</p>
         <pre>{JSON.stringify(recordDraft?.payload ?? {}, null, 2)}</pre>
       </ConfirmDialog>
     </div>
