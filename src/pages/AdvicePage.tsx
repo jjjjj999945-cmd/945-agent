@@ -32,7 +32,7 @@ export function AdvicePage({ locale }: { locale: Locale }) {
       setNotice(response.error.message);
       return;
     }
-    setNotice("建议状态已更新");
+    setNotice(t("status.adviceUpdated"));
     await loadAdvice();
   }
 
@@ -59,9 +59,9 @@ export function AdvicePage({ locale }: { locale: Locale }) {
             <p>{advice.content}</p>
             <small>{advice.reason}</small>
             <div className="button-row">
-              <button onClick={() => void updateAdvice(advice, "accepted")} type="button">采纳</button>
-              <button className="ghost" onClick={() => void updateAdvice(advice, "dismissed")} type="button">忽略</button>
-              <button className="ghost" onClick={() => void updateAdvice(advice, "deferred")} type="button">稍后</button>
+              <button onClick={() => void updateAdvice(advice, "accepted")} type="button">{t("actions.acceptAdvice")}</button>
+              <button className="ghost" onClick={() => void updateAdvice(advice, "dismissed")} type="button">{t("actions.dismiss")}</button>
+              <button className="ghost" onClick={() => void updateAdvice(advice, "deferred")} type="button">{t("actions.defer")}</button>
             </div>
           </article>
         ))}

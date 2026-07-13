@@ -34,7 +34,7 @@ export function BodyPage({ locale }: { locale: Locale }) {
       setNotice(response.error.message);
       return;
     }
-    setNotice("身体数据已保存");
+    setNotice(t("status.bodyMetricSaved"));
     await loadBody();
   }
 
@@ -50,23 +50,23 @@ export function BodyPage({ locale }: { locale: Locale }) {
       {notice ? <div className="business-notice">{notice}</div> : null}
 
       <section className="metric-grid">
-        <div className="metric-card"><span>当前体重</span><strong>{data.latest_metric.weight_kg}kg</strong></div>
+        <div className="metric-card"><span>{t("labels.currentWeight")}</span><strong>{data.latest_metric.weight_kg}kg</strong></div>
         <div className="metric-card"><span>BMI</span><strong>{data.latest_metric.bmi ?? "--"}</strong></div>
-        <div className="metric-card"><span>7 天趋势</span><strong>{data.trend_7_day_kg.toFixed(1)}kg</strong></div>
-        <div className="metric-card"><span>当前目标</span><strong>{data.profile.goal.replace(/_/g, " ")}</strong></div>
+        <div className="metric-card"><span>{t("labels.trend7")}</span><strong>{data.trend_7_day_kg.toFixed(1)}kg</strong></div>
+        <div className="metric-card"><span>{t("labels.currentGoal")}</span><strong>{data.profile.goal.replace(/_/g, " ")}</strong></div>
       </section>
 
       <section className="page-grid">
         <article className="business-panel compact">
           <label>
-            今日体重 kg
+            {t("form.weightKg")}
             <input type="number" value={weight} onChange={(event) => setWeight(event.target.value)} />
           </label>
-          <button onClick={() => void saveWeight()} type="button">保存身体数据</button>
+          <button onClick={() => void saveWeight()} type="button">{t("actions.saveBodyMetric")}</button>
         </article>
         <article className="business-panel">
           <div className="section-heading">
-            <span>记录历史</span>
+            <span>{t("labels.metricHistory")}</span>
             <strong>{data.metrics.length}</strong>
           </div>
           {data.metrics.map((metric) => (

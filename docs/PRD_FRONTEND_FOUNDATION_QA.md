@@ -14,7 +14,7 @@
 ## 证据
 
 - `npm run build` 通过。
-- `npm run qa:app` 通过，3 个 Playwright smoke tests 全部通过。
+- `npm run qa:app` 通过，4 个 Playwright smoke tests 全部通过。
 - 主产品路由可以渲染：
   - `/` -> 今日
   - `/workout` -> 训练
@@ -33,6 +33,9 @@
   - Advice：采纳、忽略和稍后处理建议。
   - Agent：发送消息并确认 draft。
   - Settings：从设置页切换语言。
+- 已检查此前容易无反馈的按钮：
+  - Today：训练完成、查看原因、调整今日计划。
+  - Plan：生成计划。
 
 ## 剩余工作
 

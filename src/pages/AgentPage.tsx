@@ -40,7 +40,7 @@ export function AgentPage({ locale }: { locale: Locale }) {
 
   function confirmDraft() {
     setDraft(null);
-    setNotice("Agent 草稿已确认");
+    setNotice(t("status.agentDraftConfirmed"));
   }
 
   return (
@@ -65,9 +65,9 @@ export function AgentPage({ locale }: { locale: Locale }) {
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="告诉 Agent 你今天完成了什么"
+            placeholder={t("agent.inputPlaceholder")}
           />
-          <button onClick={() => void send()} type="button">发送</button>
+          <button onClick={() => void send()} type="button">{t("actions.send")}</button>
         </div>
       </section>
 
@@ -77,7 +77,7 @@ export function AgentPage({ locale }: { locale: Locale }) {
         onCancel={() => setDraft(null)}
         onConfirm={confirmDraft}
         open={Boolean(draft)}
-        title="确认 Agent 草稿"
+        title={t("agent.confirmDraftTitle")}
       >
         <p>{t("agent.confirmDraftBody")}</p>
         <pre>{JSON.stringify(draft?.payload ?? {}, null, 2)}</pre>

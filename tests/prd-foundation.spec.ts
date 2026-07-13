@@ -37,7 +37,7 @@ test.describe("PRD-driven frontend foundation", () => {
     await expect(page.getByText("手动餐食已保存")).toBeVisible();
 
     await page.goto("/body");
-    await page.getByLabel("今日体重 kg").fill("75.2");
+    await page.getByLabel("体重 kg").fill("75.2");
     await page.getByRole("button", { name: "保存身体数据" }).click();
     await expect(page.getByText("身体数据已保存")).toBeVisible();
 
@@ -48,7 +48,7 @@ test.describe("PRD-driven frontend foundation", () => {
     await expect(page.getByText("建议状态已更新")).toBeVisible();
 
     await page.goto("/agent");
-    await page.getByPlaceholder("告诉 Agent 你今天完成了什么").fill("今天深蹲做了 4 组，每组 8 次，80kg。");
+    await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。").fill("今天深蹲做了 4 组，每组 8 次，80kg。");
     await page.getByRole("button", { name: "发送" }).click();
     await expect(page.getByRole("heading", { name: "确认 Agent 草稿" })).toBeVisible();
     await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
@@ -57,5 +57,19 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.goto("/settings");
     await page.getByLabel("settings language").selectOption("en-US");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+  });
+
+  test("gives visible feedback for previously static product actions", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "完成", exact: true }).click();
+    await expect(page.getByText(/训练状态已更新/)).toBeVisible();
+    await page.getByRole("button", { name: "查看原因" }).click();
+    await expect(page.getByText("建议原因已展开在卡片内")).toBeVisible();
+    await page.getByRole("button", { name: "调整今日计划" }).click();
+    await expect(page.getByRole("heading", { name: "Agent", exact: true })).toBeVisible();
+
+    await page.goto("/plan");
+    await page.getByRole("button", { name: "生成计划" }).click();
+    await expect(page.getByText("已基于 demo 资料重新生成计划预览")).toBeVisible();
   });
 });

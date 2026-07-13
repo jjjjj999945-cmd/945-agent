@@ -47,7 +47,7 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
       return;
     }
 
-    setNotice("训练记录已保存");
+    setNotice(t("status.workoutSaved"));
     await loadWorkout();
   }
 
@@ -65,7 +65,7 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
       <section className="page-grid">
         <article className="business-panel">
           <div className="section-heading">
-            <span>本周训练计划</span>
+            <span>{t("labels.weeklyWorkoutPlan")}</span>
             <strong>{Math.round(data.completion_rate * 100)}%</strong>
           </div>
           {data.plan.workout_plan.days.map((day) => (
@@ -74,7 +74,7 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
                 <strong>{day.name}</strong>
                 <span>{day.focus.replace(/_/g, " ")} · {day.duration_minutes} min</span>
               </div>
-              <span>{day.exercises.length} exercises</span>
+              <span>{day.exercises.length} {t("labels.exercises")}</span>
             </div>
           ))}
         </article>
@@ -82,7 +82,7 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
         <article className="business-panel">
           <div className="section-heading">
             <span>{data.selected_day.name}</span>
-            <strong>{data.weekly_volume_sets} sets</strong>
+            <strong>{data.weekly_volume_sets} {t("labels.sets")}</strong>
           </div>
           <div className="exercise-list">
             {data.selected_day.exercises.map((exercise) => (
@@ -101,7 +101,7 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
               </div>
             ))}
           </div>
-          <button onClick={() => void saveWorkoutLog()} type="button">保存训练记录</button>
+          <button onClick={() => void saveWorkoutLog()} type="button">{t("actions.saveWorkoutLog")}</button>
         </article>
       </section>
     </div>

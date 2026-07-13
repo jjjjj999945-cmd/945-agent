@@ -33,18 +33,18 @@ export function OnboardingPage({ locale, onNavigate }: { locale: Locale; onNavig
       </header>
       <section className="page-grid">
         <article className="business-panel compact">
-          <label>昵称<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
-          <label>年龄<input defaultValue="29" type="number" /></label>
-          <label>身高 cm<input defaultValue="175" type="number" /></label>
-          <label>体重 kg<input defaultValue="76" type="number" /></label>
+          <label>{t("labels.nickname")}<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
+          <label>{t("labels.age")}<input defaultValue="29" type="number" /></label>
+          <label>{t("labels.heightCm")}<input defaultValue="175" type="number" /></label>
+          <label>{t("labels.weightKg")}<input defaultValue="76" type="number" /></label>
         </article>
         <article className="business-panel">
-          <h2>目标和偏好</h2>
-          <p>目标：body_recomposition</p>
-          <p>训练：每周 4 天，每次 60 分钟</p>
-          <p>饮食：high_protein</p>
-          <p>限制：busy_weekdays</p>
-          <button onClick={() => void initializeProfile()} type="button">Initialize demo profile</button>
+          <h2>{t("labels.goalAndPreferences")}</h2>
+          <p>{t("labels.goal")}: body_recomposition</p>
+          <p>{t("labels.training")}: 4 {t("labels.daysPerWeek")} · 60 min</p>
+          <p>{t("labels.diet")}: high_protein</p>
+          <p>{t("labels.constraints")}: busy_weekdays</p>
+          <button onClick={() => void initializeProfile()} type="button">{t("actions.initializeProfile")}</button>
         </article>
       </section>
     </div>

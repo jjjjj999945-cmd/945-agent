@@ -411,8 +411,12 @@ export const api = {
       user_id: input.user_id,
       role: "agent",
       content: recordDraft
-        ? "我可以帮你整理成记录草稿。保存前请先确认。"
-        : "我已读取你的问题。当前 demo 会优先基于今日计划、记录和建议回答。",
+        ? input.locale === "zh-CN"
+          ? "我可以帮你整理成记录草稿。保存前请先确认。"
+          : "I can turn that into a record draft. Please confirm before saving."
+        : input.locale === "zh-CN"
+          ? "我已读取你的问题。当前 demo 会优先基于今日计划、记录和建议回答。"
+          : "I read your question. This demo answers from today's plan, logs, and advice first.",
       locale: input.locale,
       record_draft: recordDraft,
       created_at: timestamp()

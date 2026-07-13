@@ -25,7 +25,7 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
   async function changeLanguage(nextLocale: Locale) {
     onLocaleChange(nextLocale);
     await api.saveSettings({ user_id: DEMO_USER_ID, language: nextLocale });
-    setNotice("设置已保存");
+    setNotice(t("status.settingsSaved"));
   }
 
   if (!data) return <div className="business-placeholder">{t("status.loading")}</div>;
@@ -42,7 +42,7 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
       <section className="page-grid">
         <article className="business-panel">
           <h2>{data.user.display_name}</h2>
-          <p>{data.profile.goal.replace(/_/g, " ")} · {data.profile.training_days_per_week} days/week</p>
+          <p>{data.profile.goal.replace(/_/g, " ")} · {data.profile.training_days_per_week} {t("labels.daysPerWeek")}</p>
           <p>{data.profile.height_cm}cm · {data.profile.weight_kg}kg · {data.unit_system}</p>
         </article>
 
@@ -54,7 +54,7 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
               <option value="en-US">English</option>
             </select>
           </label>
-          <button disabled type="button">数据导出 · 后续能力</button>
+          <button disabled type="button">{t("labels.dataExport")} · {t("labels.futureCapability")}</button>
           <small>{t("safety.nonMedical")}</small>
         </article>
       </section>

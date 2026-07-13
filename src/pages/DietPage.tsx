@@ -34,7 +34,7 @@ export function DietPage({ locale }: { locale: Locale }) {
       setNotice(response.error.message);
       return;
     }
-    setNotice("计划餐已确认");
+    setNotice(t("status.plannedMealConfirmed"));
     await loadDiet();
   }
 
@@ -50,7 +50,7 @@ export function DietPage({ locale }: { locale: Locale }) {
       setNotice(response.error.message);
       return;
     }
-    setNotice("手动餐食已保存");
+    setNotice(t("status.manualMealSaved"));
     await loadDiet();
   }
 
@@ -68,16 +68,16 @@ export function DietPage({ locale }: { locale: Locale }) {
       <section className="page-grid">
         <article className="business-panel">
           <div className="section-heading">
-            <span>今日营养目标</span>
+            <span>{t("labels.todayNutritionTarget")}</span>
             <strong>{data.targets.calories} kcal</strong>
           </div>
           <p>Protein {data.targets.protein_g}g · Carbs {data.targets.carbs_g}g · Fat {data.targets.fat_g}g</p>
-          <p>已记录餐食：{data.logs.length}</p>
+          <p>{t("labels.loggedMeals")}: {data.logs.length}</p>
         </article>
 
         <article className="business-panel">
           <div className="section-heading">
-            <span>计划餐</span>
+            <span>{t("labels.plannedMeals")}</span>
             <strong>{data.selected_day.meals.length}</strong>
           </div>
           {data.selected_day.meals.map((meal) => (
@@ -86,17 +86,17 @@ export function DietPage({ locale }: { locale: Locale }) {
                 <strong>{meal.name}</strong>
                 <span>{meal.total_macros.calories} kcal · {meal.total_macros.protein_g}g protein</span>
               </div>
-              <button onClick={() => void confirmMeal(meal.meal_id)} type="button">确认计划餐</button>
+              <button onClick={() => void confirmMeal(meal.meal_id)} type="button">{t("actions.confirmPlannedMeal")}</button>
             </div>
           ))}
         </article>
 
         <article className="business-panel compact">
           <label>
-            手动餐食名称
+            {t("labels.manualMealName")}
             <input value={manualMeal} onChange={(event) => setManualMeal(event.target.value)} />
           </label>
-          <button onClick={() => void saveManualMeal()} type="button">保存手动餐食</button>
+          <button onClick={() => void saveManualMeal()} type="button">{t("actions.saveManualMeal")}</button>
         </article>
       </section>
     </div>

@@ -138,6 +138,10 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
     setRecordDraft(null);
   }
 
+  function updateWorkoutStatus(status: "completed" | "partial" | "skipped") {
+    setNotice(`${t("status.workoutStatusUpdated")}: ${status}`);
+  }
+
   if (!today || !summary) {
     return <div className="business-placeholder">{t("status.loading")}</div>;
   }
@@ -192,9 +196,9 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
                 ))}
               </div>
               <div className="button-row">
-                <button>{t("actions.complete")}</button>
-                <button className="ghost">{t("actions.partial")}</button>
-                <button className="ghost">{t("actions.skip")}</button>
+                <button onClick={() => updateWorkoutStatus("completed")} type="button">{t("actions.complete")}</button>
+                <button className="ghost" onClick={() => updateWorkoutStatus("partial")} type="button">{t("actions.partial")}</button>
+                <button className="ghost" onClick={() => updateWorkoutStatus("skipped")} type="button">{t("actions.skip")}</button>
               </div>
             </>
           ) : (
@@ -292,8 +296,17 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
               <p>{today.latest_advice.content}</p>
               <small>{today.latest_advice.reason}</small>
               <div className="button-row">
-                <button>{t("actions.viewReason")}</button>
-                <button className="ghost">{t("actions.adjustToday")}</button>
+                <button onClick={() => setNotice(t("status.reasonVisible"))} type="button">{t("actions.viewReason")}</button>
+                <button
+                  className="ghost"
+                  onClick={() => {
+                    setNotice(t("status.adjustmentOpened"));
+                    onNavigate?.("/agent");
+                  }}
+                  type="button"
+                >
+                  {t("actions.adjustToday")}
+                </button>
               </div>
             </>
           ) : (
