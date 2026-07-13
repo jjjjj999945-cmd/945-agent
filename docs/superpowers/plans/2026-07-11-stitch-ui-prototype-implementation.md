@@ -1,57 +1,57 @@
-﻿# Stitch UI Prototype Implementation Plan
+# Stitch UI 原型实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **给 agentic worker：** 必须使用子技能：推荐 `superpowers:subagent-driven-development`，或使用 `superpowers:executing-plans`，按任务逐步执行本计划。步骤使用 checkbox（`- [ ]`）语法跟踪。
 
-**Goal:** Build a React frontend in `D:\Codex\945` that closely recreates the provided Stitch screens for the 945 fitness and diet agent workspace.
+**目标：** 在 `D:\Codex\945` 中构建 React 前端，尽量还原提供的 Stitch 页面，用于 945 健身与饮食 Agent 工作台。
 
-**Architecture:** Use a self-contained Vite React app. Convert each Stitch screen into a route-backed React page using shared tokens for the Refined Glacier Light visual system, reusable shell/navigation, and screen-specific modules where layouts differ.
+**架构：** 使用自包含 Vite React app。将每个 Stitch screen 转为有路由支撑的 React 页面，使用共享 token 还原 Refined Glacier Light 视觉系统，复用 shell/navigation，并在布局不同的位置保留页面专属模块。
 
-**Tech Stack:** Vite, React, TypeScript, CSS modules/global CSS, static mock data, local image/html references from the Stitch export.
+**技术栈：** Vite、React、TypeScript、CSS modules/global CSS、静态 mock 数据、来自 Stitch 导出的本地图片/HTML 参考。
 
-## Global Constraints
+## 全局约束
 
-- The Stitch screenshots and `screen.html` files are the visual source of truth.
-- The PRD is the product and interaction source of truth.
-- Do not iframe Stitch HTML as the app implementation.
-- Preserve page-specific module differences instead of forcing one generic template.
-- Provide `zh-CN` and `en-US` i18n structure; Chinese can be primary.
-- Implement realistic local demo interactions only; no backend, login, payments, medical claims, image recognition, wearables, or community features.
-- Verify with a running dev server and browser screenshots.
+- Stitch 截图和 `screen.html` 文件是视觉事实来源。
+- PRD 是产品和交互事实来源。
+- 不要把 Stitch HTML 作为 iframe app 实现。
+- 保留页面专属模块差异，不强行套用一个通用模板。
+- 提供 `zh-CN` 和 `en-US` i18n 结构；中文可以作为主语言。
+- 只实现真实感本地 demo 交互；不实现后端、登录、支付、医疗声明、图片识别、穿戴设备或社区功能。
+- 使用运行中的开发服务器和浏览器截图进行验证。
 
 ---
 
-### Task 1: Scaffold App And Reference Assets
+### 任务 1：搭建 App 和参考资产
 
-**Files:**
-- Create: `package.json`, `index.html`, `src/`, `public/stitch-reference/`
-- Modify: none
+**文件：**
+- 创建：`package.json`、`index.html`、`src/`、`public/stitch-reference/`
+- 修改：无
 
-**Deliverable:** Vite React app builds and can access Stitch reference screenshots locally.
+**交付物：** Vite React app 可以构建，并能本地访问 Stitch 参考截图。
 
-### Task 2: Shared Visual System
+### 任务 2：共享视觉系统
 
-**Files:**
-- Create: `src/styles.css`, `src/data/i18n.ts`, `src/data/mockData.ts`, `src/components/AppShell.tsx`, `src/components/ui.tsx`
+**文件：**
+- 创建：`src/styles.css`、`src/data/i18n.ts`、`src/data/mockData.ts`、`src/components/AppShell.tsx`、`src/components/ui.tsx`
 
-**Deliverable:** Glacier light tokens, navigation, buttons, cards, progress bars, chart primitives, and form controls match Stitch proportions and palette.
+**交付物：** Glacier light tokens、导航、按钮、卡片、进度条、图表基础元素和表单控件匹配 Stitch 比例和色板。
 
-### Task 3: Screen Routes
+### 任务 3：页面路由
 
-**Files:**
-- Create: `src/pages/*.tsx`, `src/App.tsx`, `src/main.tsx`
+**文件：**
+- 创建：`src/pages/*.tsx`、`src/App.tsx`、`src/main.tsx`
 
-**Deliverable:** All 11 Stitch screens have corresponding routes and visible page-specific module structure.
+**交付物：** 11 个 Stitch screen 都有对应路由和可见的页面专属模块结构。
 
-### Task 4: Interactions
+### 任务 4：交互
 
-**Files:**
-- Modify: `src/pages/*.tsx`, `src/App.tsx`
+**文件：**
+- 修改：`src/pages/*.tsx`、`src/App.tsx`
 
-**Deliverable:** Navigation, tabs, toggles, checkboxes, meal/workout confirmation, onboarding fields, language switch, and chat input have visible feedback using demo state.
+**交付物：** 导航、tab、toggle、checkbox、饮食/训练确认、引导字段、语言切换和 chat 输入都能基于 demo 状态给出可见反馈。
 
-### Task 5: Verification And Visual QA
+### 任务 5：验证与视觉 QA
 
-**Files:**
-- Create: `design-qa.md`
+**文件：**
+- 创建：`design-qa.md`
 
-**Deliverable:** Dev server runs, app builds, screenshots are captured against Stitch references, and P0/P1/P2 visual/runtime issues found during QA are fixed.
+**交付物：** 开发服务器可运行，app 可构建，截图已与 Stitch 参考对比，并修复 QA 中发现的 P0/P1/P2 视觉或运行时问题。

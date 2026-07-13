@@ -1,31 +1,31 @@
-# 945 MVP Foundation Implementation Plan
+# 945 MVP 基础层实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **给 agentic worker：** 必须使用子技能：推荐 `superpowers:subagent-driven-development`，或使用 `superpowers:executing-plans`，按任务逐步执行本计划。步骤使用 checkbox（`- [ ]`）语法跟踪。
 
-**Goal:** Convert the current Stitch HTML prototype into a maintainable 945 MVP foundation with typed domain data, mock API, i18n, and the first business-backed Today page.
+**目标：** 将当前 Stitch HTML 原型转换为可维护的 945 MVP 基础层，包括带类型的领域数据、mock API、i18n，以及第一个由业务数据驱动的今日页面。
 
-**Architecture:** Keep the existing Stitch wrapper as reference while adding a parallel business implementation path. Introduce typed domain models, local mock stores, API-shaped service functions, and i18n dictionaries before replacing screens one at a time.
+**架构：** 保留现有 Stitch 包装层作为参考，同时增加一条并行的业务实现路径。先引入带类型的领域模型、本地 mock store、API 形状的 service function 和 i18n 字典，再逐页替换 screen。
 
-**Tech Stack:** Vite, React 19, TypeScript 5.8, CSS, local mock data, future FastAPI contract from `docs/API_CONTRACT.md`.
+**技术栈：** Vite、React 19、TypeScript 5.8、CSS、本地 mock 数据，以及未来对齐 `docs/API_CONTRACT.md` 的 FastAPI 契约。
 
-## Global Constraints
+## 全局约束
 
-- `PRD.md` is the product source of truth.
-- `docs/FRONTEND_REQUIREMENTS.md` is the front-end detail source unless it conflicts with `PRD.md`.
-- Current Stitch reference screens are visual references, not the long-term app implementation.
-- Product name is `945`.
-- MVP uses local demo user `demo-user-945`; no login or registration.
-- Frontend must preserve `zh-CN` and `en-US` i18n structure.
-- Agent Chat final placement remains undecided; implement it as a movable module.
-- Diet MVP supports planned meal confirmation and manual entry only.
-- No food image recognition, wearables, payments, community, leaderboard, medical diagnosis, or rehab prescription.
-- Do not silently write Agent changes; record drafts and plan adjustments require confirmation.
+- `PRD.md` 是产品事实来源。
+- `docs/FRONTEND_REQUIREMENTS.md` 是前端细节来源；若与 `PRD.md` 冲突，以 `PRD.md` 为准。
+- 当前 Stitch reference screens 是视觉参考，不是长期 app 实现。
+- 产品名称为 `945`。
+- MVP 使用本地 demo 用户 `demo-user-945`；不做登录或注册。
+- 前端必须保留 `zh-CN` 和 `en-US` i18n 结构。
+- Agent Chat 最终位置仍未确定；先实现为可移动模块。
+- 饮食 MVP 只支持计划餐确认和手动录入。
+- 不实现食物图片识别、穿戴设备、支付、社区、排行榜、医疗诊断或康复处方。
+- Agent 变更不能静默写入；记录草稿和计划调整必须要求确认。
 
 ---
 
-## File Structure
+## 文件结构
 
-Create these files during implementation:
+实现期间创建这些文件：
 
 ```text
 src/types/domain.ts
@@ -44,36 +44,36 @@ src/pages/TodayPage.tsx
 src/pages/PrototypeRouter.tsx
 ```
 
-Modify these files:
+修改这些文件：
 
 ```text
 src/App.tsx
 src/styles.css
 ```
 
-Testing commands:
+测试命令：
 
 ```text
 npm run build
 ```
 
-Current repo note:
+当前仓库说明：
 
-`D:\Codex\945` currently contains a `.git` directory but `git status` reports `not a git repository`. Do not rely on commit steps until the repository metadata is repaired or reinitialized.
+`D:\Codex\945` 当前包含 `.git` 目录，但 `git status` 报告 `not a git repository`。在仓库元数据修复或重新初始化前，不要依赖提交步骤。
 
 ---
 
-### Task 1: Domain Types
+### 任务 1：领域类型
 
-**Files:**
-- Create: `src/types/domain.ts`
+**文件：**
+- 创建：`src/types/domain.ts`
 
-**Interfaces:**
-- Produces: `User`, `UserProfile`, `Plan`, `TodayResponseData`, `WorkoutLog`, `MealLog`, `DailyCheckin`, `BodyMetric`, `AgentAdvice`, `AgentMessage`, `RecordDraft`
+**接口：**
+- 产出：`User`、`UserProfile`、`Plan`、`TodayResponseData`、`WorkoutLog`、`MealLog`、`DailyCheckin`、`BodyMetric`、`AgentAdvice`、`AgentMessage`、`RecordDraft`
 
-- [ ] **Step 1: Create domain type file**
+- [ ] **步骤 1：创建领域类型文件**
 
-Create `src/types/domain.ts`:
+创建 `src/types/domain.ts`：
 
 ```ts
 export type Locale = "zh-CN" | "en-US";
@@ -310,229 +310,228 @@ export type TodayResponseData = {
 };
 ```
 
-- [ ] **Step 2: Run type build**
+- [ ] **步骤 2：运行类型构建**
 
-Run: `npm run build`  
-Expected: PASS.
-
----
-
-### Task 2: Demo Data
-
-**Files:**
-- Create: `src/data/demoData.ts`
-
-**Interfaces:**
-- Consumes: domain types from `src/types/domain.ts`
-- Produces: `demoUser`, `demoProfile`, `demoPlan`, `demoAdvice`, `createInitialTodayData`
-
-- [ ] **Step 1: Create demo data**
-
-Create `src/data/demoData.ts` with values from `docs/MOCK_DATA_SPEC.md`.
-
-- [ ] **Step 2: Run build**
-
-Run: `npm run build`  
-Expected: PASS.
+运行：`npm run build`  
+预期：通过。
 
 ---
 
-### Task 3: i18n Foundation
+### 任务 2：Demo 数据
 
-**Files:**
-- Create: `src/i18n/types.ts`
-- Create: `src/i18n/zh-CN.ts`
-- Create: `src/i18n/en-US.ts`
-- Create: `src/i18n/index.ts`
+**文件：**
+- 创建：`src/data/demoData.ts`
 
-**Interfaces:**
-- Produces: `useI18n(locale)`, `messages`, `MessageKey`
+**接口：**
+- 消费：来自 `src/types/domain.ts` 的领域类型
+- 产出：`demoUser`、`demoProfile`、`demoPlan`、`demoAdvice`、`createInitialTodayData`
 
-- [ ] **Step 1: Create message schema**
+- [ ] **步骤 1：创建 demo 数据**
 
-Create a flat key schema for navigation, Today page labels, actions, empty states, and safety copy.
+使用 `docs/MOCK_DATA_SPEC.md` 中的值创建 `src/data/demoData.ts`。
 
-- [ ] **Step 2: Add Chinese messages**
+- [ ] **步骤 2：运行构建**
 
-Include keys for: `nav.today`, `nav.workout`, `nav.diet`, `nav.body`, `nav.advice`, `nav.agent`, `nav.settings`, `today.title`, `today.workout`, `today.diet`, `today.checkin`, `actions.save`, `actions.confirm`, `actions.cancel`.
-
-- [ ] **Step 3: Add English messages**
-
-Use matching keys with English values.
-
-- [ ] **Step 4: Run build**
-
-Run: `npm run build`  
-Expected: PASS.
+运行：`npm run build`  
+预期：通过。
 
 ---
 
-### Task 4: Mock API
+### 任务 3：i18n 基础层
 
-**Files:**
-- Create: `src/services/apiTypes.ts`
-- Create: `src/services/mockApi.ts`
+**文件：**
+- 创建：`src/i18n/types.ts`
+- 创建：`src/i18n/zh-CN.ts`
+- 创建：`src/i18n/en-US.ts`
+- 创建：`src/i18n/index.ts`
 
-**Interfaces:**
-- Consumes: domain types and demo data
-- Produces: `api.getDemoUser()`, `api.getToday()`, `api.saveDailyCheckin()`, `api.confirmPlannedMeal()`, `api.saveWorkoutLog()`, `api.sendAgentMessage()`
+**接口：**
+- 产出：`useI18n(locale)`、`messages`、`MessageKey`
 
-- [ ] **Step 1: Create API response types**
+- [ ] **步骤 1：创建文案 schema**
 
-Define:
+为导航、今日页面标签、动作、空状态和安全提示创建扁平 key schema。
+
+- [ ] **步骤 2：添加中文文案**
+
+包含这些 key：`nav.today`、`nav.workout`、`nav.diet`、`nav.body`、`nav.advice`、`nav.agent`、`nav.settings`、`today.title`、`today.workout`、`today.diet`、`today.checkin`、`actions.save`、`actions.confirm`、`actions.cancel`。
+
+- [ ] **步骤 3：添加英文文案**
+
+使用相同 key，并填入英文值。
+
+- [ ] **步骤 4：运行构建**
+
+运行：`npm run build`  
+预期：通过。
+
+---
+
+### 任务 4：Mock API
+
+**文件：**
+- 创建：`src/services/apiTypes.ts`
+- 创建：`src/services/mockApi.ts`
+
+**接口：**
+- 消费：领域类型和 demo 数据
+- 产出：`api.getDemoUser()`、`api.getToday()`、`api.saveDailyCheckin()`、`api.confirmPlannedMeal()`、`api.saveWorkoutLog()`、`api.sendAgentMessage()`
+
+- [ ] **步骤 1：创建 API 响应类型**
+
+定义：
 
 ```ts
 export type ApiError = { code: string; message: string; details?: Record<string, unknown> };
 export type ApiResponse<T> = { data: T; error: null } | { data: null; error: ApiError };
 ```
 
-- [ ] **Step 2: Implement in-memory mock API**
+- [ ] **步骤 2：实现内存 mock API**
 
-Use module-level variables initialized from `demoData.ts`.
+使用从 `demoData.ts` 初始化的模块级变量。
 
-- [ ] **Step 3: Implement mock state changes**
+- [ ] **步骤 3：实现 mock 状态变化**
 
-Required behavior:
+必需行为：
 
-- `confirmPlannedMeal(meal_id)` adds a meal log and increases nutrition totals.
-- `saveDailyCheckin(input)` stores today's check-in.
-- `saveWorkoutLog(input)` stores a workout log and marks completion.
-- `sendAgentMessage(message)` returns a `record_draft` for obvious workout or meal messages.
+- `confirmPlannedMeal(meal_id)` 添加 meal log，并增加营养摄入总量。
+- `saveDailyCheckin(input)` 保存今日打卡。
+- `saveWorkoutLog(input)` 保存训练记录并标记完成。
+- `sendAgentMessage(message)` 对明显的训练或饮食消息返回 `record_draft`。
 
-- [ ] **Step 4: Run build**
+- [ ] **步骤 4：运行构建**
 
-Run: `npm run build`  
-Expected: PASS.
-
----
-
-### Task 5: Business App Shell
-
-**Files:**
-- Create: `src/components/business/AppShell.tsx`
-- Modify: `src/App.tsx`
-
-**Interfaces:**
-- Consumes: `useI18n`, navigation message keys
-- Produces: route mode that can show either current Stitch prototype or new business Today page
-
-- [ ] **Step 1: Preserve prototype route**
-
-Move current Stitch loading logic from `src/App.tsx` to `src/pages/PrototypeRouter.tsx` without behavior changes.
-
-- [ ] **Step 2: Add AppShell**
-
-Create a shell with nav items and language selector.
-
-- [ ] **Step 3: Add mode switch**
-
-Make `/app` render business Today page and `/prototype` or existing routes render Stitch prototype.
-
-- [ ] **Step 4: Run build**
-
-Run: `npm run build`  
-Expected: PASS.
+运行：`npm run build`  
+预期：通过。
 
 ---
 
-### Task 6: Business Today Page
+### 任务 5：业务 App Shell
 
-**Files:**
-- Create: `src/pages/TodayPage.tsx`
-- Create: `src/components/business/MetricCard.tsx`
-- Create: `src/components/business/ProgressBar.tsx`
-- Modify: `src/styles.css`
+**文件：**
+- 创建：`src/components/business/AppShell.tsx`
+- 修改：`src/App.tsx`
 
-**Interfaces:**
-- Consumes: `api.getToday()`, `api.saveDailyCheckin()`, `api.confirmPlannedMeal()`
-- Produces: first business-backed page using mock data
+**接口：**
+- 消费：`useI18n`、导航文案 key
+- 产出：路由模式，可展示当前 Stitch 原型或新的业务今日页面
 
-- [ ] **Step 1: Load today data**
+- [ ] **步骤 1：保留原型路由**
 
-Use `useEffect` to call `api.getToday({ user_id: "demo-user-945" })`.
+将当前 Stitch 加载逻辑从 `src/App.tsx` 移到 `src/pages/PrototypeRouter.tsx`，不改变行为。
 
-- [ ] **Step 2: Render summary**
+- [ ] **步骤 2：添加 AppShell**
 
-Show goal, workout completion, calories, protein, weight delta, recovery status.
+创建包含导航项和语言选择器的 shell。
 
-- [ ] **Step 3: Render workout card**
+- [ ] **步骤 3：添加模式切换**
 
-Show today's workout and exercise list.
+让 `/app` 渲染业务今日页面，让 `/prototype` 或现有路由渲染 Stitch 原型。
 
-- [ ] **Step 4: Render meal card**
+- [ ] **步骤 4：运行构建**
 
-Show today's meals and confirm planned meal buttons.
-
-- [ ] **Step 5: Render check-in form**
-
-Support weight, sleep, fatigue, soreness, notes.
-
-- [ ] **Step 6: Run build**
-
-Run: `npm run build`  
-Expected: PASS.
+运行：`npm run build`  
+预期：通过。
 
 ---
 
-### Task 7: Confirmation Dialog And Agent Drafts
+### 任务 6：业务今日页面
 
-**Files:**
-- Create: `src/components/business/ConfirmDialog.tsx`
-- Modify: `src/pages/TodayPage.tsx`
+**文件：**
+- 创建：`src/pages/TodayPage.tsx`
+- 创建：`src/components/business/MetricCard.tsx`
+- 创建：`src/components/business/ProgressBar.tsx`
+- 修改：`src/styles.css`
 
-**Interfaces:**
-- Consumes: `api.sendAgentMessage()`
-- Produces: confirmation flow for record drafts
+**接口：**
+- 消费：`api.getToday()`、`api.saveDailyCheckin()`、`api.confirmPlannedMeal()`
+- 产出：第一个使用 mock 数据的业务页面
 
-- [ ] **Step 1: Add generic confirm dialog**
+- [ ] **步骤 1：加载今日数据**
 
-Props: `open`, `title`, `children`, `confirmLabel`, `cancelLabel`, `onConfirm`, `onCancel`.
+使用 `useEffect` 调用 `api.getToday({ user_id: "demo-user-945" })`。
 
-- [ ] **Step 2: Add small Agent input on Today page**
+- [ ] **步骤 2：渲染摘要**
 
-Send message through mock API.
+展示目标、训练完成情况、热量、蛋白质、体重变化和恢复状态。
 
-- [ ] **Step 3: Show draft confirmation**
+- [ ] **步骤 3：渲染训练卡片**
 
-If response includes `record_draft.requires_confirmation`, show dialog before writing data.
+展示今日训练和动作列表。
 
-- [ ] **Step 4: Run build**
+- [ ] **步骤 4：渲染餐食卡片**
 
-Run: `npm run build`  
-Expected: PASS.
+展示今日餐食和计划餐确认按钮。
+
+- [ ] **步骤 5：渲染打卡表单**
+
+支持体重、睡眠、疲劳、酸痛和备注。
+
+- [ ] **步骤 6：运行构建**
+
+运行：`npm run build`  
+预期：通过。
 
 ---
 
-### Task 8: Verification
+### 任务 7：确认弹窗和 Agent 草稿
 
-**Files:**
-- Modify: `design-qa.md`
+**文件：**
+- 创建：`src/components/business/ConfirmDialog.tsx`
+- 修改：`src/pages/TodayPage.tsx`
 
-**Interfaces:**
-- Consumes: all previous tasks
-- Produces: verification notes
+**接口：**
+- 消费：`api.sendAgentMessage()`
+- 产出：记录草稿的确认流程
 
-- [ ] **Step 1: Run build**
+- [ ] **步骤 1：添加通用确认弹窗**
 
-Run: `npm run build`  
-Expected: PASS.
+Props：`open`、`title`、`children`、`confirmLabel`、`cancelLabel`、`onConfirm`、`onCancel`。
 
-- [ ] **Step 2: Start dev server**
+- [ ] **步骤 2：在今日页面添加小型 Agent 输入框**
 
-Run: `npm run dev`  
-Expected: Vite serves the app.
+通过 mock API 发送消息。
 
-- [ ] **Step 3: Browser check**
+- [ ] **步骤 3：展示草稿确认**
 
-Open `/app` and verify:
+如果响应包含 `record_draft.requires_confirmation`，在写入数据前显示确认弹窗。
 
-- Today data renders.
-- Meal confirmation changes nutrition totals.
-- Daily check-in saves visible state.
-- Agent draft asks for confirmation.
-- Language switch changes labels.
+- [ ] **步骤 4：运行构建**
 
-- [ ] **Step 4: Update QA notes**
+运行：`npm run build`  
+预期：通过。
 
-Append the checked routes and results to `design-qa.md`.
+---
 
+### 任务 8：验证
+
+**文件：**
+- 修改：`design-qa.md`
+
+**接口：**
+- 消费：前面所有任务
+- 产出：验证记录
+
+- [ ] **步骤 1：运行构建**
+
+运行：`npm run build`  
+预期：通过。
+
+- [ ] **步骤 2：启动开发服务器**
+
+运行：`npm run dev`  
+预期：Vite 可以提供 app 服务。
+
+- [ ] **步骤 3：浏览器检查**
+
+打开 `/app` 并验证：
+
+- 今日数据可以渲染。
+- 餐食确认会改变营养总量。
+- 每日打卡会保存可见状态。
+- Agent 草稿会要求确认。
+- 语言切换会改变标签。
+
+- [ ] **步骤 4：更新 QA 记录**
+
+将已检查路由和结果追加到 `design-qa.md`。

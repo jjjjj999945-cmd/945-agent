@@ -1,4 +1,4 @@
-# 945 Stitch Handoff
+# 945 Stitch 原型交接说明
 
 版本：v0.1  
 日期：2026-07-11  
@@ -21,17 +21,17 @@
 
 当前 `src/screens.ts` 中包含：
 
-- `/` - Today Dashboard
-- `/workout` - Workout Detail v3
-- `/settings` - Settings & Preferences v2
-- `/weekly-summary` - Weekly Summary v2
+- `/` - 今日 Dashboard
+- `/workout` - 训练详情 v3
+- `/settings` - 设置与偏好 v2
+- `/weekly-summary` - 周总结 v2
 - `/agent-v3` - Agent Chat v3
-- `/diet` - Diet Tracker v2
-- `/workout-alt` - Workout Detail alt
-- `/agent` - Agent Chat Final
-- `/onboarding` - Onboarding
-- `/ai-adjustment` - AI Adjustment Analysis
-- `/diet-alt` - Diet Tracker alt
+- `/diet` - 饮食追踪 v2
+- `/workout-alt` - 训练详情备选版
+- `/agent` - Agent Chat 最终校准版
+- `/onboarding` - 引导流程
+- `/ai-adjustment` - AI 调整分析
+- `/diet-alt` - 饮食追踪备选版
 
 ## 3. 工程化目标
 
@@ -69,7 +69,7 @@
 
 ## 6. 推荐迁移顺序
 
-### Phase 1: Foundation
+### 阶段 1：基础层
 
 - 创建 `src/types/domain.ts`
 - 创建 `src/data/demoData.ts`
@@ -77,20 +77,20 @@
 - 创建 `src/i18n/zh-CN.ts`
 - 创建 `src/i18n/en-US.ts`
 
-### Phase 2: App Shell
+### 阶段 2：应用外壳
 
 - 创建真实 `AppShell`
 - 创建导航
 - 创建路由状态
 - 接入语言切换
 
-### Phase 3: Today Page
+### 阶段 3：今日页面
 
 - 用真实 React 组件实现今日 Dashboard。
 - 使用 mock API 的 `/today` 数据形状。
 - 保留 Stitch today screenshot 作为视觉参考。
 
-### Phase 4: Logging Flows
+### 阶段 4：记录流程
 
 - 训练记录
 - 计划餐确认
@@ -98,7 +98,7 @@
 - 每日打卡
 - 身体数据记录
 
-### Phase 5: Agent Flows
+### 阶段 5：Agent 流程
 
 - Agent Chat
 - record draft
@@ -115,4 +115,3 @@
 - 页面支持 mock API 状态变化。
 - 页面移动端可用。
 - 页面与对应 Stitch reference 在信息层级上保持一致。
-

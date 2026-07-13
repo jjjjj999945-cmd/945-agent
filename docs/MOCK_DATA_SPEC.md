@@ -1,4 +1,4 @@
-# 945 Mock Data Spec
+# 945 Mock 数据规范
 
 版本：v0.1  
 日期：2026-07-11  
@@ -33,7 +33,7 @@ src/services/mockApi.ts
 }
 ```
 
-## 4. Demo Profile
+## 4. Demo 用户资料
 
 ```json
 {
@@ -55,7 +55,7 @@ src/services/mockApi.ts
 }
 ```
 
-## 5. Today Summary
+## 5. 今日摘要
 
 ```json
 {
@@ -73,7 +73,7 @@ src/services/mockApi.ts
 }
 ```
 
-## 6. Today Workout
+## 6. 今日训练
 
 ```json
 {
@@ -104,7 +104,7 @@ src/services/mockApi.ts
 }
 ```
 
-## 7. Today Meals
+## 7. 今日饮食
 
 ```json
 [
@@ -159,7 +159,7 @@ src/services/mockApi.ts
 ]
 ```
 
-## 8. Advice
+## 8. 建议
 
 ```json
 {
@@ -177,7 +177,7 @@ src/services/mockApi.ts
 }
 ```
 
-## 9. Mock Interaction Requirements
+## 9. Mock 交互要求
 
 Mock API 必须支持这些状态变化：
 
@@ -187,4 +187,3 @@ Mock API 必须支持这些状态变化：
 - Agent Chat 发送训练或饮食自然语言后，返回 `record_draft`。
 - 用户确认 `record_draft` 后，写入对应 mock store。
 - 切换语言后，导航、按钮、表单标签和空状态文案变化。
-
