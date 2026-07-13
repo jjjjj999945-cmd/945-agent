@@ -64,6 +64,6 @@ function renderPage(
       return <SettingsPage locale={locale} onLocaleChange={onLocaleChange} />;
     case "today":
     default:
-      return <TodayPage locale={locale} />;
+      return <TodayPage locale={locale} onNavigate={navigate} />;
   }
 }

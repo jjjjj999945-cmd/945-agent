@@ -9,6 +9,7 @@ import type { DailyCheckin, Locale, PlannedMeal, RecordDraft, TodayResponseData 
 
 type TodayPageProps = {
   locale: Locale;
+  onNavigate?: (path: string) => void;
 };
 
 type CheckinForm = {
@@ -27,7 +28,7 @@ const initialCheckinForm: CheckinForm = {
   notes: ""
 };
 
-export function TodayPage({ locale }: TodayPageProps) {
+export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   const t = createTranslator(locale);
   const [today, setToday] = useState<TodayResponseData | null>(null);
   const [checkin, setCheckin] = useState<CheckinForm>(initialCheckinForm);
@@ -149,9 +150,9 @@ export function TodayPage({ locale }: TodayPageProps) {
           <h1>{t("today.title")}</h1>
           <span>{t("today.subtitle")}</span>
         </div>
-        <a className="prototype-link" href="/">
-          Stitch prototype
-        </a>
+        <button className="prototype-link" onClick={() => onNavigate?.("/prototype")} type="button">
+          {t("shell.prototypeReference")}
+        </button>
       </header>
 
       {notice ? <div className="business-notice">{notice}</div> : null}

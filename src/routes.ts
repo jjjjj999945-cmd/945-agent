@@ -1,3 +1,5 @@
+import type { MessageKey } from "./i18n";
+
 export type RouteId =
   | "today"
   | "onboarding"
@@ -12,9 +14,9 @@ export type RouteId =
 export type AppRoute = {
   id: RouteId;
   path: string;
-  navKey: string;
-  titleKey: string;
-  descriptionKey: string;
+  navKey: MessageKey;
+  titleKey: MessageKey;
+  descriptionKey: MessageKey;
   primary: boolean;
 };
 

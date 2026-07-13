@@ -1,4 +1,4 @@
-import { createTranslator, type MessageKey } from "../../i18n";
+import { createTranslator } from "../../i18n";
 import { primaryRoutes, type RouteId } from "../../routes";
 import type { Locale } from "../../types/domain";
 
@@ -20,20 +20,20 @@ export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, chil
           <button className="business-logo" onClick={() => onNavigate("/")} type="button">
             945
           </button>
-          <span className="business-brand-label">Fitness Agent</span>
+          <span className="business-brand-label">{t("shell.brandTagline")}</span>
         </div>
         <nav className="business-nav">
           {primaryRoutes.map((route) => (
             <button className={route.id === activeRoute ? "active" : ""} key={route.id} onClick={() => onNavigate(route.path)} type="button">
-              {t(route.navKey as MessageKey)}
+              {t(route.navKey)}
             </button>
           ))}
         </nav>
         <a className="prototype-reference-link" href="/prototype">
-          Stitch reference
+          {t("shell.prototypeReference")}
         </a>
         <label className="business-language">
-          <span>Language</span>
+          <span>{t("settings.language")}</span>
           <select value={locale} onChange={(event) => onLocaleChange(event.target.value as Locale)}>
             <option value="zh-CN">中文</option>
             <option value="en-US">English</option>

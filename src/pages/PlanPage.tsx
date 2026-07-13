@@ -1,6 +1,7 @@
-import type { Locale } from "../types/domain";
+﻿import type { Locale } from "../types/domain";
 import { RoutePlaceholderPage } from "./RoutePlaceholderPage";
 
 export function PlanPage({ locale }: { locale: Locale; onNavigate: (path: string) => void }) {
-  return <RoutePlaceholderPage locale={locale} name="Plan" />;
+  return <RoutePlaceholderPage locale={locale} titleKey="page.plan.title" descriptionKey="page.plan.description" />;
 }
+
