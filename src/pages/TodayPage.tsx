@@ -147,12 +147,12 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   }
 
   return (
-    <div className="today-page">
+    <div className="today-page stitch-dashboard">
       <header className="today-header">
         <div>
           <p>945</p>
-          <h1>{t("today.title")}</h1>
-          <span>{t("today.subtitle")}</span>
+          <h1>Good morning, Alex.</h1>
+          <span>Your body is primed for recovery today. The AI suggests focusing on mobility and hitting your protein targets.</span>
         </div>
         <button className="prototype-link" onClick={() => onNavigate?.("/prototype")} type="button">
           {t("shell.prototypeReference")}
@@ -161,7 +161,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
 
       {notice ? <div className="business-notice">{notice}</div> : null}
 
-      <section className="metric-grid" aria-label={t("today.summary")}>
+      <section className="metric-grid compact-metrics" aria-label={t("today.summary")}>
         <MetricCard label={t("metrics.goal")} value={today.user.goal.replace(/_/g, " ")} />
         <MetricCard
           label={t("metrics.workouts")}
@@ -173,7 +173,9 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
       </section>
 
       <section className="today-layout">
-        <article className="business-card primary-card">
+        <div className="today-content-stack">
+        <div className="today-primary-grid">
+        <article className="business-card primary-card workout-summary-card">
           <div className="section-heading">
             <span>{t("today.workout")}</span>
             <strong>{workout?.duration_minutes ?? 0} {t("metrics.durationMinutes")}</strong>
@@ -206,7 +208,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
           )}
         </article>
 
-        <article className="business-card">
+        <article className="business-card nutrition-card">
           <div className="section-heading">
             <span>{t("today.diet")}</span>
             <strong>{mealTotal.calories} {t("metrics.kcalPlanned")}</strong>
@@ -229,8 +231,9 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
             ))}
           </div>
         </article>
+        </div>
 
-        <article className="business-card">
+        <article className="business-card checkin-card">
           <div className="section-heading">
             <span>{t("today.checkin")}</span>
             <strong>{today.daily_checkin ? t("status.saved") : ""}</strong>
@@ -284,10 +287,11 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
             {saving ? t("status.saving") : t("actions.save")}
           </button>
         </article>
+        </div>
 
-        <article className="business-card advice-card">
+        <aside className="business-card advice-card agent-insight-panel">
           <div className="section-heading">
-            <span>{t("today.advice")}</span>
+            <span>Agent Insight</span>
             <strong>{today.latest_advice?.risk_level}</strong>
           </div>
           {today.latest_advice ? (
@@ -312,7 +316,13 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
           ) : (
             <p>{t("empty.noAdvice")}</p>
           )}
-        </article>
+          <div className="agent-mini-input">
+            <input placeholder="Ask Agent anything..." aria-label="Ask Agent" />
+            <button onClick={() => onNavigate?.("/agent")} type="button">
+              <span className="material-symbols-outlined">arrow_upward</span>
+            </button>
+          </div>
+        </aside>
 
         <article className="business-card agent-card">
           <div className="section-heading">

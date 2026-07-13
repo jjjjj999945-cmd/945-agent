@@ -57,7 +57,7 @@ export function DietPage({ locale }: { locale: Locale }) {
   if (!data) return <div className="business-placeholder">{t("status.loading")}</div>;
 
   return (
-    <div className="business-page">
+    <div className="business-page diet-tracker-page">
       <header className="page-header">
         <p>945</p>
         <h1>{t("page.diet.title")}</h1>
@@ -65,14 +65,24 @@ export function DietPage({ locale }: { locale: Locale }) {
       </header>
       {notice ? <div className="business-notice">{notice}</div> : null}
 
-      <section className="page-grid">
-        <article className="business-panel">
+      <section className="diet-layout">
+        <div className="diet-main-stack">
+        <article className="business-panel calendar-strip">
+          {["Mon 16", "Tue 17", "Wed 18", "Thu 19", "Fri 20", "Sat 21", "Sun 22"].map((day) => (
+            <button className={day.includes("Tue") ? "active" : ""} key={day} type="button">{day}</button>
+          ))}
+        </article>
+
+        <article className="business-panel nutrition-day-card">
           <div className="section-heading">
             <span>{t("labels.todayNutritionTarget")}</span>
-            <strong>{data.targets.calories} kcal</strong>
+            <strong>Target: {data.targets.calories} kcal</strong>
           </div>
-          <p>Protein {data.targets.protein_g}g · Carbs {data.targets.carbs_g}g · Fat {data.targets.fat_g}g</p>
-          <p>{t("labels.loggedMeals")}: {data.logs.length}</p>
+          <div className="macro-rings">
+            <span><b>110</b>PRO</span>
+            <span><b>320</b>CARB</span>
+            <span><b>65</b>FAT</span>
+          </div>
         </article>
 
         <article className="business-panel">
@@ -89,6 +99,7 @@ export function DietPage({ locale }: { locale: Locale }) {
               <button onClick={() => void confirmMeal(meal.meal_id)} type="button">{t("actions.confirmPlannedMeal")}</button>
             </div>
           ))}
+          <button className="ghost add-meal-button" type="button">+ Add Meal</button>
         </article>
 
         <article className="business-panel compact">
@@ -98,6 +109,26 @@ export function DietPage({ locale }: { locale: Locale }) {
           </label>
           <button onClick={() => void saveManualMeal()} type="button">{t("actions.saveManualMeal")}</button>
         </article>
+        </div>
+
+        <aside className="business-panel diet-side-panel">
+          <div className="section-heading">
+            <span>AI Meal Adjustment</span>
+            <strong>New</strong>
+          </div>
+          <p>I noticed you completed an intense leg session yesterday. I've slightly increased your carbohydrate intake for lunch and dinner today.</p>
+          <div className="button-row">
+            <button className="ghost" type="button">Dismiss</button>
+            <button type="button">Review Details</button>
+          </div>
+          <h2>Grocery List</h2>
+          {["Chicken Breast (1.5kg)", "Sweet Potatoes (4 large)", "Greek Yogurt (0% Fat, 1L)", "Almonds (Raw, Unsweetened)"].map((item, index) => (
+            <label className="check-row" key={item}>
+              <input defaultChecked={index === 3} type="checkbox" />
+              {item}
+            </label>
+          ))}
+        </aside>
       </section>
     </div>
   );

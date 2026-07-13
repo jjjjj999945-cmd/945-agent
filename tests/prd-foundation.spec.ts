@@ -3,12 +3,12 @@ import { expect, test } from "@playwright/test";
 test.describe("PRD-driven frontend foundation", () => {
   test("renders primary product routes and keeps prototype references accessible", async ({ page }) => {
     const routes = [
-      ["/", "今日计划"],
-      ["/workout", "训练"],
+      ["/", "Good morning, Alex."],
+      ["/workout", "Upper Body Power"],
       ["/diet", "饮食"],
       ["/body", "身体数据"],
       ["/advice", "建议"],
-      ["/agent", "Agent"],
+      ["/agent", "Recovery Ride"],
       ["/settings", "设置"]
     ] as const;
 
@@ -26,7 +26,7 @@ test.describe("PRD-driven frontend foundation", () => {
 
   test("supports core mock interactions across product pages", async ({ page }) => {
     await page.goto("/workout");
-    await page.getByRole("button", { name: "保存训练记录" }).click();
+    await page.getByRole("button", { name: "Finish" }).click();
     await expect(page.getByText("训练记录已保存")).toBeVisible();
 
     await page.goto("/diet");
@@ -66,7 +66,7 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.getByRole("button", { name: "查看原因" }).click();
     await expect(page.getByText("建议原因已展开在卡片内")).toBeVisible();
     await page.getByRole("button", { name: "调整今日计划" }).click();
-    await expect(page.getByRole("heading", { name: "Agent", exact: true })).toBeVisible();
+    await expect(page.getByText("Plan Draft")).toBeVisible();
 
     await page.goto("/plan");
     await page.getByRole("button", { name: "生成计划" }).click();

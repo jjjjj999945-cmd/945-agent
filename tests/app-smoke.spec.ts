@@ -4,7 +4,7 @@ test.describe("945 business Today page smoke QA", () => {
   test("verifies meal confirmation, daily check-in, Agent draft confirmation, and language switching", async ({ page }) => {
     await page.goto("/app");
 
-    await expect(page.getByRole("heading", { name: "今日计划" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Good morning, Alex." })).toBeVisible();
     await expect(page.getByText("1480 / 2300")).toBeVisible();
 
     const firstMealConfirm = page.getByRole("button", { name: "确认" }).first();
@@ -30,7 +30,7 @@ test.describe("945 business Today page smoke QA", () => {
     await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
     await expect(page.getByRole("heading", { name: "确认 Agent 草稿" })).toBeHidden();
 
-    await page.getByRole("combobox").selectOption("en-US");
+    await page.getByRole("combobox").first().selectOption("en-US");
     await expect(page.getByRole("button", { name: "Today", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Save" })).toBeVisible();
   });

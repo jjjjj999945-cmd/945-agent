@@ -54,54 +54,55 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
   if (!data) return <div className="business-placeholder">{t("status.loading")}</div>;
 
   return (
-    <div className="business-page">
-      <header className="page-header">
-        <p>945</p>
-        <h1>{t("page.workout.title")}</h1>
-        <span>{t("page.workout.description")}</span>
+    <div className="business-page workout-detail-page">
+      <header className="workout-hero business-panel">
+        <div>
+          <h1>Upper Body Power</h1>
+          <span className="status-dot">Active Session · Started 15m ago</span>
+        </div>
+        <div className="workout-hero-status">
+          <span>45:32<br /><small>Elapsed</small></span>
+          <strong>{Math.round(data.completion_rate * 100)}%</strong>
+          <button onClick={() => void saveWorkoutLog()} type="button">Finish</button>
+        </div>
       </header>
       {notice ? <div className="business-notice">{notice}</div> : null}
 
-      <section className="page-grid">
-        <article className="business-panel">
+      <section className="workout-grid">
+        <article className="business-panel accent-success">
           <div className="section-heading">
-            <span>{t("labels.weeklyWorkoutPlan")}</span>
-            <strong>{Math.round(data.completion_rate * 100)}%</strong>
+            <span>{data.selected_day.exercises[0]?.name}</span>
+            <strong>Done</strong>
           </div>
-          {data.plan.workout_plan.days.map((day) => (
-            <div className="exercise-row" key={day.date}>
-              <div>
-                <strong>{day.name}</strong>
-                <span>{day.focus.replace(/_/g, " ")} · {day.duration_minutes} min</span>
-              </div>
-              <span>{day.exercises.length} {t("labels.exercises")}</span>
-            </div>
-          ))}
+          <span className="exercise-meta">Chest, Triceps · 4 Sets</span>
+          <div className="set-table">
+            <span>1</span><input defaultValue="135" /><small>lbs</small><input defaultValue="10" /><small>reps</small><b>✓</b>
+            <span>2</span><input defaultValue="185" /><small>lbs</small><input defaultValue="8" /><small>reps</small><b>✓</b>
+          </div>
         </article>
 
-        <article className="business-panel">
+        <article className="business-panel accent-primary">
           <div className="section-heading">
-            <span>{data.selected_day.name}</span>
-            <strong>{data.weekly_volume_sets} {t("labels.sets")}</strong>
+            <span>{data.selected_day.exercises[1]?.name}</span>
+            <strong>Active</strong>
           </div>
-          <div className="exercise-list">
-            {data.selected_day.exercises.map((exercise) => (
-              <div className="exercise-row" key={exercise.exercise_id}>
-                <div>
-                  <strong>{exercise.name}</strong>
-                  <span>{exercise.target_muscles.join(", ")}</span>
-                </div>
-                <button
-                  className={completedSets[exercise.exercise_id] ? "" : "ghost"}
-                  onClick={() => setCompletedSets((value) => ({ ...value, [exercise.exercise_id]: !value[exercise.exercise_id] }))}
-                  type="button"
-                >
-                  {exercise.sets} x {exercise.reps}
-                </button>
-              </div>
-            ))}
+          <span className="exercise-meta">Upper Chest · 3 Sets</span>
+          <div className="set-table active-set">
+            <span>1</span><input defaultValue="65" /><small>lbs</small><input defaultValue="10" /><small>reps</small><b>✓</b>
+            <span>2</span><input defaultValue="70" /><small>lbs</small><input defaultValue="8" /><small>reps</small><b>✓</b>
+            <span>3</span><input placeholder="-" /><small>lbs</small><input placeholder="-" /><small>reps</small><b />
           </div>
-          <button onClick={() => void saveWorkoutLog()} type="button">{t("actions.saveWorkoutLog")}</button>
+        </article>
+
+        <article className="business-panel pullup-card">
+          <div className="section-heading">
+            <span>Pull-ups</span>
+            <strong>Up next</strong>
+          </div>
+          <span className="exercise-meta">Back, Biceps · 3 Sets</span>
+          <button className="ghost start-exercise" onClick={() => setCompletedSets((value) => ({ ...value, pullups: !value.pullups }))} type="button">
+            Start Exercise
+          </button>
         </article>
       </section>
     </div>

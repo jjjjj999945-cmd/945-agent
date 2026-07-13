@@ -44,22 +44,30 @@ export function AgentPage({ locale }: { locale: Locale }) {
   }
 
   return (
-    <div className="business-page">
-      <header className="page-header">
-        <p>945</p>
-        <h1>{t("page.agent.title")}</h1>
-        <span>{t("page.agent.description")}</span>
-      </header>
+    <div className="business-page agent-chat-page">
       {notice ? <div className="business-notice">{notice}</div> : null}
 
-      <section className="business-panel">
+      <section className="agent-chat-layout">
+      <article className="business-panel chat-window">
         <div className="agent-thread">
-          {messages.length ? messages.map((message) => (
+          <div className="agent-bubble agent">
+            <strong>945 Agent · 09:41 AM</strong>
+            <span>Good morning. I've reviewed your biometric data from last night's recovery phase. Your HRV is trending slightly lower than baseline.</span>
+          </div>
+          <div className="agent-bubble user">
+            <strong>You · 09:45 AM</strong>
+            <span>Feeling a bit sluggish, to be honest. Maybe we should dial back the intensity?</span>
+          </div>
+          <div className="agent-bubble agent">
+            <strong>945 Agent · 09:46 AM</strong>
+            <span>Understood. Given the self-reported fatigue and HRV data, I recommend pivoting to a Zone 2 recovery ride.</span>
+          </div>
+          {messages.map((message) => (
             <div className={`agent-bubble ${message.role}`} key={message.message_id}>
               <strong>{message.role}</strong>
               <span>{message.content}</span>
             </div>
-          )) : <p>{t("agent.todayPrompt")}</p>}
+          ))}
         </div>
         <div className="agent-input-row">
           <input
@@ -69,6 +77,26 @@ export function AgentPage({ locale }: { locale: Locale }) {
           />
           <button onClick={() => void send()} type="button">{t("actions.send")}</button>
         </div>
+      </article>
+      <aside className="agent-status-panel">
+        <article className="business-panel compact">
+          <div className="section-heading"><span>Agent Status</span><strong>Active</strong></div>
+          <small>Context: Oura Ring, Whoop, Apple Health</small>
+        </article>
+        <article className="business-panel plan-draft-card">
+          <div className="section-heading"><span>Plan Draft</span><strong>⋮</strong></div>
+          <h2>Recovery Ride</h2>
+          <p>Zone 2 Focus · 45 min</p>
+          <div className="exercise-row"><span>Warm-up</span><strong>10 min @ 100W</strong></div>
+          <div className="exercise-row"><span>Main Set</span><strong>30 min @ 140W</strong></div>
+          <button onClick={confirmDraft} type="button">Push to Garmin</button>
+        </article>
+        <article className="business-panel compact">
+          <h2>Live Context</h2>
+          <div className="context-bar"><span style={{ width: "68%" }} /></div>
+          <small>HRV trending low · RPE elevated</small>
+        </article>
+      </aside>
       </section>
 
       <ConfirmDialog
