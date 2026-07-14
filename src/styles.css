@@ -3839,3 +3839,88 @@ select {
     transition-duration: 0.01ms;
   }
 }
+
+/* P0 mobile QA fixes: use the top navigation as the mobile entry point and keep diet date pills compact. */
+@media (max-width: 800px) {
+  .business-sidebar {
+    display: none !important;
+  }
+
+  .business-workbench {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .business-topbar {
+    top: 0 !important;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+
+  .business-brand-wordmark {
+    max-width: none;
+  }
+
+  .top-actions {
+    align-items: center;
+  }
+
+  .sync-agent-button {
+    width: 38px;
+    max-width: 38px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sync-agent-button .material-symbols-outlined {
+    display: inline-block !important;
+    font-size: 18px;
+  }
+
+  .sync-agent-label {
+    display: none;
+  }
+
+  .top-nav {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+
+  .top-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-nav button {
+    min-width: 68px;
+  }
+
+  .business-main {
+    padding-top: 18px;
+  }
+
+  .calendar-strip {
+    display: flex;
+    gap: 8px;
+    min-height: 0;
+    overflow-x: auto;
+    padding: 10px 12px;
+    scrollbar-width: none;
+  }
+
+  .calendar-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .calendar-strip button {
+    flex: 0 0 auto;
+    min-width: 62px;
+    height: 36px;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
+}

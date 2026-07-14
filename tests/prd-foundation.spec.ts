@@ -72,4 +72,33 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.getByRole("button", { name: "生成计划" }).click();
     await expect(page.getByText("已基于 demo 资料重新生成计划预览")).toBeVisible();
   });
+
+  test("keeps mobile navigation and diet date controls compact", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await page.goto("/");
+    await expect(page.locator(".business-sidebar")).toBeHidden();
+    await expect(page.getByRole("button", { name: "今日", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "同步教练" })).toBeVisible();
+    await expect(page.locator(".sync-agent-label")).toHaveCount(1);
+    await expect(page.locator(".sync-agent-label")).toBeHidden();
+
+    await page.goto("/diet");
+    const calendar = page.locator(".calendar-strip");
+    await expect(calendar).toBeVisible();
+
+    const calendarBox = await calendar.boundingBox();
+    expect(calendarBox?.height).toBeLessThanOrEqual(92);
+
+    const dayButtons = await calendar.locator("button").evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      })
+    );
+
+    expect(dayButtons.length).toBeGreaterThanOrEqual(7);
+    expect(dayButtons[6].top - dayButtons[0].top).toBeLessThanOrEqual(12);
+    expect(dayButtons[0].height).toBeLessThanOrEqual(44);
+  });
 });
