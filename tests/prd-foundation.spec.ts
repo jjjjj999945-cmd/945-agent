@@ -4,7 +4,7 @@ test.describe("PRD-driven frontend foundation", () => {
   test("renders primary product routes and keeps prototype references accessible", async ({ page }) => {
     const routes = [
       ["/", "早上好，Alex。"],
-      ["/workout", "上肢力量训练"],
+      ["/workout", "训练计划中心"],
       ["/diet", "饮食"],
       ["/body", "身体数据"],
       ["/advice", "建议"],
@@ -71,6 +71,29 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.goto("/plan");
     await page.getByRole("button", { name: "生成计划" }).click();
     await expect(page.getByText("已基于 demo 资料重新生成计划预览")).toBeVisible();
+  });
+
+  test("exposes desktop client semantics for agent, workout, and settings", async ({ page }) => {
+    await page.goto("/agent");
+    await expect(page.getByRole("heading", { name: "945 智能教练", exact: true })).toBeVisible();
+
+    await page.goto("/workout");
+    await expect(page.getByRole("heading", { name: "训练计划中心", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "本周训练计划", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "最近训练记录", exact: true })).toBeVisible();
+    await expect(page.getByText("本周完成率")).toBeVisible();
+    await expect(page.getByText("训练量摘要")).toBeVisible();
+
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "增肌" }).click();
+    await expect(page.getByText("设置已保存：训练目标已切换为增肌")).toBeVisible();
+    await page.getByLabel("公制单位").click();
+    await expect(page.getByText("设置已保存：单位偏好已更新")).toBeVisible();
+    await page.getByLabel("推送通知").click();
+    await expect(page.getByText("设置已保存：通知偏好已更新")).toBeVisible();
+    await page.getByLabel("严格督促").click();
+    await expect(page.getByText("设置已保存：教练语气已切换为严格督促")).toBeVisible();
+    await expect(page.getByRole("button", { name: /数据导出.*后续能力/ })).toBeDisabled();
   });
 
 });

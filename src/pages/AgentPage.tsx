@@ -72,6 +72,12 @@ export function AgentPage({ locale }: { locale: Locale }) {
 
   return (
     <div className="business-page agent-chat-page">
+      <header className="page-header agent-page-header">
+        <p>945</p>
+        <h1>{isChinese ? "945 智能教练" : "945 Agent"}</h1>
+        <span>{t("page.agent.description")}</span>
+      </header>
+
       {notice ? <div className="business-notice">{notice}</div> : null}
 
       <section className="agent-chat-layout">
