@@ -72,7 +72,7 @@ React / Vite 前端
   -> demoData
   -> mockApi
   -> i18n
-  -> /app 业务今日页面
+  -> 桌面客户端主业务页面
   -> Stitch prototype reference
 ```
 
@@ -104,6 +104,13 @@ src/
     ProgressBar.tsx
   pages/
     TodayPage.tsx
+    PlanPage.tsx
+    WorkoutPage.tsx
+    DietPage.tsx
+    BodyPage.tsx
+    AdvicePage.tsx
+    AgentPage.tsx
+    SettingsPage.tsx
     PrototypeRouter.tsx
   types/
     domain.ts
@@ -124,7 +131,14 @@ src/
 | --- | --- |
 | `src/App.tsx` | 应用入口，决定显示业务页面还是 Stitch 原型 |
 | `AppShell.tsx` | 业务工作台外壳，包括导航和语言切换 |
-| `TodayPage.tsx` | 当前第一个业务数据驱动页面，展示今日训练、饮食、打卡、建议和 Agent 输入 |
+| `TodayPage.tsx` | 今日工作台，展示今日训练、饮食、打卡、建议和 Agent 输入 |
+| `PlanPage.tsx` | 计划生成和计划预览 |
+| `WorkoutPage.tsx` | 训练计划中心、今日训练执行、历史和训练量摘要 |
+| `DietPage.tsx` | 饮食计划、计划餐确认和手动餐食 |
+| `BodyPage.tsx` | 身体数据记录和趋势 |
+| `AdvicePage.tsx` | Agent 建议、周总结和调整建议 |
+| `AgentPage.tsx` | 智能教练对话和记录草稿确认 |
+| `SettingsPage.tsx` | demo 用户资料、偏好、语言和后续能力边界 |
 | `PrototypeRouter.tsx` | 保留 Stitch 导出页面，作为视觉参考 |
 | `domain.ts` | 定义 User、Plan、WorkoutLog、MealLog、AgentAdvice 等核心类型 |
 | `demoData.ts` | 本地 demo 用户、计划、餐食、训练和建议数据 |
@@ -379,14 +393,18 @@ npm run qa:app
 
 1. `README.md`
 2. `PRD.md`
-3. `docs/FRONTEND_REQUIREMENTS.md`
-4. `docs/API_CONTRACT.md`
-5. `docs/DATA_MODEL.md`
-6. `docs/STITCH_HANDOFF.md`
-7. `src/types/domain.ts`
-8. `src/data/demoData.ts`
-9. `src/services/mockApi.ts`
-10. `src/pages/TodayPage.tsx`
+3. `docs/BUILD_PROCESS.md`
+4. `docs/DATA_MODEL.md`
+5. `docs/API_CONTRACT.md`
+6. `docs/AGENT_BACKEND_RAG_ARCHITECTURE.md`
+7. `docs/FRONTEND_REQUIREMENTS.md`
+8. `docs/STITCH_HANDOFF.md`
+9. `src/types/domain.ts`
+10. `src/data/demoData.ts`
+11. `src/services/mockApi.ts`
+12. `src/pages/TodayPage.tsx`
+13. `src/pages/WorkoutPage.tsx`
+14. `tests/prd-foundation.spec.ts`
 
 阅读重点：
 
@@ -397,7 +415,7 @@ npm run qa:app
 
 ## 13. 下一步开发方向
 
-接下来有两条主线：
+桌面客户端 P0 已经补齐后，接下来有两条主线：
 
 ### 主线 A：继续前端业务页面
 
@@ -423,7 +441,10 @@ npm run qa:app
 - 多 Agent 节点
 - 与前端 API contract 对齐的接口
 
-这条线会把当前 mock API 替换成真实 API。
+这条线会把当前 mock API 替换成真实 API。详细顺序见：
 
-当前更推荐先做主线 A，因为它能更快看到完整产品体验，也不会锁死未来后端架构。
+```text
+docs/AGENT_BACKEND_RAG_ARCHITECTURE.md
+```
 
+当前更推荐先做主线 B 的前半段：先搭 FastAPI 空壳和结构化 API，再接 MongoDB。RAG 和 LangGraph Agent 应该排在结构化数据闭环之后，避免把训练记录、饮食记录、身体数据这些精确事实错误地塞进向量库。
