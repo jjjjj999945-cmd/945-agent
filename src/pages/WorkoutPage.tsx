@@ -6,6 +6,7 @@ import type { Locale, WorkoutPageData } from "../types/domain";
 
 export function WorkoutPage({ locale }: { locale: Locale }) {
   const t = createTranslator(locale);
+  const isChinese = locale === "zh-CN";
   const [data, setData] = useState<WorkoutPageData | null>(null);
   const [notice, setNotice] = useState("");
   const [completedSets, setCompletedSets] = useState<Record<string, boolean>>({});
@@ -57,13 +58,13 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
     <div className="business-page workout-detail-page">
       <header className="workout-hero business-panel">
         <div>
-          <h1>Upper Body Power</h1>
-          <span className="status-dot">Active Session · Started 15m ago</span>
+          <h1>{isChinese ? "上肢力量训练" : "Upper Body Power"}</h1>
+          <span className="status-dot">{isChinese ? "训练进行中 · 已开始 15 分钟" : "Active Session · Started 15m ago"}</span>
         </div>
         <div className="workout-hero-status">
-          <span>45:32<br /><small>Elapsed</small></span>
+          <span>45:32<br /><small>{isChinese ? "已用时" : "Elapsed"}</small></span>
           <strong>{Math.round(data.completion_rate * 100)}%</strong>
-          <button onClick={() => void saveWorkoutLog()} type="button">Finish</button>
+          <button onClick={() => void saveWorkoutLog()} type="button">{isChinese ? "完成训练" : "Finish"}</button>
         </div>
       </header>
       {notice ? <div className="business-notice">{notice}</div> : null}
@@ -72,36 +73,36 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
         <article className="business-panel accent-success">
           <div className="section-heading">
             <span>{data.selected_day.exercises[0]?.name}</span>
-            <strong>Done</strong>
+            <strong>{isChinese ? "已完成" : "Done"}</strong>
           </div>
-          <span className="exercise-meta">Chest, Triceps · 4 Sets</span>
+          <span className="exercise-meta">{isChinese ? "胸部、肱三头肌 · 4 组" : "Chest, Triceps · 4 Sets"}</span>
           <div className="set-table">
-            <span>1</span><input defaultValue="135" /><small>lbs</small><input defaultValue="10" /><small>reps</small><b>✓</b>
-            <span>2</span><input defaultValue="185" /><small>lbs</small><input defaultValue="8" /><small>reps</small><b>✓</b>
+            <span>1</span><input defaultValue="60" /><small>kg</small><input defaultValue="10" /><small>{isChinese ? "次" : "reps"}</small><b>✓</b>
+            <span>2</span><input defaultValue="70" /><small>kg</small><input defaultValue="8" /><small>{isChinese ? "次" : "reps"}</small><b>✓</b>
           </div>
         </article>
 
         <article className="business-panel accent-primary">
           <div className="section-heading">
             <span>{data.selected_day.exercises[1]?.name}</span>
-            <strong>Active</strong>
+            <strong>{isChinese ? "进行中" : "Active"}</strong>
           </div>
-          <span className="exercise-meta">Upper Chest · 3 Sets</span>
+          <span className="exercise-meta">{isChinese ? "上胸 · 3 组" : "Upper Chest · 3 Sets"}</span>
           <div className="set-table active-set">
-            <span>1</span><input defaultValue="65" /><small>lbs</small><input defaultValue="10" /><small>reps</small><b>✓</b>
-            <span>2</span><input defaultValue="70" /><small>lbs</small><input defaultValue="8" /><small>reps</small><b>✓</b>
-            <span>3</span><input placeholder="-" /><small>lbs</small><input placeholder="-" /><small>reps</small><b />
+            <span>1</span><input defaultValue="30" /><small>kg</small><input defaultValue="10" /><small>{isChinese ? "次" : "reps"}</small><b>✓</b>
+            <span>2</span><input defaultValue="32" /><small>kg</small><input defaultValue="8" /><small>{isChinese ? "次" : "reps"}</small><b>✓</b>
+            <span>3</span><input placeholder="-" /><small>kg</small><input placeholder="-" /><small>{isChinese ? "次" : "reps"}</small><b />
           </div>
         </article>
 
         <article className="business-panel pullup-card">
           <div className="section-heading">
-            <span>Pull-ups</span>
-            <strong>Up next</strong>
+            <span>{isChinese ? "引体向上" : "Pull-ups"}</span>
+            <strong>{isChinese ? "下一项" : "Up next"}</strong>
           </div>
-          <span className="exercise-meta">Back, Biceps · 3 Sets</span>
+          <span className="exercise-meta">{isChinese ? "背部、肱二头肌 · 3 组" : "Back, Biceps · 3 Sets"}</span>
           <button className="ghost start-exercise" onClick={() => setCompletedSets((value) => ({ ...value, pullups: !value.pullups }))} type="button">
-            Start Exercise
+            {isChinese ? "开始动作" : "Start Exercise"}
           </button>
         </article>
       </section>

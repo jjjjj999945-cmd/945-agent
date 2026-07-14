@@ -6,6 +6,7 @@ import type { DietPageData, Locale } from "../types/domain";
 
 export function DietPage({ locale }: { locale: Locale }) {
   const t = createTranslator(locale);
+  const isChinese = locale === "zh-CN";
   const [data, setData] = useState<DietPageData | null>(null);
   const [notice, setNotice] = useState("");
   const [manualMeal, setManualMeal] = useState("鸡胸肉沙拉");
@@ -76,12 +77,12 @@ export function DietPage({ locale }: { locale: Locale }) {
         <article className="business-panel nutrition-day-card">
           <div className="section-heading">
             <span>{t("labels.todayNutritionTarget")}</span>
-            <strong>Target: {data.targets.calories} kcal</strong>
+            <strong>{isChinese ? "目标" : "Target"}: {data.targets.calories} {t("metrics.kcal")}</strong>
           </div>
           <div className="macro-rings">
-            <span><b>110</b>PRO</span>
-            <span><b>320</b>CARB</span>
-            <span><b>65</b>FAT</span>
+            <span><b>110</b>{isChinese ? "蛋白" : "PRO"}</span>
+            <span><b>320</b>{isChinese ? "碳水" : "CARB"}</span>
+            <span><b>65</b>{isChinese ? "脂肪" : "FAT"}</span>
           </div>
         </article>
 
@@ -94,12 +95,12 @@ export function DietPage({ locale }: { locale: Locale }) {
             <div className="meal-row" key={meal.meal_id}>
               <div>
                 <strong>{meal.name}</strong>
-                <span>{meal.total_macros.calories} kcal · {meal.total_macros.protein_g}g protein</span>
+                <span>{meal.total_macros.calories} {t("metrics.kcal")} · {meal.total_macros.protein_g}{t("metrics.proteinGrams")}</span>
               </div>
               <button onClick={() => void confirmMeal(meal.meal_id)} type="button">{t("actions.confirmPlannedMeal")}</button>
             </div>
           ))}
-          <button className="ghost add-meal-button" type="button">+ Add Meal</button>
+          <button className="ghost add-meal-button" type="button">{isChinese ? "+ 添加餐食" : "+ Add Meal"}</button>
         </article>
 
         <article className="business-panel compact">
@@ -113,16 +114,16 @@ export function DietPage({ locale }: { locale: Locale }) {
 
         <aside className="business-panel diet-side-panel">
           <div className="section-heading">
-            <span>AI Meal Adjustment</span>
-            <strong>New</strong>
+            <span>{isChinese ? "智能饮食调整" : "AI Meal Adjustment"}</span>
+            <strong>{isChinese ? "新的" : "New"}</strong>
           </div>
-          <p>I noticed you completed an intense leg session yesterday. I've slightly increased your carbohydrate intake for lunch and dinner today.</p>
+          <p>{isChinese ? "我注意到你昨天完成了一次高强度腿部训练，所以今天午餐和晚餐的碳水摄入略微上调。" : "I noticed you completed an intense leg session yesterday. I've slightly increased your carbohydrate intake for lunch and dinner today."}</p>
           <div className="button-row">
-            <button className="ghost" type="button">Dismiss</button>
-            <button type="button">Review Details</button>
+            <button className="ghost" type="button">{isChinese ? "忽略" : "Dismiss"}</button>
+            <button type="button">{isChinese ? "查看详情" : "Review Details"}</button>
           </div>
-          <h2>Grocery List</h2>
-          {["Chicken Breast (1.5kg)", "Sweet Potatoes (4 large)", "Greek Yogurt (0% Fat, 1L)", "Almonds (Raw, Unsweetened)"].map((item, index) => (
+          <h2>{isChinese ? "采购清单" : "Grocery List"}</h2>
+          {(isChinese ? ["鸡胸肉 1.5kg", "红薯 4 个", "希腊酸奶 1L", "原味杏仁"] : ["Chicken Breast (1.5kg)", "Sweet Potatoes (4 large)", "Greek Yogurt (0% Fat, 1L)", "Almonds (Raw, Unsweetened)"]).map((item, index) => (
             <label className="check-row" key={item}>
               <input defaultChecked={index === 3} type="checkbox" />
               {item}

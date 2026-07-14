@@ -54,6 +54,42 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   const workout = today?.today_workout;
   const meals = today?.today_meals ?? [];
   const summary = today?.status_summary;
+  const isChinese = locale === "zh-CN";
+  const coachCopy = {
+    eyebrow: isChinese ? "945 今日状态" : "945 Readiness",
+    headline: isChinese ? "早上好，Alex。" : "Good morning, Alex.",
+    intro: isChinese
+      ? "今天更适合恢复驱动训练。智能教练建议保留主计划，但降低最后一组强度，并优先补足蛋白质。"
+      : "Your body is primed for recovery today. The Agent suggests keeping the plan, lowering the final set, and prioritizing protein.",
+    start: isChinese ? "开始今日计划" : "Start today",
+    review: isChinese ? "查看调整" : "Review adjustment",
+    insight: isChinese ? "智能教练" : "Coach Agent",
+    loadDelta: isChinese ? "负荷变化" : "Load delta",
+    effort: isChinese ? "目标强度" : "Target effort",
+    recoveryWindow: isChinese ? "恢复窗口" : "Recovery window",
+    mobility: isChinese ? "灵活性" : "Mobility",
+    strength: isChinese ? "上肢力量" : "Upper strength",
+    protein: isChinese ? "蛋白质" : "Protein",
+    workouts: isChinese ? "训练" : "Workouts",
+    calories: isChinese ? "热量" : "Calories",
+    recovery: isChinese ? "恢复" : "Recovery",
+    ask: isChinese ? "问智能教练：今天训练、饮食或恢复怎么调？" : "Ask Agent about training, diet, or recovery..."
+  };
+  const goalLabel = isChinese && today?.user.goal === "body_recomposition" ? "身体重组" : (today?.user.goal.replace(/_/g, " ") ?? "");
+  const recoveryLabel = isChinese && summary?.recovery_status === "normal" ? "正常" : (summary?.recovery_status ?? "");
+  const focusLabel = isChinese && workout?.focus === "chest_back_shoulders" ? "胸部、背部、肩部" : workout?.focus.replace(/_/g, " ");
+  const riskLabel = isChinese && today?.latest_advice?.risk_level === "low" ? "低风险" : today?.latest_advice?.risk_level;
+  const draftTypeLabels: Record<RecordDraft["type"], string> = {
+    workout_log: isChinese ? "训练记录" : "workout log",
+    meal_log: isChinese ? "饮食记录" : "meal log",
+    daily_checkin: isChinese ? "每日打卡" : "daily check-in",
+    plan_adjustment: isChinese ? "计划调整" : "plan adjustment"
+  };
+  const workoutStatusLabels: Record<"completed" | "partial" | "skipped", string> = {
+    completed: isChinese ? "已完成" : "completed",
+    partial: isChinese ? "部分完成" : "partial",
+    skipped: isChinese ? "已跳过" : "skipped"
+  };
 
   const mealTotal = useMemo(
     () =>
@@ -134,12 +170,28 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
 
   function confirmRecordDraft() {
     if (!recordDraft) return;
-    setNotice(`${recordDraft.type} ${t("status.saved")}`);
+    setNotice(`${draftTypeLabels[recordDraft.type]} ${t("status.saved")}`);
     setRecordDraft(null);
   }
 
   function updateWorkoutStatus(status: "completed" | "partial" | "skipped") {
-    setNotice(`${t("status.workoutStatusUpdated")}: ${status}`);
+    setNotice(`${t("status.workoutStatusUpdated")}: ${workoutStatusLabels[status]}`);
+  }
+
+  function formatRecordDraft(draft: RecordDraft | null) {
+    if (!draft) return "";
+    if (!isChinese) return JSON.stringify(draft.payload, null, 2);
+    const payload = draft.payload;
+    const rows = [
+      ["草稿类型", draftTypeLabels[draft.type]],
+      ["动作名称", payload.exercise_name],
+      ["组数", payload.sets],
+      ["次数", payload.reps],
+      ["重量", payload.weight_kg ? `${payload.weight_kg} kg` : undefined],
+      ["餐食名称", payload.meal_name],
+      ["备注", payload.effort_note ?? payload.note]
+    ].filter(([, value]) => value !== undefined && value !== "");
+    return rows.map(([label, value]) => `${label}: ${value}`).join("\n");
   }
 
   if (!today || !summary) {
@@ -148,28 +200,54 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
 
   return (
     <div className="today-page stitch-dashboard">
-      <header className="today-header">
-        <div>
-          <p>945</p>
-          <h1>Good morning, Alex.</h1>
-          <span>Your body is primed for recovery today. The AI suggests focusing on mobility and hitting your protein targets.</span>
+      <header className="today-header today-hero-panel">
+        <div className="today-hero-copy">
+          <p>{coachCopy.eyebrow}</p>
+          <h1>{coachCopy.headline}</h1>
+          <span>{coachCopy.intro}</span>
+          <div className="hero-action-row">
+            <button onClick={() => onNavigate?.("/workout")} type="button">
+              {coachCopy.start}
+            </button>
+            <button className="ghost" onClick={() => onNavigate?.("/advice")} type="button">
+              {coachCopy.review}
+            </button>
+          </div>
         </div>
-        <button className="prototype-link" onClick={() => onNavigate?.("/prototype")} type="button">
-          {t("shell.prototypeReference")}
-        </button>
+        <div className="readiness-lens" aria-label={isChinese ? "今日准备度" : "Today readiness"}>
+          <div className="lens-orbit">
+            <span />
+            <strong>{recoveryLabel}</strong>
+            <small>{coachCopy.recovery}</small>
+          </div>
+          <div className="lens-stats">
+            <span>
+              <b>{summary.weekly_workouts_completed}/{summary.weekly_workouts_planned}</b>
+              {coachCopy.workouts}
+            </span>
+            <span>
+              <b>{summary.calories_logged}/{summary.calories_target}</b>
+              {coachCopy.calories}
+            </span>
+            <span>
+              <b>{summary.protein_logged_g}g</b>
+              {coachCopy.protein}
+            </span>
+          </div>
+        </div>
       </header>
 
       {notice ? <div className="business-notice">{notice}</div> : null}
 
       <section className="metric-grid compact-metrics" aria-label={t("today.summary")}>
-        <MetricCard label={t("metrics.goal")} value={today.user.goal.replace(/_/g, " ")} />
+        <MetricCard label={t("metrics.goal")} value={goalLabel} />
         <MetricCard
           label={t("metrics.workouts")}
           value={`${summary.weekly_workouts_completed}/${summary.weekly_workouts_planned}`}
           detail={t("today.weeklyProgress")}
         />
         <MetricCard label={t("metrics.weightTrend")} value={`${summary.weight_7_day_delta_kg}kg`} detail={t("metrics.days7")} />
-        <MetricCard label={t("metrics.recovery")} value={summary.recovery_status} />
+        <MetricCard label={t("metrics.recovery")} value={recoveryLabel} />
       </section>
 
       <section className="today-layout">
@@ -183,7 +261,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
           {workout ? (
             <>
               <h2>{workout.name}</h2>
-              <p>{workout.focus.replace(/_/g, " ")}</p>
+              <p>{focusLabel}</p>
               <div className="exercise-list">
                 {workout.exercises.map((exercise) => (
                   <div className="exercise-row" key={exercise.exercise_id}>
@@ -192,7 +270,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
                       <span>{exercise.target_muscles.join(", ")}</span>
                     </div>
                     <span>
-                      {exercise.sets} x {exercise.reps}
+                      {isChinese ? `${exercise.sets} 组 × ${exercise.reps} 次` : `${exercise.sets} x ${exercise.reps}`}
                     </span>
                   </div>
                 ))}
@@ -291,14 +369,33 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
 
         <aside className="business-card advice-card agent-insight-panel">
           <div className="section-heading">
-            <span>Agent Insight</span>
-            <strong>{today.latest_advice?.risk_level}</strong>
+            <span>{coachCopy.insight}</span>
+            <strong>{riskLabel}</strong>
           </div>
           {today.latest_advice ? (
             <>
               <h2>{today.latest_advice.title}</h2>
               <p>{today.latest_advice.content}</p>
               <small>{today.latest_advice.reason}</small>
+              <div className="agent-signal-grid" aria-label={isChinese ? "智能教练上下文信号" : "Agent context signals"}>
+                <span>
+                  <b>-18%</b>
+                  {coachCopy.loadDelta}
+                </span>
+                <span>
+                  <b>{isChinese ? "强度 7" : "RPE 7"}</b>
+                  {coachCopy.effort}
+                </span>
+                <span>
+                  <b>{isChinese ? "2 天" : "2 days"}</b>
+                  {coachCopy.recoveryWindow}
+                </span>
+              </div>
+              <div className="agent-timeline" aria-label={isChinese ? "今日计划时间线" : "Today plan timeline"}>
+                <span style={{ width: "28%" }}>{coachCopy.mobility}</span>
+                <span style={{ width: "42%" }}>{coachCopy.strength}</span>
+                <span style={{ width: "30%" }}>{coachCopy.protein}</span>
+              </div>
               <div className="button-row">
                 <button onClick={() => setNotice(t("status.reasonVisible"))} type="button">{t("actions.viewReason")}</button>
                 <button
@@ -317,7 +414,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
             <p>{t("empty.noAdvice")}</p>
           )}
           <div className="agent-mini-input">
-            <input placeholder="Ask Agent anything..." aria-label="Ask Agent" />
+            <input placeholder={coachCopy.ask} aria-label={isChinese ? "询问智能教练" : "Ask Agent"} />
             <button onClick={() => onNavigate?.("/agent")} type="button">
               <span className="material-symbols-outlined">arrow_upward</span>
             </button>
@@ -354,7 +451,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
         title={t("agent.confirmDraftTitle")}
       >
         <p>{t("agent.confirmDraftBody")}</p>
-        <pre>{JSON.stringify(recordDraft?.payload ?? {}, null, 2)}</pre>
+        <pre>{formatRecordDraft(recordDraft)}</pre>
       </ConfirmDialog>
     </div>
   );

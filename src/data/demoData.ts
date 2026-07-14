@@ -53,14 +53,14 @@ export const demoPlan: Plan = {
     days: [
       {
         date: TODAY_DATE,
-        name: "Upper Strength",
+        name: "上肢力量",
         focus: "chest_back_shoulders",
         duration_minutes: 55,
         exercises: [
           {
             exercise_id: "ex-db-press",
-            name: "Dumbbell Bench Press",
-            target_muscles: ["chest", "triceps"],
+            name: "哑铃卧推",
+            target_muscles: ["胸部", "肱三头肌"],
             sets: 4,
             reps: "8-10",
             target_weight: "moderate",
@@ -68,8 +68,8 @@ export const demoPlan: Plan = {
           },
           {
             exercise_id: "ex-row",
-            name: "Seated Cable Row",
-            target_muscles: ["back"],
+            name: "坐姿绳索划船",
+            target_muscles: ["背部"],
             sets: 4,
             reps: "10-12",
             target_weight: "moderate",
@@ -77,8 +77,8 @@ export const demoPlan: Plan = {
           },
           {
             exercise_id: "ex-db-shoulder-press",
-            name: "Dumbbell Shoulder Press",
-            target_muscles: ["shoulders", "triceps"],
+            name: "哑铃推肩",
+            target_muscles: ["肩部", "肱三头肌"],
             sets: 3,
             reps: "8-10",
             target_weight: "moderate",
@@ -88,14 +88,14 @@ export const demoPlan: Plan = {
       },
       {
         date: "2026-07-13",
-        name: "Lower Strength",
+        name: "下肢力量",
         focus: "legs_glutes",
         duration_minutes: 60,
         exercises: [
           {
             exercise_id: "ex-squat",
-            name: "Back Squat",
-            target_muscles: ["quads", "glutes"],
+            name: "杠铃深蹲",
+            target_muscles: ["股四头肌", "臀部"],
             sets: 4,
             reps: "6-8",
             target_weight: "moderate_heavy",
@@ -118,10 +118,10 @@ export const demoPlan: Plan = {
         meals: [
           {
             meal_id: "meal-breakfast-1",
-            name: "Breakfast",
+            name: "早餐",
             foods: [
               {
-                name: "Greek yogurt",
+                name: "希腊酸奶",
                 portion: "250g",
                 calories: 180,
                 protein_g: 24,
@@ -129,7 +129,7 @@ export const demoPlan: Plan = {
                 fat_g: 4
               },
               {
-                name: "Blueberries",
+                name: "蓝莓",
                 portion: "100g",
                 calories: 57,
                 protein_g: 1,
@@ -137,7 +137,7 @@ export const demoPlan: Plan = {
                 fat_g: 0
               },
               {
-                name: "Rolled oats",
+                name: "燕麦片",
                 portion: "40g",
                 calories: 150,
                 protein_g: 5,
@@ -154,10 +154,10 @@ export const demoPlan: Plan = {
           },
           {
             meal_id: "meal-lunch-1",
-            name: "Lunch",
+            name: "午餐",
             foods: [
               {
-                name: "Chicken rice bowl",
+                name: "鸡胸肉饭碗",
                 portion: "1 bowl",
                 calories: 620,
                 protein_g: 42,
@@ -174,10 +174,10 @@ export const demoPlan: Plan = {
           },
           {
             meal_id: "meal-dinner-1",
-            name: "Dinner",
+            name: "晚餐",
             foods: [
               {
-                name: "Salmon",
+                name: "三文鱼",
                 portion: "160g",
                 calories: 330,
                 protein_g: 36,
@@ -185,7 +185,7 @@ export const demoPlan: Plan = {
                 fat_g: 20
               },
               {
-                name: "Sweet potato",
+                name: "红薯",
                 portion: "220g",
                 calories: 190,
                 protein_g: 4,
@@ -193,7 +193,7 @@ export const demoPlan: Plan = {
                 fat_g: 0
               },
               {
-                name: "Mixed vegetables",
+                name: "混合蔬菜",
                 portion: "200g",
                 calories: 90,
                 protein_g: 5,
@@ -222,7 +222,7 @@ export const demoAdvice: AgentAdvice = {
   title: "今天保持计划，但降低最后一组强度",
   content:
     "你最近训练完成率稳定，但疲劳评分略高。今天可以按计划训练，最后一个复合动作保留 2 次余力。",
-  reason: "最近 3 天睡眠良好，但昨天 RPE 为 9。",
+  reason: "最近 3 天睡眠良好，但昨天主观强度为 9。",
   related_data: ["workout_logs", "daily_checkins"],
   recommended_actions: ["按计划训练", "最后一组不要力竭"],
   risk_level: "low",

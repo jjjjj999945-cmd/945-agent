@@ -388,10 +388,10 @@ export const api = {
           }
         : normalized.includes("吃") || normalized.includes("meal") || normalized.includes("food")
           ? {
-              type: "meal_log" as const,
-              requires_confirmation: true as const,
-              payload: {
-                meal_name: "Manual entry",
+            type: "meal_log" as const,
+            requires_confirmation: true as const,
+            payload: {
+                meal_name: input.locale === "zh-CN" ? "手动记录" : "Manual entry",
                 note: input.message
               }
             }

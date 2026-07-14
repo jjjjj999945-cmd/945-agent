@@ -3,12 +3,12 @@ import { expect, test } from "@playwright/test";
 test.describe("PRD-driven frontend foundation", () => {
   test("renders primary product routes and keeps prototype references accessible", async ({ page }) => {
     const routes = [
-      ["/", "Good morning, Alex."],
-      ["/workout", "Upper Body Power"],
+      ["/", "早上好，Alex。"],
+      ["/workout", "上肢力量训练"],
       ["/diet", "饮食"],
       ["/body", "身体数据"],
       ["/advice", "建议"],
-      ["/agent", "Recovery Ride"],
+      ["/agent", "恢复骑行"],
       ["/settings", "设置"]
     ] as const;
 
@@ -26,7 +26,7 @@ test.describe("PRD-driven frontend foundation", () => {
 
   test("supports core mock interactions across product pages", async ({ page }) => {
     await page.goto("/workout");
-    await page.getByRole("button", { name: "Finish" }).click();
+    await page.getByRole("button", { name: "完成训练" }).click();
     await expect(page.getByText("训练记录已保存")).toBeVisible();
 
     await page.goto("/diet");
@@ -50,12 +50,12 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.goto("/agent");
     await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。").fill("今天深蹲做了 4 组，每组 8 次，80kg。");
     await page.getByRole("button", { name: "发送" }).click();
-    await expect(page.getByRole("heading", { name: "确认 Agent 草稿" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
     await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
-    await expect(page.getByText("Agent 草稿已确认")).toBeVisible();
+    await expect(page.getByText("智能教练草稿已确认")).toBeVisible();
 
     await page.goto("/settings");
-    await page.getByLabel("settings language").selectOption("en-US");
+    await page.getByLabel("语言", { exact: true }).selectOption("en-US");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
   });
 
@@ -66,7 +66,7 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.getByRole("button", { name: "查看原因" }).click();
     await expect(page.getByText("建议原因已展开在卡片内")).toBeVisible();
     await page.getByRole("button", { name: "调整今日计划" }).click();
-    await expect(page.getByText("Plan Draft")).toBeVisible();
+    await expect(page.getByText("计划草稿")).toBeVisible();
 
     await page.goto("/plan");
     await page.getByRole("button", { name: "生成计划" }).click();

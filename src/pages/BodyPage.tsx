@@ -6,6 +6,7 @@ import type { BodyPageData, Locale } from "../types/domain";
 
 export function BodyPage({ locale }: { locale: Locale }) {
   const t = createTranslator(locale);
+  const isChinese = locale === "zh-CN";
   const [data, setData] = useState<BodyPageData | null>(null);
   const [weight, setWeight] = useState("75.2");
   const [notice, setNotice] = useState("");
@@ -51,9 +52,9 @@ export function BodyPage({ locale }: { locale: Locale }) {
 
       <section className="metric-grid">
         <div className="metric-card"><span>{t("labels.currentWeight")}</span><strong>{data.latest_metric.weight_kg}kg</strong></div>
-        <div className="metric-card"><span>BMI</span><strong>{data.latest_metric.bmi ?? "--"}</strong></div>
+        <div className="metric-card"><span>{isChinese ? "身体质量指数" : "BMI"}</span><strong>{data.latest_metric.bmi ?? "--"}</strong></div>
         <div className="metric-card"><span>{t("labels.trend7")}</span><strong>{data.trend_7_day_kg.toFixed(1)}kg</strong></div>
-        <div className="metric-card"><span>{t("labels.currentGoal")}</span><strong>{data.profile.goal.replace(/_/g, " ")}</strong></div>
+        <div className="metric-card"><span>{t("labels.currentGoal")}</span><strong>{isChinese ? "身体重组" : data.profile.goal.replace(/_/g, " ")}</strong></div>
       </section>
 
       <section className="page-grid">
