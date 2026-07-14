@@ -89,14 +89,9 @@ export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, chil
                 <option value="en-US">English</option>
               </select>
             </label>
-            <button
-              aria-label={locale === "zh-CN" ? "同步教练" : "Sync Agent"}
-              className="sync-agent-button"
-              onClick={() => onNavigate("/agent")}
-              type="button"
-            >
+            <button className="sync-agent-button" onClick={() => onNavigate("/agent")} type="button">
               <span className="material-symbols-outlined">sync</span>
-              <span className="sync-agent-label">{locale === "zh-CN" ? "同步教练" : "Sync Agent"}</span>
+              {locale === "zh-CN" ? "同步教练" : "Sync Agent"}
             </button>
           </div>
         </header>

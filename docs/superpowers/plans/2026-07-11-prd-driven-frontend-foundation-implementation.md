@@ -712,25 +712,18 @@ type TodayPageProps = {
 .business-panel.compact {}
 .prototype-reference-link {}
 .prototype-reference-badge {}
-.mobile-bottom-nav {}
 ```
 
-响应式规则：
+桌面客户端规则：
 
-```css
-@media (max-width: 860px) {
-  .business-shell { grid-template-columns: 1fr; }
-  .business-sidebar { display: none; }
-  .mobile-bottom-nav { display: grid; }
-  .business-main { padding-bottom: 84px; }
-}
-```
+- 保留左侧导航和顶部导航。
+- 主内容区使用桌面客户端宽度设计，导航只保留桌面客户端形态。
 
 - [ ] **步骤 5：验证**
 
 运行：`npm run build`
 
-在浏览器自动化中打开桌面和移动端宽度进行检查。
+在浏览器自动化中打开桌面客户端宽度进行检查。
 
 ---
 
