@@ -5,3 +5,5 @@ qa-shots/
 test-results/
 .superpowers/
 .worktrees/
+__pycache__/
+*.py[cod]
