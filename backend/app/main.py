@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from backend.app.api.responses import ok
 from backend.app.api.routes_advice import router as advice_router
+from backend.app.api.routes_agent import router as agent_router
 from backend.app.api.routes_body_metrics import router as body_metrics_router
 from backend.app.api.routes_daily_checkins import router as daily_checkins_router
 from backend.app.api.routes_demo import router as demo_router
@@ -28,6 +29,7 @@ app.include_router(daily_checkins_router)
 app.include_router(profile_router)
 app.include_router(settings_router)
 app.include_router(advice_router)
+app.include_router(agent_router)
 
 
 @app.get("/health")

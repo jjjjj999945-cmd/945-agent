@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -255,6 +255,29 @@ class AdvicePageData(ApiModel):
 class AdviceStatusInput(ApiModel):
     user_id: str
     accepted_status: AdviceStatus
+
+
+class RecordDraft(ApiModel):
+    type: Literal["workout_log", "meal_log", "daily_checkin", "plan_adjustment"]
+    requires_confirmation: Literal[True]
+    payload: dict[str, Any]
+
+
+class AgentMessage(ApiModel):
+    message_id: str
+    user_id: str
+    role: Literal["user", "agent"]
+    content: str
+    locale: Locale
+    record_draft: RecordDraft | None = None
+    created_at: str
+
+
+class AgentChatInput(ApiModel):
+    user_id: str
+    locale: Locale
+    message: str
+    context: dict[str, Any] | None = None
 
 
 class ExerciseSetLog(ApiModel):

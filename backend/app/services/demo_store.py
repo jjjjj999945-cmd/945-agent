@@ -6,7 +6,9 @@ from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_U
 from backend.app.models.domain import (
     AdvicePageData,
     AdviceStatus,
+    AgentChatInput,
     AgentAdvice,
+    AgentMessage,
     BodyMetric,
     BodyMetricInput,
     ConfirmPlannedMealInput,
@@ -17,6 +19,7 @@ from backend.app.models.domain import (
     MealLog,
     ProfileCreateInput,
     ProfilePatchInput,
+    RecordDraft,
     SettingsData,
     SettingsPatchInput,
     TodayResponseData,
@@ -67,6 +70,7 @@ workout_logs: list[WorkoutLog] = []
 meal_logs: list[MealLog] = []
 body_metrics: list[BodyMetric] = []
 daily_checkins: list[DailyCheckin] = []
+agent_messages: list[AgentMessage] = []
 
 
 def reset_demo_store() -> None:
@@ -79,6 +83,7 @@ def reset_demo_store() -> None:
     meal_logs.clear()
     body_metrics.clear()
     daily_checkins.clear()
+    agent_messages.clear()
 
 
 def timestamp() -> str:
@@ -202,6 +207,92 @@ def update_advice_status(user_id: str, advice_id: str, accepted_status: AdviceSt
     updated = existing.model_copy(update={"accepted_status": accepted_status})
     advice_items[advice_items.index(existing)] = updated
     return updated
+
+
+HIGH_RISK_TERMS = ["胸闷", "眩晕", "晕厥", "强烈疼痛", "疑似受伤", "心脏不适", "极端节食", "进食障碍"]
+
+
+def _build_agent_draft(input_data: AgentChatInput) -> RecordDraft | None:
+    normalized = input_data.message.lower()
+    if "深蹲" in normalized or "squat" in normalized:
+        return RecordDraft(
+            type="workout_log",
+            requires_confirmation=True,
+            payload={
+                "exercise_name": "深蹲" if "深蹲" in normalized else "Squat",
+                "sets": 4,
+                "reps": 8,
+                "weight_kg": 80,
+                "effort_note": input_data.message
+            }
+        )
+
+    if "吃" in normalized or "meal" in normalized or "food" in normalized:
+        return RecordDraft(
+            type="meal_log",
+            requires_confirmation=True,
+            payload={
+                "meal_name": "手动记录" if input_data.locale == "zh-CN" else "Manual entry",
+                "note": input_data.message
+            }
+        )
+
+    return None
+
+
+def create_agent_reply(input_data: AgentChatInput) -> AgentMessage | None:
+    if not is_demo_user(input_data.user_id):
+        return None
+
+    now = timestamp()
+    user_message = AgentMessage(
+        message_id=f"msg-user-{len(agent_messages) + 1}",
+        user_id=input_data.user_id,
+        role="user",
+        content=input_data.message,
+        locale=input_data.locale,
+        created_at=now
+    )
+
+    is_high_risk = any(term in input_data.message for term in HIGH_RISK_TERMS)
+    draft = None if is_high_risk else _build_agent_draft(input_data)
+    if is_high_risk:
+        content = (
+            "你提到了可能的高风险身体信号。请先暂停训练，不要继续冲重量，并尽快咨询医生或合格专业人士。"
+            if input_data.locale == "zh-CN"
+            else "You mentioned possible high-risk symptoms. Stop training for now and consult a qualified professional."
+        )
+    elif draft:
+        content = (
+            "我可以帮你整理成记录草稿。保存前请先确认。"
+            if input_data.locale == "zh-CN"
+            else "I can turn that into a record draft. Please confirm before saving."
+        )
+    else:
+        content = (
+            "我已读取你的问题。当前 demo 会优先基于今日计划、记录和建议回答。"
+            if input_data.locale == "zh-CN"
+            else "I read your question. This demo answers from today's plan, logs, and advice first."
+        )
+
+    agent_message = AgentMessage(
+        message_id=f"msg-agent-{len(agent_messages) + 2}",
+        user_id=input_data.user_id,
+        role="agent",
+        content=content,
+        locale=input_data.locale,
+        record_draft=draft,
+        created_at=timestamp()
+    )
+    agent_messages.extend([user_message, agent_message])
+    return agent_message
+
+
+def list_agent_messages(user_id: str) -> list[AgentMessage] | None:
+    if not is_demo_user(user_id):
+        return None
+
+    return [message for message in agent_messages if message.user_id == user_id]
 
 
 def create_workout_log(input_data: WorkoutLogInput) -> WorkoutLog | None:
