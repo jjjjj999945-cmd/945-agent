@@ -16,3 +16,18 @@ def test_health_returns_ok_response_shape():
         },
         "error": None
     }
+
+
+def test_cors_preflight_allows_vite_frontend():
+    client = TestClient(app)
+
+    response = client.options(
+        "/api/today?user_id=demo-user-945&date=2026-07-11",
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "Access-Control-Request-Method": "GET"
+        }
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"

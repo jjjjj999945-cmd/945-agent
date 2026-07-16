@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
-import { api } from "../services/mockApi";
+import { api } from "../services/apiClient";
 import type { Goal, Locale, SettingsData, UnitSystem } from "../types/domain";
 
 export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLocaleChange: (locale: Locale) => void }) {

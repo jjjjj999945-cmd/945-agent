@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
-import { api } from "../services/mockApi";
+import { api } from "../services/apiClient";
 import type { Locale, WorkoutPageData } from "../types/domain";
 
 export function WorkoutPage({ locale }: { locale: Locale }) {

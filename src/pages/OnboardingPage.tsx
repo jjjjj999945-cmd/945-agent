@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createTranslator } from "../i18n";
-import { api } from "../services/mockApi";
+import { api } from "../services/apiClient";
 import { DEMO_USER_ID } from "../data/demoData";
 import type { Locale } from "../types/domain";
 

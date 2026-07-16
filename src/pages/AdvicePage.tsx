@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
-import { api } from "../services/mockApi";
+import { api } from "../services/apiClient";
 import type { AdvicePageData, AgentAdvice, Locale } from "../types/domain";
 
 export function AdvicePage({ locale }: { locale: Locale }) {

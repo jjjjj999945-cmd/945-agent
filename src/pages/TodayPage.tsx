@@ -4,7 +4,7 @@ import { MetricCard } from "../components/business/MetricCard";
 import { ProgressBar } from "../components/business/ProgressBar";
 import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
-import { api } from "../services/mockApi";
+import { api } from "../services/apiClient";
 import type { DailyCheckin, Locale, PlannedMeal, RecordDraft, TodayResponseData } from "../types/domain";
 
 type TodayPageProps = {

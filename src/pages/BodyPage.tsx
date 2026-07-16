@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
-import { api } from "../services/mockApi";
+import { api } from "../services/apiClient";
 import type { BodyPageData, Locale } from "../types/domain";
 
 export function BodyPage({ locale }: { locale: Locale }) {

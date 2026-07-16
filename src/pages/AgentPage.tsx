@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/business/ConfirmDialog";
 import { DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
-import { api } from "../services/mockApi";
+import { api } from "../services/apiClient";
 import type { AgentMessage, Locale, RecordDraft } from "../types/domain";
 
 export function AgentPage({ locale }: { locale: Locale }) {
