@@ -226,31 +226,17 @@ HIGH_RISK_TERMS = ["胸闷", "眩晕", "晕厥", "强烈疼痛", "疑似受伤",
 
 
 def _build_agent_draft(input_data: AgentChatInput) -> RecordDraft | None:
-    normalized = input_data.message.lower()
-    if "深蹲" in normalized or "squat" in normalized:
-        return RecordDraft(
-            type="workout_log",
-            requires_confirmation=True,
-            payload={
-                "exercise_name": "深蹲" if "深蹲" in normalized else "Squat",
-                "sets": 4,
-                "reps": 8,
-                "weight_kg": 80,
-                "effort_note": input_data.message
-            }
-        )
+    from backend.app.agents.tools import (
+        create_meal_log_draft,
+        create_plan_adjustment_draft,
+        create_workout_log_draft,
+    )
 
-    if "吃" in normalized or "meal" in normalized or "food" in normalized:
-        return RecordDraft(
-            type="meal_log",
-            requires_confirmation=True,
-            payload={
-                "meal_name": "手动记录" if input_data.locale == "zh-CN" else "Manual entry",
-                "note": input_data.message
-            }
-        )
-
-    return None
+    return (
+        create_workout_log_draft(input_data.message)
+        or create_meal_log_draft(input_data.message, input_data.locale)
+        or create_plan_adjustment_draft(input_data.message)
+    )
 
 
 def create_agent_reply(input_data: AgentChatInput) -> AgentMessage | None:
