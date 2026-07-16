@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from backend.app.api.responses import ok
+from backend.app.api.routes_demo import router as demo_router
 
 
 app = FastAPI(
@@ -9,6 +10,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+app.include_router(demo_router)
 
 
 @app.get("/health")
