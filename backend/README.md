@@ -2,7 +2,7 @@
 
 这是 945 的真实后端入口。当前阶段已完成本地 demo 用户下的 MVP 后端闭环：资料、设置、计划读取、今日聚合、训练记录、饮食记录、身体数据、每日打卡、建议状态和最小 Agent 草稿对话。
 
-当前后端仍然是本地 demo store，不是生产级后端。它还没有接入 MongoDB、LangGraph、RAG 或真实大模型；这些会在结构化 API 稳定后作为下一阶段替换和增强。
+当前后端默认仍然运行本地 demo store，但已经具备 MongoDB repository 边界、Agent 白名单工具层、本地 RAG 检索、确定性 Agent graph 和每周长期记忆摘要。真实大模型、生产鉴权和云部署仍不在当前 MVP 范围内。
 
 ## 当前包含
 
@@ -26,11 +26,19 @@ backend/
       demo_data.py
     models/
       domain.py
+    agents/
+      graph.py
+      nodes.py
+      tools.py
+    rag/
+      retriever.py
     repositories/
       mongo.py
     services/
       demo_store.py
+      memory_service.py
       plan_service.py
+      repository_store.py
       today_service.py
   tests/
 ```
@@ -114,6 +122,11 @@ GET /api/agent/messages?user_id=demo-user-945
 - 结构化事实保存在 `backend/app/services/demo_store.py` 的进程内 store 中。
 - 服务重启后，训练记录、饮食记录、身体数据、打卡、设置修改和 Agent 消息会重置。
 - `backend/app/repositories/mongo.py` 已提供 MongoDB repository 边界，用于后续把 demo store 的读写迁移到 MongoDB。
+- `backend/app/services/repository_store.py` 已把结构化集合映射到 repository-backed store。
+- `backend/app/agents/tools.py` 提供 Agent 白名单工具；关键写入仍只生成草稿。
+- `backend/app/rag/retriever.py` 提供本地关键词 RAG 检索，不保存主业务事实。
+- `backend/app/agents/graph.py` 提供确定性 Agent graph，用于安全检查、意图路由、上下文构建、RAG 检索、工具草稿和回复生成。
+- `backend/app/services/memory_service.py` 可以从结构化记录生成每周长期记忆摘要。
 - `/api/agent/chat` 当前只做规则版草稿生成和高风险词安全提醒。
 - Agent 不会自动保存训练或饮食记录；保存仍必须调用对应结构化写入接口。
 - 高风险输入会返回安全提醒，不继续输出高强度训练建议。
@@ -134,7 +147,7 @@ $env:945_MONGODB_URI="mongodb://127.0.0.1:27017"
 $env:945_MONGODB_DATABASE="945"
 ```
 
-当前已完成 MongoDB 文档转换、按集合 upsert、按条件查询和 Pydantic model 还原的 repository 层测试。下一步需要把 `demo_store.py` 中的训练记录、饮食记录、身体数据、打卡、资料、建议和 Agent 消息逐项迁移到 repository 调用。
+当前已完成 MongoDB 文档转换、按集合 upsert、按条件查询、Pydantic model 还原、demo seed 和 repository-backed store 委托测试。默认 demo 模式仍不需要 MongoDB 进程。
 
 ## 运行测试
 
@@ -151,11 +164,10 @@ npm run qa:app
 
 ## 下一步
 
-下一步建议先接前端 HTTP adapter，再做数据库持久化，不要直接把真实 Agent 接进页面：
+下一步建议进入真实模型和生产化准备，但不要破坏当前可测试闭环：
 
-1. 新增 `src/services/httpApi.ts` 和 `src/services/apiClient.ts`。
-2. 让页面能在 mock API 和真实 FastAPI 之间切换。
-3. 把 `demo_store.py` 的读写逐步迁移到 MongoDB repository。
-4. 把 Agent 草稿生成改造成工具层。
-5. 加 RAG 知识库，只检索动作知识、饮食知识、产品规则和用户长期摘要。
-6. 最后接 LangGraph 编排真实 Agent。
+1. 接入真实 LLM provider，但保留 deterministic/mock provider 用于测试。
+2. 将本地关键词 RAG 替换或增强为 embedding/vector store。
+3. 增加真实 MongoDB 集成环境和启动脚本。
+4. 增加用户鉴权、数据隔离和生产配置。
+5. 扩展计划生成、计划调整和确认工作流。

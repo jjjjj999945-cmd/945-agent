@@ -2,7 +2,7 @@
 
 版本：v0.1  
 日期：2026-07-15  
-状态：后端与 Agent 实施前架构说明
+状态：MVP 后端架构已部分实现
 
 ## 1. 这份文档解决什么问题
 
@@ -12,7 +12,7 @@
 2. RAG 在这个产品里到底负责什么，不负责什么。
 3. 从当前前端 mock demo 走到真实 Agent 系统，应该按什么顺序搭建。
 
-当前项目已经有桌面客户端 demo、TypeScript 数据类型、mock API 和 Playwright QA。下一阶段不应该直接把大模型调用硬塞进前端，而是要搭一个可替换、可验证、边界清楚的后端 Agent 层。
+当前项目已经有桌面客户端 demo、TypeScript 数据类型、mock API、HTTP adapter、FastAPI 结构化 API、MongoDB repository 边界、Agent 工具层、本地 RAG 检索、确定性 Agent graph 和 Playwright QA。下一阶段可以接真实 LLM 和向量库，但必须保留当前可测试的 deterministic/mock 路径。
 
 ## 2. 总体结论
 
@@ -249,6 +249,8 @@ backend/
 
 把内存数据换成数据库 repository。
 
+当前状态：已实现 MongoDB repository、demo seed、repository-backed store 和 fake DB 测试；默认仍使用 demo store，`945_STORAGE_BACKEND=mongo` 可切换到 Mongo repository。
+
 优先集合：
 
 - `users`
@@ -271,6 +273,8 @@ backend/
 
 先不做复杂 RAG，只让 Agent 能调用结构化工具。
 
+当前状态：已实现白名单工具层，包含 profile/today/plan/log/advice 读取与草稿生成，关键写入仍需要用户确认。
+
 要做：
 
 - `get_today_context`
@@ -288,6 +292,8 @@ backend/
 ### 第 5 步：搭 RAG 知识库
 
 先用小规模知识库，不要一开始就做复杂内容平台。
+
+当前状态：已实现本地关键词 retriever，覆盖 945 产品规则、安全边界、训练动作和饮食估算知识。它只作为上下文来源，不保存主业务事实。
 
 第一批文档：
 
@@ -318,6 +324,8 @@ backend/
 
 当工具和 RAG 都能单独跑后，再接编排图。
 
+当前状态：已实现 deterministic LangGraph-style graph，节点包含 safety guard、intent router、context builder、RAG retriever、tool planner、response generator 和 draft validator。当前不依赖真实 LLM。
+
 建议节点：
 
 ```text
@@ -340,6 +348,8 @@ safety_guard
 ### 第 7 步：做长期记忆摘要
 
 长期记忆不是把所有聊天塞进向量库。
+
+当前状态：已实现每周长期记忆摘要 service，从结构化训练、饮食和打卡记录生成 `user_memory_summaries`，摘要不替代原始事实。
 
 推荐做法：
 
