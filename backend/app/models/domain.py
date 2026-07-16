@@ -14,6 +14,7 @@ PlanStatus = Literal["draft", "active", "archived"]
 PlanGenerator = Literal["agent", "mock"]
 CompletionStatus = Literal["planned", "completed", "partially_completed", "skipped"]
 MealLogSource = Literal["planned_meal_confirmation", "manual_entry"]
+Mood = Literal["low", "normal", "good"]
 
 
 class ApiModel(BaseModel):
@@ -126,10 +127,41 @@ class DailyCheckin(ApiModel):
     fatigue_level: int | None = None
     soreness_level: int | None = None
     stress_level: int | None = None
-    mood: str | None = None
+    mood: Mood | None = None
     notes: str | None = None
     created_at: str
     updated_at: str
+
+
+class DailyCheckinInput(ApiModel):
+    user_id: str
+    date: str
+    weight_kg: float | None = None
+    sleep_hours: float | None = None
+    sleep_quality: int | None = None
+    fatigue_level: int | None = None
+    soreness_level: int | None = None
+    stress_level: int | None = None
+    mood: Mood | None = None
+    notes: str | None = None
+
+
+class BodyMetricInput(ApiModel):
+    user_id: str
+    date: str
+    weight_kg: float
+    body_fat_percentage: float | None = None
+    waist_cm: float | None = None
+    chest_cm: float | None = None
+    hip_cm: float | None = None
+    arm_cm: float | None = None
+    bmi: float | None = None
+    notes: str | None = None
+
+
+class BodyMetric(BodyMetricInput):
+    metric_id: str
+    created_at: str
 
 
 class AgentAdvice(ApiModel):
