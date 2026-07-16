@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from backend.app.api.responses import ok
 from backend.app.api.routes_demo import router as demo_router
+from backend.app.api.routes_meal_logs import router as meal_logs_router
 from backend.app.api.routes_plans import router as plans_router
 from backend.app.api.routes_workout_logs import router as workout_logs_router
 
@@ -16,6 +17,7 @@ app = FastAPI(
 app.include_router(demo_router)
 app.include_router(plans_router)
 app.include_router(workout_logs_router)
+app.include_router(meal_logs_router)
 
 
 @app.get("/health")

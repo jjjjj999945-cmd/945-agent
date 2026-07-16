@@ -13,6 +13,7 @@ AdviceStatus = Literal["pending", "accepted", "dismissed", "deferred"]
 PlanStatus = Literal["draft", "active", "archived"]
 PlanGenerator = Literal["agent", "mock"]
 CompletionStatus = Literal["planned", "completed", "partially_completed", "skipped"]
+MealLogSource = Literal["planned_meal_confirmation", "manual_entry"]
 
 
 class ApiModel(BaseModel):
@@ -171,6 +172,45 @@ class WorkoutLogInput(ApiModel):
 
 class WorkoutLog(WorkoutLogInput):
     workout_log_id: str
+    created_at: str
+    updated_at: str
+
+
+class FoodLog(PlannedFood):
+    pass
+
+
+class ConfirmPlannedMealInput(ApiModel):
+    user_id: str
+    plan_id: str
+    date: str
+    meal_id: str
+
+
+class ManualMealLogInput(ApiModel):
+    user_id: str
+    plan_id: str | None = None
+    date: str
+    meal_id: str | None = None
+    meal_name: str
+    foods: list[FoodLog]
+    notes: str | None = None
+
+
+class MealLog(ApiModel):
+    meal_log_id: str
+    user_id: str
+    plan_id: str | None = None
+    date: str
+    meal_id: str | None = None
+    meal_name: str
+    source: MealLogSource
+    foods: list[FoodLog]
+    calories: int
+    protein_g: int
+    carbs_g: int
+    fat_g: int
+    notes: str | None = None
     created_at: str
     updated_at: str
 
