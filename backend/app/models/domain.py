@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 Locale = Literal["zh-CN", "en-US"]
 UnitSystem = Literal["metric", "imperial"]
 Goal = Literal["fat_loss", "muscle_gain", "body_recomposition", "strength", "conditioning", "maintenance"]
+ExperienceLevel = Literal["beginner", "novice", "intermediate", "advanced"]
 RecoveryStatus = Literal["good", "normal", "fatigued"]
 AdviceType = Literal["daily_advice", "weekly_summary", "plan_adjustment", "safety_warning"]
 RiskLevel = Literal["low", "medium", "high"]
@@ -28,6 +29,72 @@ class User(ApiModel):
     unit_system: UnitSystem
     created_at: str
     updated_at: str
+
+
+class UserProfile(ApiModel):
+    profile_id: str
+    user_id: str
+    age: int
+    gender: str | None = None
+    height_cm: float
+    weight_kg: float
+    goal: Goal
+    experience_level: ExperienceLevel
+    training_days_per_week: int
+    training_duration_minutes: int
+    equipment: list[str]
+    dietary_preferences: list[str]
+    allergies: list[str]
+    constraints: list[str]
+    updated_at: str
+
+
+class ProfileCreateInput(ApiModel):
+    user_id: str
+    display_name: str
+    age: int
+    gender: str | None = None
+    height_cm: float
+    weight_kg: float
+    goal: Goal
+    experience_level: ExperienceLevel
+    training_days_per_week: int
+    training_duration_minutes: int
+    equipment: list[str]
+    dietary_preferences: list[str]
+    allergies: list[str]
+    constraints: list[str]
+    locale: Locale
+    unit_system: UnitSystem
+
+
+class ProfilePatchInput(ApiModel):
+    age: int | None = None
+    gender: str | None = None
+    height_cm: float | None = None
+    weight_kg: float | None = None
+    goal: Goal | None = None
+    experience_level: ExperienceLevel | None = None
+    training_days_per_week: int | None = None
+    training_duration_minutes: int | None = None
+    equipment: list[str] | None = None
+    dietary_preferences: list[str] | None = None
+    allergies: list[str] | None = None
+    constraints: list[str] | None = None
+
+
+class SettingsData(ApiModel):
+    user: User
+    profile: UserProfile
+    language: Locale
+    unit_system: UnitSystem
+
+
+class SettingsPatchInput(ApiModel):
+    user_id: str
+    language: Locale | None = None
+    unit_system: UnitSystem | None = None
+    profile: ProfilePatchInput | None = None
 
 
 class TodayUser(ApiModel):
@@ -177,6 +244,17 @@ class AgentAdvice(ApiModel):
     risk_level: RiskLevel
     accepted_status: AdviceStatus
     created_at: str
+
+
+class AdvicePageData(ApiModel):
+    daily: AgentAdvice | None
+    weekly: AgentAdvice | None
+    adjustments: list[AgentAdvice]
+
+
+class AdviceStatusInput(ApiModel):
+    user_id: str
+    accepted_status: AdviceStatus
 
 
 class ExerciseSetLog(ApiModel):

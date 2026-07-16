@@ -1,7 +1,12 @@
 from datetime import UTC, datetime
 
-from backend.app.data.demo_data import DEMO_PLAN, DEMO_USER_ID, create_today_response
+from copy import deepcopy
+
+from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_USER_ID, NOW, create_today_response
 from backend.app.models.domain import (
+    AdvicePageData,
+    AdviceStatus,
+    AgentAdvice,
     BodyMetric,
     BodyMetricInput,
     ConfirmPlannedMealInput,
@@ -10,12 +15,54 @@ from backend.app.models.domain import (
     FoodLog,
     ManualMealLogInput,
     MealLog,
+    ProfileCreateInput,
+    ProfilePatchInput,
+    SettingsData,
+    SettingsPatchInput,
     TodayResponseData,
+    User,
+    UserProfile,
     WorkoutLog,
     WorkoutLogInput,
 )
 
 
+INITIAL_PROFILE = UserProfile(
+    profile_id="profile-demo-user-945",
+    user_id=DEMO_USER_ID,
+    age=29,
+    gender="optional",
+    height_cm=175,
+    weight_kg=76,
+    goal="body_recomposition",
+    experience_level="novice",
+    training_days_per_week=4,
+    training_duration_minutes=60,
+    equipment=["dumbbells", "gym"],
+    dietary_preferences=["high_protein"],
+    allergies=[],
+    constraints=["busy_weekdays"],
+    updated_at=NOW
+)
+
+INITIAL_WEEKLY_ADVICE = AgentAdvice(
+    advice_id="advice-weekly-001",
+    user_id=DEMO_USER_ID,
+    date="2026-07-11",
+    type="weekly_summary",
+    title="本周执行稳定，但恢复信号偏疲劳",
+    content="你完成了大部分训练计划，饮食蛋白质基本达标。建议下周保留力量训练频率，但降低一次高强度腿部训练量。",
+    reason="训练完成率较好，但疲劳和酸痛评分连续两天偏高。",
+    related_data=["weekly_workouts_completed", "fatigue_level", "soreness_level"],
+    recommended_actions=["下周腿部训练减少 2 组", "保持每日蛋白质目标", "睡眠低于 7 小时时降低训练强度"],
+    risk_level="medium",
+    accepted_status="pending",
+    created_at="2026-07-11T09:00:00.000Z"
+)
+
+current_user: User = deepcopy(DEMO_USER)
+current_profile: UserProfile = deepcopy(INITIAL_PROFILE)
+advice_items: list[AgentAdvice] = [deepcopy(DEMO_ADVICE), deepcopy(INITIAL_WEEKLY_ADVICE)]
 workout_logs: list[WorkoutLog] = []
 meal_logs: list[MealLog] = []
 body_metrics: list[BodyMetric] = []
@@ -23,6 +70,11 @@ daily_checkins: list[DailyCheckin] = []
 
 
 def reset_demo_store() -> None:
+    global current_user, current_profile, advice_items
+
+    current_user = deepcopy(DEMO_USER)
+    current_profile = deepcopy(INITIAL_PROFILE)
+    advice_items = [deepcopy(DEMO_ADVICE), deepcopy(INITIAL_WEEKLY_ADVICE)]
     workout_logs.clear()
     meal_logs.clear()
     body_metrics.clear()
@@ -35,6 +87,121 @@ def timestamp() -> str:
 
 def is_demo_user(user_id: str) -> bool:
     return user_id == DEMO_USER_ID
+
+
+def get_current_user() -> User:
+    return current_user
+
+
+def get_profile(user_id: str) -> UserProfile | None:
+    if not is_demo_user(user_id):
+        return None
+
+    return current_profile
+
+
+def save_profile(input_data: ProfileCreateInput) -> UserProfile | None:
+    global current_profile, current_user
+
+    if not is_demo_user(input_data.user_id):
+        return None
+
+    now = timestamp()
+    current_user = User(
+        user_id=input_data.user_id,
+        display_name=input_data.display_name,
+        locale=input_data.locale,
+        unit_system=input_data.unit_system,
+        created_at=current_user.created_at,
+        updated_at=now
+    )
+    current_profile = UserProfile(
+        profile_id="profile-demo-user-945",
+        user_id=input_data.user_id,
+        age=input_data.age,
+        gender=input_data.gender,
+        height_cm=input_data.height_cm,
+        weight_kg=input_data.weight_kg,
+        goal=input_data.goal,
+        experience_level=input_data.experience_level,
+        training_days_per_week=input_data.training_days_per_week,
+        training_duration_minutes=input_data.training_duration_minutes,
+        equipment=input_data.equipment,
+        dietary_preferences=input_data.dietary_preferences,
+        allergies=input_data.allergies,
+        constraints=input_data.constraints,
+        updated_at=now
+    )
+    return current_profile
+
+
+def update_profile(user_id: str, input_data: ProfilePatchInput) -> UserProfile | None:
+    global current_profile
+
+    if not is_demo_user(user_id):
+        return None
+
+    updates = input_data.model_dump(exclude_unset=True)
+    current_profile = current_profile.model_copy(update={**updates, "updated_at": timestamp()})
+    return current_profile
+
+
+def get_settings(user_id: str) -> SettingsData | None:
+    if not is_demo_user(user_id):
+        return None
+
+    return SettingsData(
+        user=current_user,
+        profile=current_profile,
+        language=current_user.locale,
+        unit_system=current_user.unit_system
+    )
+
+
+def update_settings(input_data: SettingsPatchInput) -> SettingsData | None:
+    global current_user, current_profile
+
+    if not is_demo_user(input_data.user_id):
+        return None
+
+    now = timestamp()
+    current_user = current_user.model_copy(
+        update={
+            "locale": input_data.language or current_user.locale,
+            "unit_system": input_data.unit_system or current_user.unit_system,
+            "updated_at": now
+        }
+    )
+
+    if input_data.profile is not None:
+        updates = input_data.profile.model_dump(exclude_unset=True)
+        current_profile = current_profile.model_copy(update={**updates, "updated_at": now})
+
+    return get_settings(input_data.user_id)
+
+
+def get_advice(user_id: str) -> AdvicePageData | None:
+    if not is_demo_user(user_id):
+        return None
+
+    return AdvicePageData(
+        daily=next((item for item in advice_items if item.type == "daily_advice"), None),
+        weekly=next((item for item in advice_items if item.type == "weekly_summary"), None),
+        adjustments=[item for item in advice_items if item.type == "plan_adjustment"]
+    )
+
+
+def update_advice_status(user_id: str, advice_id: str, accepted_status: AdviceStatus) -> AgentAdvice | None:
+    if not is_demo_user(user_id):
+        return None
+
+    existing = next((item for item in advice_items if item.advice_id == advice_id), None)
+    if existing is None:
+        return None
+
+    updated = existing.model_copy(update={"accepted_status": accepted_status})
+    advice_items[advice_items.index(existing)] = updated
+    return updated
 
 
 def create_workout_log(input_data: WorkoutLogInput) -> WorkoutLog | None:
