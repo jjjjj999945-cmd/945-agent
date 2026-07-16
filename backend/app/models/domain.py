@@ -12,6 +12,7 @@ RiskLevel = Literal["low", "medium", "high"]
 AdviceStatus = Literal["pending", "accepted", "dismissed", "deferred"]
 PlanStatus = Literal["draft", "active", "archived"]
 PlanGenerator = Literal["agent", "mock"]
+CompletionStatus = Literal["planned", "completed", "partially_completed", "skipped"]
 
 
 class ApiModel(BaseModel):
@@ -143,6 +144,35 @@ class AgentAdvice(ApiModel):
     risk_level: RiskLevel
     accepted_status: AdviceStatus
     created_at: str
+
+
+class ExerciseSetLog(ApiModel):
+    reps: int
+    weight_kg: float | None = None
+    completed: bool | None = None
+
+
+class ExerciseLog(ApiModel):
+    exercise_id: str | None = None
+    name: str
+    sets: list[ExerciseSetLog]
+
+
+class WorkoutLogInput(ApiModel):
+    user_id: str
+    plan_id: str | None = None
+    date: str
+    status: CompletionStatus
+    duration_minutes: int | None = None
+    exercises: list[ExerciseLog]
+    rpe: int | None = None
+    notes: str | None = None
+
+
+class WorkoutLog(WorkoutLogInput):
+    workout_log_id: str
+    created_at: str
+    updated_at: str
 
 
 class TodayResponseData(ApiModel):
