@@ -26,6 +26,8 @@ backend/
       demo_data.py
     models/
       domain.py
+    repositories/
+      mongo.py
     services/
       demo_store.py
       plan_service.py
@@ -111,9 +113,28 @@ GET /api/agent/messages?user_id=demo-user-945
 - demo 用户固定为 `demo-user-945`。
 - 结构化事实保存在 `backend/app/services/demo_store.py` 的进程内 store 中。
 - 服务重启后，训练记录、饮食记录、身体数据、打卡、设置修改和 Agent 消息会重置。
+- `backend/app/repositories/mongo.py` 已提供 MongoDB repository 边界，用于后续把 demo store 的读写迁移到 MongoDB。
 - `/api/agent/chat` 当前只做规则版草稿生成和高风险词安全提醒。
 - Agent 不会自动保存训练或饮食记录；保存仍必须调用对应结构化写入接口。
 - 高风险输入会返回安全提醒，不继续输出高强度训练建议。
+
+## MongoDB repository 配置
+
+当前默认仍使用本地 demo store：
+
+```powershell
+$env:945_STORAGE_BACKEND="demo"
+```
+
+后续切换 MongoDB repository 时使用这些环境变量：
+
+```powershell
+$env:945_STORAGE_BACKEND="mongo"
+$env:945_MONGODB_URI="mongodb://127.0.0.1:27017"
+$env:945_MONGODB_DATABASE="945"
+```
+
+当前已完成 MongoDB 文档转换、按集合 upsert、按条件查询和 Pydantic model 还原的 repository 层测试。下一步需要把 `demo_store.py` 中的训练记录、饮食记录、身体数据、打卡、资料、建议和 Agent 消息逐项迁移到 repository 调用。
 
 ## 运行测试
 
@@ -134,7 +155,7 @@ npm run qa:app
 
 1. 新增 `src/services/httpApi.ts` 和 `src/services/apiClient.ts`。
 2. 让页面能在 mock API 和真实 FastAPI 之间切换。
-3. 用 MongoDB repository 替换 `demo_store.py`。
+3. 把 `demo_store.py` 的读写逐步迁移到 MongoDB repository。
 4. 把 Agent 草稿生成改造成工具层。
 5. 加 RAG 知识库，只检索动作知识、饮食知识、产品规则和用户长期摘要。
 6. 最后接 LangGraph 编排真实 Agent。
