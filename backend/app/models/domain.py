@@ -273,6 +273,16 @@ class AgentMessage(ApiModel):
     created_at: str
 
 
+class UserMemorySummary(ApiModel):
+    summary_id: str
+    user_id: str
+    week_start: str
+    week_end: str
+    content: str
+    metadata: dict[str, str]
+    created_at: str
+
+
 class AgentChatInput(ApiModel):
     user_id: str
     locale: Locale

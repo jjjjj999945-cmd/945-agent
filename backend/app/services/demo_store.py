@@ -23,6 +23,7 @@ from backend.app.models.domain import (
     SettingsPatchInput,
     TodayResponseData,
     User,
+    UserMemorySummary,
     UserProfile,
     WorkoutLog,
     WorkoutLogInput,
@@ -40,6 +41,7 @@ meal_logs: list[MealLog] = []
 body_metrics: list[BodyMetric] = []
 daily_checkins: list[DailyCheckin] = []
 agent_messages: list[AgentMessage] = []
+user_memory_summaries: list[UserMemorySummary] = []
 _repository_store_override: RepositoryBackedStore | None = None
 _repository_store: RepositoryBackedStore | None = None
 
@@ -74,6 +76,7 @@ def reset_demo_store() -> None:
     body_metrics.clear()
     daily_checkins.clear()
     agent_messages.clear()
+    user_memory_summaries.clear()
 
 
 def is_demo_user(user_id: str) -> bool:
@@ -289,6 +292,28 @@ def list_agent_messages(user_id: str) -> list[AgentMessage] | None:
     return [message for message in agent_messages if message.user_id == user_id]
 
 
+def save_user_memory_summary(summary: UserMemorySummary) -> UserMemorySummary:
+    store = _active_repository_store()
+    if store:
+        return store.save_user_memory_summary(summary)
+
+    existing = next((item for item in user_memory_summaries if item.summary_id == summary.summary_id), None)
+    if existing:
+        user_memory_summaries[user_memory_summaries.index(existing)] = summary
+    else:
+        user_memory_summaries.append(summary)
+    return summary
+
+
+def list_user_memory_summaries(user_id: str) -> list[UserMemorySummary] | None:
+    store = _active_repository_store()
+    if store:
+        return store.list_user_memory_summaries(user_id)
+    if not is_demo_user(user_id):
+        return None
+    return [summary for summary in user_memory_summaries if summary.user_id == user_id]
+
+
 def create_workout_log(input_data: WorkoutLogInput) -> WorkoutLog | None:
     store = _active_repository_store()
     if store:
@@ -454,6 +479,15 @@ def get_daily_checkin(user_id: str, date: str) -> DailyCheckin | None:
     if store:
         return store.get_daily_checkin(user_id, date)
     return next((checkin for checkin in daily_checkins if checkin.user_id == user_id and checkin.date == date), None)
+
+
+def list_daily_checkins(user_id: str) -> list[DailyCheckin] | None:
+    store = _active_repository_store()
+    if store:
+        return store.list_daily_checkins(user_id)
+    if not is_demo_user(user_id):
+        return None
+    return [checkin for checkin in daily_checkins if checkin.user_id == user_id]
 
 
 def build_today_response(user_id: str, date: str) -> TodayResponseData | None:

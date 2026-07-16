@@ -21,6 +21,7 @@ from backend.app.models.domain import (
     SettingsPatchInput,
     TodayResponseData,
     User,
+    UserMemorySummary,
     UserProfile,
     WorkoutLog,
     WorkoutLogInput,
@@ -39,6 +40,7 @@ COLLECTION_IDS = {
     "daily_checkins": "checkin_id",
     "agent_advice": "advice_id",
     "agent_messages": "message_id",
+    "user_memory_summaries": "summary_id",
 }
 
 
@@ -274,6 +276,11 @@ class RepositoryBackedStore:
     def get_daily_checkin(self, user_id: str, date: str) -> DailyCheckin | None:
         return self.repository.get_model("daily_checkins", DailyCheckin, {"user_id": user_id, "date": date})
 
+    def list_daily_checkins(self, user_id: str) -> list[DailyCheckin] | None:
+        if user_id != DEMO_USER_ID:
+            return None
+        return self.repository.list_models("daily_checkins", DailyCheckin, {"user_id": user_id})
+
     def save_agent_message(self, message: AgentMessage) -> AgentMessage:
         self.repository.upsert_model("agent_messages", message, id_field=COLLECTION_IDS["agent_messages"])
         return message
@@ -282,6 +289,19 @@ class RepositoryBackedStore:
         if user_id != DEMO_USER_ID:
             return None
         return self.repository.list_models("agent_messages", AgentMessage, {"user_id": user_id})
+
+    def save_user_memory_summary(self, summary: UserMemorySummary) -> UserMemorySummary:
+        self.repository.upsert_model(
+            "user_memory_summaries",
+            summary,
+            id_field=COLLECTION_IDS["user_memory_summaries"]
+        )
+        return summary
+
+    def list_user_memory_summaries(self, user_id: str) -> list[UserMemorySummary] | None:
+        if user_id != DEMO_USER_ID:
+            return None
+        return self.repository.list_models("user_memory_summaries", UserMemorySummary, {"user_id": user_id})
 
     def build_today_response(self, user_id: str, date: str) -> TodayResponseData | None:
         if user_id != DEMO_USER_ID:
