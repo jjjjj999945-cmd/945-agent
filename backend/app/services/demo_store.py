@@ -240,10 +240,18 @@ def _build_agent_draft(input_data: AgentChatInput) -> RecordDraft | None:
 
 
 def create_agent_reply(input_data: AgentChatInput) -> AgentMessage | None:
+    from backend.app.agents.graph import run_agent_graph
+
     store = _active_repository_store()
     if not is_demo_user(input_data.user_id):
         return None
 
+    graph_result = run_agent_graph(
+        user_id=input_data.user_id,
+        locale=input_data.locale,
+        message=input_data.message,
+        context=input_data.context
+    )
     now = timestamp()
     user_message = AgentMessage(
         message_id=f"msg-user-{len(agent_messages) + 1}",
@@ -254,34 +262,13 @@ def create_agent_reply(input_data: AgentChatInput) -> AgentMessage | None:
         created_at=now
     )
 
-    is_high_risk = any(term in input_data.message for term in HIGH_RISK_TERMS)
-    draft = None if is_high_risk else _build_agent_draft(input_data)
-    if is_high_risk:
-        content = (
-            "你提到了可能的高风险身体信号。请先暂停训练，不要继续冲重量，并尽快咨询医生或合格专业人士。"
-            if input_data.locale == "zh-CN"
-            else "You mentioned possible high-risk symptoms. Stop training for now and consult a qualified professional."
-        )
-    elif draft:
-        content = (
-            "我可以帮你整理成记录草稿。保存前请先确认。"
-            if input_data.locale == "zh-CN"
-            else "I can turn that into a record draft. Please confirm before saving."
-        )
-    else:
-        content = (
-            "我已读取你的问题。当前 demo 会优先基于今日计划、记录和建议回答。"
-            if input_data.locale == "zh-CN"
-            else "I read your question. This demo answers from today's plan, logs, and advice first."
-        )
-
     agent_message = AgentMessage(
         message_id=f"msg-agent-{len(agent_messages) + 2}",
         user_id=input_data.user_id,
         role="agent",
-        content=content,
+        content=graph_result.reply,
         locale=input_data.locale,
-        record_draft=draft,
+        record_draft=graph_result.record_draft,
         created_at=timestamp()
     )
     if store:
