@@ -4,6 +4,34 @@
 日期：2026-07-11  
 状态：MVP 接口草案  
 
+## 0. 当前实现状态
+
+截至当前后端 MVP demo，FastAPI 已实现这些接口：
+
+- `GET /health`
+- `GET /api/demo-user`
+- `GET /api/today`
+- `GET /api/plans/current`
+- `GET /api/profile/{user_id}`
+- `POST /api/profile`
+- `PATCH /api/profile/{user_id}`
+- `GET /api/settings`
+- `PATCH /api/settings`
+- `GET /api/workout-logs`
+- `POST /api/workout-logs`
+- `GET /api/meal-logs`
+- `POST /api/meal-logs`
+- `POST /api/meal-logs/confirm-planned-meal`
+- `GET /api/body-metrics`
+- `POST /api/body-metrics`
+- `POST /api/daily-checkins`
+- `GET /api/advice`
+- `PATCH /api/advice/{advice_id}/status`
+- `POST /api/agent/chat`
+- `GET /api/agent/messages`
+
+当前实现使用进程内 demo store，不接 MongoDB、LangGraph、RAG 或真实大模型。后续生产化阶段会继续实现计划生成、计划接受、计划调整、更多历史查询和真实 Agent 编排。
+
 ## 1. 目标
 
 本文档定义 945 MVP 的前后端接口边界。当前前端可以先使用 mock adapter 实现同样的接口形状，后端接入后不应大改页面数据结构。
