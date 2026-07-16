@@ -1,4 +1,4 @@
-from backend.app.models.domain import AgentAdvice, PlannedMeal, TodayResponseData, User, WorkoutPlanDay
+from backend.app.models.domain import AgentAdvice, Plan, PlannedMeal, TodayResponseData, User, WorkoutPlanDay
 
 
 DEMO_USER_ID = "demo-user-945"
@@ -52,6 +52,24 @@ TODAY_WORKOUT = WorkoutPlanDay(
     ]
 )
 
+LOWER_BODY_WORKOUT = WorkoutPlanDay(
+    date="2026-07-13",
+    name="下肢力量",
+    focus="legs_glutes",
+    duration_minutes=60,
+    exercises=[
+        {
+            "exercise_id": "ex-squat",
+            "name": "杠铃深蹲",
+            "target_muscles": ["股四头肌", "臀部"],
+            "sets": 4,
+            "reps": "6-8",
+            "target_weight": "moderate_heavy",
+            "rest_seconds": 120
+        }
+    ]
+)
+
 TODAY_MEALS = [
     PlannedMeal(
         meal_id="meal-breakfast-1",
@@ -83,6 +101,38 @@ TODAY_MEALS = [
     )
 ]
 
+DEMO_PLAN = Plan(
+    plan_id="plan-2026-07-11-demo",
+    user_id=DEMO_USER_ID,
+    goal=DEMO_GOAL,
+    status="active",
+    start_date="2026-07-11",
+    end_date="2026-07-17",
+    generated_by="mock",
+    created_at=NOW,
+    updated_at=NOW,
+    workout_plan={
+        "days": [
+            TODAY_WORKOUT,
+            LOWER_BODY_WORKOUT
+        ]
+    },
+    meal_plan={
+        "daily_targets": {
+            "calories": 2300,
+            "protein_g": 160,
+            "carbs_g": 240,
+            "fat_g": 70
+        },
+        "days": [
+            {
+                "date": TODAY_DATE,
+                "meals": TODAY_MEALS
+            }
+        ]
+    }
+)
+
 DEMO_ADVICE = AgentAdvice(
     advice_id="advice-2026-07-11-1",
     user_id=DEMO_USER_ID,
@@ -110,9 +160,9 @@ def create_today_response(date: str = TODAY_DATE) -> TodayResponseData:
         status_summary={
             "weekly_workouts_completed": 3,
             "weekly_workouts_planned": 4,
-            "calories_target": 2300,
+            "calories_target": DEMO_PLAN.meal_plan.daily_targets.calories,
             "calories_logged": 1480,
-            "protein_target_g": 160,
+            "protein_target_g": DEMO_PLAN.meal_plan.daily_targets.protein_g,
             "protein_logged_g": 102,
             "weight_7_day_delta_kg": -0.4,
             "recovery_status": "normal"

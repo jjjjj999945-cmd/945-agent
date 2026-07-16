@@ -10,6 +10,8 @@ RecoveryStatus = Literal["good", "normal", "fatigued"]
 AdviceType = Literal["daily_advice", "weekly_summary", "plan_adjustment", "safety_warning"]
 RiskLevel = Literal["low", "medium", "high"]
 AdviceStatus = Literal["pending", "accepted", "dismissed", "deferred"]
+PlanStatus = Literal["draft", "active", "archived"]
+PlanGenerator = Literal["agent", "mock"]
 
 
 class ApiModel(BaseModel):
@@ -61,6 +63,10 @@ class WorkoutPlanDay(ApiModel):
     exercises: list[PlannedExercise]
 
 
+class WorkoutPlan(ApiModel):
+    days: list[WorkoutPlanDay]
+
+
 class MacroTargets(ApiModel):
     calories: int
     protein_g: int
@@ -82,6 +88,30 @@ class PlannedMeal(ApiModel):
     name: str
     foods: list[PlannedFood]
     total_macros: MacroTargets
+
+
+class MealPlanDay(ApiModel):
+    date: str
+    meals: list[PlannedMeal]
+
+
+class MealPlan(ApiModel):
+    daily_targets: MacroTargets
+    days: list[MealPlanDay]
+
+
+class Plan(ApiModel):
+    plan_id: str
+    user_id: str
+    goal: Goal
+    status: PlanStatus
+    start_date: str
+    end_date: str
+    workout_plan: WorkoutPlan
+    meal_plan: MealPlan
+    generated_by: PlanGenerator
+    created_at: str
+    updated_at: str
 
 
 class DailyCheckin(ApiModel):
