@@ -1,8 +1,7 @@
-from datetime import UTC, datetime
-
 from copy import deepcopy
 
-from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_USER_ID, NOW, create_today_response
+from backend.app.core.config import get_settings as get_app_settings
+from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_USER_ID, create_today_response
 from backend.app.models.domain import (
     AdvicePageData,
     AdviceStatus,
@@ -28,40 +27,10 @@ from backend.app.models.domain import (
     WorkoutLog,
     WorkoutLogInput,
 )
+from backend.app.repositories.mongo import create_mongo_repository
+from backend.app.services.demo_seed import INITIAL_PROFILE, INITIAL_WEEKLY_ADVICE, timestamp
+from backend.app.services.repository_store import RepositoryBackedStore
 
-
-INITIAL_PROFILE = UserProfile(
-    profile_id="profile-demo-user-945",
-    user_id=DEMO_USER_ID,
-    age=29,
-    gender="optional",
-    height_cm=175,
-    weight_kg=76,
-    goal="body_recomposition",
-    experience_level="novice",
-    training_days_per_week=4,
-    training_duration_minutes=60,
-    equipment=["dumbbells", "gym"],
-    dietary_preferences=["high_protein"],
-    allergies=[],
-    constraints=["busy_weekdays"],
-    updated_at=NOW
-)
-
-INITIAL_WEEKLY_ADVICE = AgentAdvice(
-    advice_id="advice-weekly-001",
-    user_id=DEMO_USER_ID,
-    date="2026-07-11",
-    type="weekly_summary",
-    title="本周执行稳定，但恢复信号偏疲劳",
-    content="你完成了大部分训练计划，饮食蛋白质基本达标。建议下周保留力量训练频率，但降低一次高强度腿部训练量。",
-    reason="训练完成率较好，但疲劳和酸痛评分连续两天偏高。",
-    related_data=["weekly_workouts_completed", "fatigue_level", "soreness_level"],
-    recommended_actions=["下周腿部训练减少 2 组", "保持每日蛋白质目标", "睡眠低于 7 小时时降低训练强度"],
-    risk_level="medium",
-    accepted_status="pending",
-    created_at="2026-07-11T09:00:00.000Z"
-)
 
 current_user: User = deepcopy(DEMO_USER)
 current_profile: UserProfile = deepcopy(INITIAL_PROFILE)
@@ -71,6 +40,27 @@ meal_logs: list[MealLog] = []
 body_metrics: list[BodyMetric] = []
 daily_checkins: list[DailyCheckin] = []
 agent_messages: list[AgentMessage] = []
+_repository_store_override: RepositoryBackedStore | None = None
+_repository_store: RepositoryBackedStore | None = None
+
+
+def set_repository_store_for_tests(store: RepositoryBackedStore | None) -> None:
+    global _repository_store_override
+
+    _repository_store_override = store
+
+
+def _active_repository_store() -> RepositoryBackedStore | None:
+    global _repository_store
+
+    if get_app_settings().storage_backend != "mongo":
+        return None
+    if _repository_store_override is not None:
+        return _repository_store_override
+    if _repository_store is None:
+        _repository_store = RepositoryBackedStore(create_mongo_repository())
+        _repository_store.seed_demo_data()
+    return _repository_store
 
 
 def reset_demo_store() -> None:
@@ -86,19 +76,24 @@ def reset_demo_store() -> None:
     agent_messages.clear()
 
 
-def timestamp() -> str:
-    return datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
-
-
 def is_demo_user(user_id: str) -> bool:
+    store = _active_repository_store()
+    if store:
+        return store.is_demo_user(user_id)
     return user_id == DEMO_USER_ID
 
 
 def get_current_user() -> User:
+    store = _active_repository_store()
+    if store:
+        return store.get_current_user()
     return current_user
 
 
 def get_profile(user_id: str) -> UserProfile | None:
+    store = _active_repository_store()
+    if store:
+        return store.get_profile(user_id)
     if not is_demo_user(user_id):
         return None
 
@@ -108,6 +103,9 @@ def get_profile(user_id: str) -> UserProfile | None:
 def save_profile(input_data: ProfileCreateInput) -> UserProfile | None:
     global current_profile, current_user
 
+    store = _active_repository_store()
+    if store:
+        return store.save_profile(input_data)
     if not is_demo_user(input_data.user_id):
         return None
 
@@ -143,6 +141,9 @@ def save_profile(input_data: ProfileCreateInput) -> UserProfile | None:
 def update_profile(user_id: str, input_data: ProfilePatchInput) -> UserProfile | None:
     global current_profile
 
+    store = _active_repository_store()
+    if store:
+        return store.update_profile(user_id, input_data)
     if not is_demo_user(user_id):
         return None
 
@@ -152,6 +153,9 @@ def update_profile(user_id: str, input_data: ProfilePatchInput) -> UserProfile |
 
 
 def get_settings(user_id: str) -> SettingsData | None:
+    store = _active_repository_store()
+    if store:
+        return store.get_settings(user_id)
     if not is_demo_user(user_id):
         return None
 
@@ -166,6 +170,9 @@ def get_settings(user_id: str) -> SettingsData | None:
 def update_settings(input_data: SettingsPatchInput) -> SettingsData | None:
     global current_user, current_profile
 
+    store = _active_repository_store()
+    if store:
+        return store.update_settings(input_data)
     if not is_demo_user(input_data.user_id):
         return None
 
@@ -186,6 +193,9 @@ def update_settings(input_data: SettingsPatchInput) -> SettingsData | None:
 
 
 def get_advice(user_id: str) -> AdvicePageData | None:
+    store = _active_repository_store()
+    if store:
+        return store.get_advice(user_id)
     if not is_demo_user(user_id):
         return None
 
@@ -197,6 +207,9 @@ def get_advice(user_id: str) -> AdvicePageData | None:
 
 
 def update_advice_status(user_id: str, advice_id: str, accepted_status: AdviceStatus) -> AgentAdvice | None:
+    store = _active_repository_store()
+    if store:
+        return store.update_advice_status(user_id, advice_id, accepted_status)
     if not is_demo_user(user_id):
         return None
 
@@ -241,6 +254,7 @@ def _build_agent_draft(input_data: AgentChatInput) -> RecordDraft | None:
 
 
 def create_agent_reply(input_data: AgentChatInput) -> AgentMessage | None:
+    store = _active_repository_store()
     if not is_demo_user(input_data.user_id):
         return None
 
@@ -284,11 +298,18 @@ def create_agent_reply(input_data: AgentChatInput) -> AgentMessage | None:
         record_draft=draft,
         created_at=timestamp()
     )
+    if store:
+        store.save_agent_message(user_message)
+        store.save_agent_message(agent_message)
+        return agent_message
     agent_messages.extend([user_message, agent_message])
     return agent_message
 
 
 def list_agent_messages(user_id: str) -> list[AgentMessage] | None:
+    store = _active_repository_store()
+    if store:
+        return store.list_agent_messages(user_id)
     if not is_demo_user(user_id):
         return None
 
@@ -296,6 +317,9 @@ def list_agent_messages(user_id: str) -> list[AgentMessage] | None:
 
 
 def create_workout_log(input_data: WorkoutLogInput) -> WorkoutLog | None:
+    store = _active_repository_store()
+    if store:
+        return store.create_workout_log(input_data)
     if not is_demo_user(input_data.user_id):
         return None
 
@@ -311,6 +335,9 @@ def create_workout_log(input_data: WorkoutLogInput) -> WorkoutLog | None:
 
 
 def list_workout_logs(user_id: str) -> list[WorkoutLog] | None:
+    store = _active_repository_store()
+    if store:
+        return store.list_workout_logs(user_id)
     if not is_demo_user(user_id):
         return None
 
@@ -327,6 +354,9 @@ def _sum_foods(foods: list[FoodLog]) -> dict[str, int]:
 
 
 def confirm_planned_meal(input_data: ConfirmPlannedMealInput) -> MealLog | None:
+    store = _active_repository_store()
+    if store:
+        return store.confirm_planned_meal(input_data)
     if not is_demo_user(input_data.user_id):
         return None
 
@@ -358,6 +388,9 @@ def confirm_planned_meal(input_data: ConfirmPlannedMealInput) -> MealLog | None:
 
 
 def create_manual_meal_log(input_data: ManualMealLogInput) -> MealLog | None:
+    store = _active_repository_store()
+    if store:
+        return store.create_manual_meal_log(input_data)
     if not is_demo_user(input_data.user_id):
         return None
 
@@ -376,6 +409,9 @@ def create_manual_meal_log(input_data: ManualMealLogInput) -> MealLog | None:
 
 
 def list_meal_logs(user_id: str) -> list[MealLog] | None:
+    store = _active_repository_store()
+    if store:
+        return store.list_meal_logs(user_id)
     if not is_demo_user(user_id):
         return None
 
@@ -383,6 +419,9 @@ def list_meal_logs(user_id: str) -> list[MealLog] | None:
 
 
 def save_body_metric(input_data: BodyMetricInput) -> BodyMetric | None:
+    store = _active_repository_store()
+    if store:
+        return store.save_body_metric(input_data)
     if not is_demo_user(input_data.user_id):
         return None
 
@@ -396,6 +435,9 @@ def save_body_metric(input_data: BodyMetricInput) -> BodyMetric | None:
 
 
 def list_body_metrics(user_id: str) -> list[BodyMetric] | None:
+    store = _active_repository_store()
+    if store:
+        return store.list_body_metrics(user_id)
     if not is_demo_user(user_id):
         return None
 
@@ -403,6 +445,9 @@ def list_body_metrics(user_id: str) -> list[BodyMetric] | None:
 
 
 def save_daily_checkin(input_data: DailyCheckinInput) -> DailyCheckin | None:
+    store = _active_repository_store()
+    if store:
+        return store.save_daily_checkin(input_data)
     if not is_demo_user(input_data.user_id):
         return None
 
@@ -432,10 +477,16 @@ def save_daily_checkin(input_data: DailyCheckinInput) -> DailyCheckin | None:
 
 
 def get_daily_checkin(user_id: str, date: str) -> DailyCheckin | None:
+    store = _active_repository_store()
+    if store:
+        return store.get_daily_checkin(user_id, date)
     return next((checkin for checkin in daily_checkins if checkin.user_id == user_id and checkin.date == date), None)
 
 
 def build_today_response(user_id: str, date: str) -> TodayResponseData | None:
+    store = _active_repository_store()
+    if store:
+        return store.build_today_response(user_id, date)
     if not is_demo_user(user_id):
         return None
 
