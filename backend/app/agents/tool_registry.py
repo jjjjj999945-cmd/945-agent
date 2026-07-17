@@ -18,7 +18,7 @@ from backend.app.models.domain import Locale, RecordDraft
 
 
 class ToolArguments(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
 
 class EmptyArguments(ToolArguments):

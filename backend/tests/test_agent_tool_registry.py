@@ -7,7 +7,8 @@ from backend.app.agents.tool_registry import (
 )
 from backend.app.llm.errors import LLMOutputInvalidError
 from backend.app.llm.models import ToolCallProposal
-from backend.app.services.demo_store import list_workout_logs
+from backend.app.services.demo_store import list_meal_logs, list_workout_logs
+from backend.app.services.plan_service import get_current_plan
 
 
 def _context() -> AgentToolContext:
@@ -36,6 +37,23 @@ def test_registry_exports_only_the_eight_read_and_draft_tools():
     assert "accept_advice" not in [item.name for item in definitions]
 
 
+def test_registry_exports_strict_json_schemas():
+    definitions = get_agent_tool_definitions()
+
+    for definition in definitions:
+        schema = definition.parameters
+        assert schema["additionalProperties"] is False
+        assert set(schema.get("required", [])) == set(schema["properties"])
+
+    workout_schema = next(
+        item.parameters
+        for item in definitions
+        if item.name == "create_workout_log_draft"
+    )
+    weight_schema = workout_schema["properties"]["weight_kg"]
+    assert {item["type"] for item in weight_schema["anyOf"]} == {"number", "null"}
+
+
 def test_registry_builds_workout_draft_without_writing():
     result = execute_agent_tool(
         ToolCallProposal(
@@ -56,6 +74,43 @@ def test_registry_builds_workout_draft_without_writing():
     assert result.record_draft.requires_confirmation is True
     assert result.record_draft.payload["weight_kg"] == 80
     assert list_workout_logs("demo-user-945") == []
+
+
+def test_registry_builds_meal_draft_without_writing():
+    result = execute_agent_tool(
+        ToolCallProposal(
+            call_id="call-meal",
+            name="create_meal_log_draft",
+            arguments={"meal_name": "午餐", "note": "鸡胸肉饭"},
+        ),
+        _context(),
+    )
+
+    assert result.record_draft.type == "meal_log"
+    assert result.record_draft.requires_confirmation is True
+    assert result.record_draft.payload["meal_name"] == "午餐"
+    assert list_meal_logs("demo-user-945") == []
+
+
+def test_registry_builds_plan_adjustment_draft_without_writing():
+    plan_before = get_current_plan("demo-user-945").model_dump()
+
+    result = execute_agent_tool(
+        ToolCallProposal(
+            call_id="call-plan",
+            name="create_plan_adjustment_draft",
+            arguments={
+                "adjustment_type": "reduce_intensity",
+                "reason": "今天太累",
+            },
+        ),
+        _context(),
+    )
+
+    assert result.record_draft.type == "plan_adjustment"
+    assert result.record_draft.requires_confirmation is True
+    assert result.record_draft.payload["adjustment_type"] == "reduce_intensity"
+    assert get_current_plan("demo-user-945").model_dump() == plan_before
 
 
 def test_registry_rejects_unknown_tool():
@@ -79,6 +134,31 @@ def test_registry_rejects_invalid_workout_arguments():
                     "weight_kg": 80,
                     "effort_note": "无",
                 },
+            ),
+            _context(),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("sets", "4"), ("reps", "8"), ("weight_kg", "80")],
+)
+def test_registry_rejects_string_encoded_workout_numbers(field, value):
+    arguments = {
+        "exercise_name": "深蹲",
+        "sets": 4,
+        "reps": 8,
+        "weight_kg": 80,
+        "effort_note": "感觉很累",
+    }
+    arguments[field] = value
+
+    with pytest.raises(LLMOutputInvalidError, match="Invalid arguments"):
+        execute_agent_tool(
+            ToolCallProposal(
+                call_id=f"call-string-{field}",
+                name="create_workout_log_draft",
+                arguments=arguments,
             ),
             _context(),
         )
