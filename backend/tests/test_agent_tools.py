@@ -1,5 +1,8 @@
 from backend.app.agents.tools import (
     accept_advice,
+    build_meal_log_draft,
+    build_plan_adjustment_draft,
+    build_workout_log_draft,
     create_meal_log_draft,
     create_plan_adjustment_draft,
     create_workout_log_draft,
@@ -55,6 +58,29 @@ def test_agent_draft_tools_do_not_write_records():
     assert adjustment_draft.type == "plan_adjustment"
     assert list_recent_workout_logs(DEMO_USER_ID) == []
     assert list_recent_meal_logs(DEMO_USER_ID) == []
+
+
+def test_structured_draft_builders_return_confirmation_required_drafts():
+    workout_draft = build_workout_log_draft("深蹲", 4, 8, 80, "感觉很累")
+    meal_draft = build_meal_log_draft("午餐", "鸡胸肉饭")
+    adjustment_draft = build_plan_adjustment_draft("reduce_intensity", "今天太累")
+
+    assert workout_draft.payload == {
+        "exercise_name": "深蹲",
+        "sets": 4,
+        "reps": 8,
+        "weight_kg": 80,
+        "effort_note": "感觉很累",
+    }
+    assert meal_draft.payload == {"meal_name": "午餐", "note": "鸡胸肉饭"}
+    assert adjustment_draft.payload == {
+        "adjustment_type": "reduce_intensity",
+        "reason": "今天太累",
+    }
+    assert all(
+        draft.requires_confirmation is True
+        for draft in (workout_draft, meal_draft, adjustment_draft)
+    )
 
 
 def test_accept_advice_tool_updates_advice_status():

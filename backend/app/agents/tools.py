@@ -37,20 +37,44 @@ def list_recent_meal_logs(user_id: str = DEMO_USER_ID, limit: int = 10) -> list[
     return logs[-limit:]
 
 
-def create_workout_log_draft(message: str) -> RecordDraft | None:
-    normalized = message.lower()
-    if "深蹲" not in normalized and "squat" not in normalized:
-        return None
+def build_workout_log_draft(
+    exercise_name: str,
+    sets: int,
+    reps: int,
+    weight_kg: float | None,
+    effort_note: str,
+) -> RecordDraft:
     return RecordDraft(
         type="workout_log",
         requires_confirmation=True,
         payload={
-            "exercise_name": "深蹲" if "深蹲" in normalized else "Squat",
-            "sets": 4,
-            "reps": 8,
-            "weight_kg": 80,
-            "effort_note": message
-        }
+            "exercise_name": exercise_name,
+            "sets": sets,
+            "reps": reps,
+            "weight_kg": weight_kg,
+            "effort_note": effort_note,
+        },
+    )
+
+
+def create_workout_log_draft(message: str) -> RecordDraft | None:
+    normalized = message.lower()
+    if "深蹲" not in normalized and "squat" not in normalized:
+        return None
+    return build_workout_log_draft(
+        exercise_name="深蹲" if "深蹲" in normalized else "Squat",
+        sets=4,
+        reps=8,
+        weight_kg=80,
+        effort_note=message,
+    )
+
+
+def build_meal_log_draft(meal_name: str, note: str) -> RecordDraft:
+    return RecordDraft(
+        type="meal_log",
+        requires_confirmation=True,
+        payload={"meal_name": meal_name, "note": note},
     )
 
 
@@ -58,13 +82,17 @@ def create_meal_log_draft(message: str, locale: str = "zh-CN") -> RecordDraft | 
     normalized = message.lower()
     if "吃" not in normalized and "meal" not in normalized and "food" not in normalized:
         return None
+    return build_meal_log_draft(
+        meal_name="手动记录" if locale == "zh-CN" else "Manual entry",
+        note=message,
+    )
+
+
+def build_plan_adjustment_draft(adjustment_type: str, reason: str) -> RecordDraft:
     return RecordDraft(
-        type="meal_log",
+        type="plan_adjustment",
         requires_confirmation=True,
-        payload={
-            "meal_name": "手动记录" if locale == "zh-CN" else "Manual entry",
-            "note": message
-        }
+        payload={"adjustment_type": adjustment_type, "reason": reason},
     )
 
 
@@ -72,14 +100,7 @@ def create_plan_adjustment_draft(message: str) -> RecordDraft | None:
     normalized = message.lower()
     if "调整" not in normalized and "adjust" not in normalized:
         return None
-    return RecordDraft(
-        type="plan_adjustment",
-        requires_confirmation=True,
-        payload={
-            "adjustment_type": "reduce_intensity",
-            "reason": message
-        }
-    )
+    return build_plan_adjustment_draft("reduce_intensity", message)
 
 
 def accept_advice(user_id: str, advice_id: str, accepted_status: AdviceStatus = "accepted") -> AgentAdvice | None:
