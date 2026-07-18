@@ -45,6 +45,15 @@ function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
   return typeof errorValue.code === "string" && typeof errorValue.message === "string";
 }
 
+function hasValidationDetail(value: unknown): value is { detail: unknown[] } {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "detail" in value &&
+    Array.isArray((value as { detail?: unknown }).detail)
+  );
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse<T>> {
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -65,10 +74,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse
     }
 
     if (isApiResponse<T>(body)) return body;
-    if (response.status === 422) {
+    if (response.status === 422 && hasValidationDetail(body)) {
       return fail("VALIDATION_ERROR", "Request validation failed.", {
         status: response.status,
-        detail: (body as { detail?: unknown }).detail
+        detail: body.detail
       });
     }
     return fail("HTTP_ERROR", "945 backend returned an invalid response.", {

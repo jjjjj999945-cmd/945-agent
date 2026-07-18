@@ -36,6 +36,14 @@ test.describe.serial("945 real HTTP integration", () => {
     await expect(page.getByRole("status")).toContainText("Request validation failed.");
   });
 
+  test("shows protocol errors for malformed 422 responses", async ({ page }) => {
+    await page.route("**/api/today?*", (route) =>
+      route.fulfill({ status: 422, contentType: "application/json", body: "null" })
+    );
+    await page.goto("/app");
+    await expect(page.getByRole("status")).toContainText("945 backend returned an invalid response.");
+  });
+
   test("shows protocol errors for non-JSON responses", async ({ page }) => {
     await page.route("**/api/today?*", (route) =>
       route.fulfill({ status: 502, contentType: "text/html", body: "Bad gateway" })
