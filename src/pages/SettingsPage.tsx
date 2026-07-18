@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageLoadState } from "../components/business/PageLoadState";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
@@ -66,7 +67,7 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
     setNotice(isChinese ? `${t("status.settingsSaved")}：教练语气已切换为${label}` : `${t("status.settingsSaved")}: Agent tone changed to ${label}`);
   }
 
-  if (!data) return <div className="business-placeholder">{t("status.loading")}</div>;
+  if (!data) return <PageLoadState message={notice || t("status.loading")} />;
   const goalChoices: Array<{ goal: Goal; label: string }> = isChinese
     ? [
         { goal: "conditioning", label: "耐力" },

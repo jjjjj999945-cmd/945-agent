@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/business/ConfirmDialog";
 import { MetricCard } from "../components/business/MetricCard";
+import { PageLoadState } from "../components/business/PageLoadState";
 import { ProgressBar } from "../components/business/ProgressBar";
 import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
@@ -195,7 +196,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   }
 
   if (!today || !summary) {
-    return <div className="business-placeholder">{t("status.loading")}</div>;
+    return <PageLoadState message={notice || t("status.loading")} />;
   }
 
   return (

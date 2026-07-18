@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageLoadState } from "../components/business/PageLoadState";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
@@ -37,7 +38,7 @@ export function AdvicePage({ locale }: { locale: Locale }) {
     await loadAdvice();
   }
 
-  if (!data) return <div className="business-placeholder">{t("status.loading")}</div>;
+  if (!data) return <PageLoadState message={notice || t("status.loading")} />;
   const cards = [data.daily, data.weekly, ...data.adjustments].filter(Boolean) as AgentAdvice[];
   const primaryAdvice = data.weekly ?? data.daily ?? cards[0];
   const adviceTypeLabels: Record<AgentAdvice["type"], string> = {
