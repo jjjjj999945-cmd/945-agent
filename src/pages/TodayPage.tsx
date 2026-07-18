@@ -6,6 +6,7 @@ import { ProgressBar } from "../components/business/ProgressBar";
 import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
+import { saveRecordDraft } from "../services/recordDraft";
 import type { DailyCheckin, Locale, PlannedMeal, RecordDraft, TodayResponseData } from "../types/domain";
 
 type TodayPageProps = {
@@ -169,10 +170,22 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
     setAgentMessage("");
   }
 
-  function confirmRecordDraft() {
+  async function confirmRecordDraft() {
     if (!recordDraft) return;
+    setSaving(true);
+    const response = await saveRecordDraft(recordDraft, {
+      user_id: DEMO_USER_ID,
+      date: TODAY_DATE,
+      plan_id: demoPlan.plan_id
+    });
+    setSaving(false);
+    if (response.error) {
+      setNotice(response.error.message);
+      return;
+    }
     setNotice(`${draftTypeLabels[recordDraft.type]} ${t("status.saved")}`);
     setRecordDraft(null);
+    await loadToday();
   }
 
   function updateWorkoutStatus(status: "completed" | "partial" | "skipped") {

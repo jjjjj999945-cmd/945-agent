@@ -67,6 +67,122 @@ test.describe.serial("945 real HTTP integration", () => {
     expect(workoutLogsAfter.data).toHaveLength(workoutLogsBefore.data.length + 1);
   });
 
+  test("writes Agent workout and meal drafts only after confirmation", async ({ page, request }) => {
+    await page.goto("/agent");
+    const input = page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。");
+
+    const workoutBefore = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
+    await input.fill("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。");
+    await page.getByRole("button", { name: "发送" }).click();
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+    const workoutUnconfirmed = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
+    expect(workoutUnconfirmed.data).toHaveLength(workoutBefore.data.length);
+
+    const workoutWriteResponse = page.waitForResponse(
+      (response) =>
+        response.url() === `${API_BASE_URL}/api/workout-logs` &&
+        response.request().method() === "POST",
+      { timeout: 5_000 }
+    );
+    await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
+    expect((await workoutWriteResponse).status()).toBe(200);
+    const workoutConfirmed = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
+    expect(workoutConfirmed.data).toHaveLength(workoutBefore.data.length + 1);
+
+    const mealBefore = await (await request.get(`${API_BASE_URL}/api/meal-logs?user_id=demo-user-945`)).json();
+    await input.fill("我中午吃了鸡胸肉饭，可以帮我记录吗？");
+    await page.getByRole("button", { name: "发送" }).click();
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+    const mealUnconfirmed = await (await request.get(`${API_BASE_URL}/api/meal-logs?user_id=demo-user-945`)).json();
+    expect(mealUnconfirmed.data).toHaveLength(mealBefore.data.length);
+
+    const mealWriteResponse = page.waitForResponse(
+      (response) =>
+        response.url() === `${API_BASE_URL}/api/meal-logs` &&
+        response.request().method() === "POST",
+      { timeout: 5_000 }
+    );
+    await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
+    expect((await mealWriteResponse).status()).toBe(200);
+    const mealConfirmed = await (await request.get(`${API_BASE_URL}/api/meal-logs?user_id=demo-user-945`)).json();
+    expect(mealConfirmed.data).toHaveLength(mealBefore.data.length + 1);
+    expect(mealConfirmed.data.at(-1)).toMatchObject({
+      foods: [],
+      notes: "我中午吃了鸡胸肉饭，可以帮我记录吗？"
+    });
+  });
+
+  test("keeps high-risk Agent input out of draft confirmation", async ({ page }) => {
+    await page.goto("/agent");
+    await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。")
+      .fill("我训练时胸闷眩晕，还能继续冲重量吗？");
+    await page.getByRole("button", { name: "发送" }).click();
+    await expect(page.getByText(/暂停训练/).last()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeHidden();
+  });
+
+  test("rejects malformed and unsupported Agent workout drafts without writes", async ({ page, request }) => {
+    const drafts = [
+      { type: "workout_log", payload: { exercise_name: "深蹲", sets: 0, reps: 8 } },
+      { type: "workout_log", payload: { exercise_name: "深蹲", sets: 4, reps: 8.5 } },
+      { type: "workout_log", payload: { exercise_name: "深蹲", sets: 4, reps: 8, weight_kg: -1 } },
+      { type: "workout_log", payload: { exercise_name: "深蹲", sets: 4_294_967_296, reps: 8 } },
+      { type: "daily_checkin", payload: { fatigue_level: 4 } },
+      { type: "plan_adjustment", payload: { adjustment_type: "reduce_intensity" } }
+    ];
+    let draftIndex = 0;
+    await page.route("**/api/agent/chat", async (route) => {
+      const draft = drafts[draftIndex++];
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            message_id: `agent-test-${draftIndex}`,
+            user_id: "demo-user-945",
+            role: "agent",
+            content: "请确认草稿。",
+            locale: "zh-CN",
+            record_draft: { ...draft, requires_confirmation: true },
+            created_at: "2026-07-11T09:00:00Z"
+          },
+          error: null
+        })
+      });
+    });
+
+    await page.goto("/agent");
+    const input = page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。");
+    const workoutBefore = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
+    const mealBefore = await (await request.get(`${API_BASE_URL}/api/meal-logs?user_id=demo-user-945`)).json();
+    let structuredWriteCount = 0;
+    page.on("request", (outgoing) => {
+      if (
+        outgoing.method() === "POST" &&
+        [`${API_BASE_URL}/api/workout-logs`, `${API_BASE_URL}/api/meal-logs`].includes(outgoing.url())
+      ) {
+        structuredWriteCount += 1;
+      }
+    });
+
+    for (let index = 0; index < drafts.length; index += 1) {
+      await input.fill(`草稿测试 ${index}`);
+      await page.getByRole("button", { name: "发送" }).click();
+      await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+      await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
+      await expect(page.getByText(index >= drafts.length - 2
+        ? "This draft type cannot be saved yet."
+        : "Workout draft is invalid.")).toBeVisible();
+      await page.getByRole("dialog").getByRole("button", { name: "取消" }).click();
+    }
+
+    expect(structuredWriteCount).toBe(0);
+    const workoutAfter = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
+    const mealAfter = await (await request.get(`${API_BASE_URL}/api/meal-logs?user_id=demo-user-945`)).json();
+    expect(workoutAfter.data).toHaveLength(workoutBefore.data.length);
+    expect(mealAfter.data).toHaveLength(mealBefore.data.length);
+  });
+
   test("shows normalized validation errors", async ({ page }) => {
     await page.route("**/api/today?*", (route) =>
       route.fulfill({
