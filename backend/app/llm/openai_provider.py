@@ -48,6 +48,9 @@ class OpenAIProvider:
         self.retry_delay_seconds = retry_delay_seconds
 
     async def generate(self, request: AgentModelRequest) -> AgentModelResponse:
+        if request.tool_result is not None:
+            self._validate_tool_continuation(request)
+
         payload: dict[str, Any] = {
             "model": self.model,
             "instructions": build_agent_instructions(request.locale),
@@ -95,14 +98,18 @@ class OpenAIProvider:
         return items
 
     async def _create_response(self, payload: dict[str, Any], request_id: str):
+        final_error: LLMProviderError | None = None
         for attempt in (1, 2):
             try:
                 return await self.client.responses.create(**payload), attempt
             except OpenAIError as exc:
                 mapped, retryable = self._map_error(exc, request_id, attempt)
                 if attempt == 2 or not retryable:
-                    raise mapped from exc
+                    final_error = mapped
+                    break
                 await asyncio.sleep(self.retry_delay_seconds)
+        if final_error is not None:
+            raise final_error
         raise LLMProviderError("OpenAI request failed.", request_id=request_id, http_attempts=2)
 
     def _map_error(self, exc: OpenAIError, request_id: str, attempts: int):
@@ -122,6 +129,26 @@ class OpenAIProvider:
             retryable = exc.status_code >= 500
             return LLMProviderError("The model provider returned an error.", **common), retryable
         return LLMProviderError("The model provider returned an error.", **common), False
+
+    def _validate_tool_continuation(self, request: AgentModelRequest) -> None:
+        output_items = request.continuation.output_items if request.continuation is not None else []
+        function_calls = [item for item in output_items if item.get("type") == "function_call"]
+        if len(function_calls) != 1:
+            raise LLMOutputInvalidError(
+                "The model continuation must contain exactly one tool call.",
+                request_id=request.request_id,
+                http_attempts=0,
+            )
+        previous_call = function_calls[0]
+        if (
+            previous_call.get("call_id") != request.tool_result.call_id
+            or previous_call.get("name") != request.tool_result.name
+        ):
+            raise LLMOutputInvalidError(
+                "The tool result does not match the model continuation.",
+                request_id=request.request_id,
+                http_attempts=0,
+            )
 
     def _parse_response(
         self,
@@ -149,15 +176,33 @@ class OpenAIProvider:
         continuation = None
         if calls:
             call = calls[0]
+            call_id = getattr(call, "call_id", None)
+            name = getattr(call, "name", None)
+            raw_arguments = getattr(call, "arguments", None)
+            if not call_id or not name or not raw_arguments:
+                raise LLMOutputInvalidError(
+                    "The model returned an incomplete tool call.",
+                    request_id=request.request_id,
+                    provider_request_id=response.id,
+                    http_attempts=attempts,
+                )
+            allowed_tool_names = {tool.name for tool in request.tools}
+            if name not in allowed_tool_names:
+                raise LLMOutputInvalidError(
+                    "The model requested an unavailable tool.",
+                    request_id=request.request_id,
+                    provider_request_id=response.id,
+                    http_attempts=attempts,
+                )
             try:
-                arguments = json.loads(call.arguments)
-            except (TypeError, json.JSONDecodeError) as exc:
+                arguments = json.loads(raw_arguments)
+            except (TypeError, json.JSONDecodeError):
                 raise LLMOutputInvalidError(
                     "The model returned invalid tool arguments.",
                     request_id=request.request_id,
                     provider_request_id=response.id,
                     http_attempts=attempts,
-                ) from exc
+                ) from None
             if not isinstance(arguments, dict):
                 raise LLMOutputInvalidError(
                     "The model returned non-object tool arguments.",
@@ -166,8 +211,8 @@ class OpenAIProvider:
                     http_attempts=attempts,
                 )
             tool_call = ToolCallProposal(
-                call_id=call.call_id,
-                name=call.name,
+                call_id=call_id,
+                name=name,
                 arguments=arguments,
             )
             continuation = ProviderContinuation(
