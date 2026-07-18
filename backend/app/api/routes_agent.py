@@ -3,16 +3,27 @@ from fastapi.responses import JSONResponse
 
 from backend.app.api.responses import error, ok
 from backend.app.data.demo_data import DEMO_USER_ID
+from backend.app.llm.errors import LLMError
 from backend.app.models.domain import AgentChatInput
-from backend.app.services.demo_store import create_agent_reply, list_agent_messages
+from backend.app.services.agent_service import create_agent_reply
+from backend.app.services.demo_store import list_agent_messages
 
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 
 @router.post("/chat")
-def chat(input_data: AgentChatInput) -> object:
-    reply = create_agent_reply(input_data)
+async def chat(input_data: AgentChatInput) -> object:
+    try:
+        reply = await create_agent_reply(input_data)
+    except LLMError as exc:
+        details = {"request_id": exc.request_id}
+        if exc.provider_request_id is not None:
+            details["provider_request_id"] = exc.provider_request_id
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error(exc.code, exc.message, details),
+        )
     if reply is None:
         return JSONResponse(
             status_code=404,

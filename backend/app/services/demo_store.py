@@ -5,7 +5,6 @@ from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_U
 from backend.app.models.domain import (
     AdvicePageData,
     AdviceStatus,
-    AgentChatInput,
     AgentAdvice,
     AgentMessage,
     BodyMetric,
@@ -18,7 +17,6 @@ from backend.app.models.domain import (
     MealLog,
     ProfileCreateInput,
     ProfilePatchInput,
-    RecordDraft,
     SettingsData,
     SettingsPatchInput,
     TodayResponseData,
@@ -225,61 +223,12 @@ def update_advice_status(user_id: str, advice_id: str, accepted_status: AdviceSt
     return updated
 
 
-HIGH_RISK_TERMS = ["胸闷", "眩晕", "晕厥", "强烈疼痛", "疑似受伤", "心脏不适", "极端节食", "进食障碍"]
-
-
-def _build_agent_draft(input_data: AgentChatInput) -> RecordDraft | None:
-    from backend.app.agents.tools import (
-        create_meal_log_draft,
-        create_plan_adjustment_draft,
-        create_workout_log_draft,
-    )
-
-    return (
-        create_workout_log_draft(input_data.message)
-        or create_meal_log_draft(input_data.message, input_data.locale)
-        or create_plan_adjustment_draft(input_data.message)
-    )
-
-
-def create_agent_reply(input_data: AgentChatInput) -> AgentMessage | None:
-    from backend.app.agents.graph import run_agent_graph
-
+def save_agent_message(message: AgentMessage) -> AgentMessage:
     store = _active_repository_store()
-    if not is_demo_user(input_data.user_id):
-        return None
-
-    graph_result = run_agent_graph(
-        user_id=input_data.user_id,
-        locale=input_data.locale,
-        message=input_data.message,
-        context=input_data.context
-    )
-    now = timestamp()
-    user_message = AgentMessage(
-        message_id=f"msg-user-{len(agent_messages) + 1}",
-        user_id=input_data.user_id,
-        role="user",
-        content=input_data.message,
-        locale=input_data.locale,
-        created_at=now
-    )
-
-    agent_message = AgentMessage(
-        message_id=f"msg-agent-{len(agent_messages) + 2}",
-        user_id=input_data.user_id,
-        role="agent",
-        content=graph_result.reply,
-        locale=input_data.locale,
-        record_draft=graph_result.record_draft,
-        created_at=timestamp()
-    )
     if store:
-        store.save_agent_message(user_message)
-        store.save_agent_message(agent_message)
-        return agent_message
-    agent_messages.extend([user_message, agent_message])
-    return agent_message
+        return store.save_agent_message(message)
+    agent_messages.append(message)
+    return message
 
 
 def list_agent_messages(user_id: str) -> list[AgentMessage] | None:

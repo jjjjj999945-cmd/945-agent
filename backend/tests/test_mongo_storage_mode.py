@@ -1,8 +1,11 @@
+import asyncio
+
 from backend.app.core.config import get_settings
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
 from backend.app.models.domain import AgentChatInput, WorkoutLogInput
 from backend.app.repositories.mongo import MongoRepository
 from backend.app.services import demo_store
+from backend.app.services.agent_service import create_agent_reply
 from backend.app.services.repository_store import RepositoryBackedStore
 from backend.tests.test_mongo_repository import FakeDatabase
 
@@ -20,14 +23,16 @@ def test_demo_store_delegates_to_repository_store_in_mongo_mode(monkeypatch):
                 user_id=DEMO_USER_ID,
                 date=TODAY_DATE,
                 status="completed",
-                exercises=[{"name": "深蹲", "sets": [{"reps": 8}]}]
+                exercises=[{"name": "深蹲", "sets": [{"reps": 8}]}],
             )
         )
-        reply = demo_store.create_agent_reply(
-            AgentChatInput(
-                user_id=DEMO_USER_ID,
-                locale="zh-CN",
-                message="今天深蹲做了 4 组，每组 8 次，80kg。"
+        reply = asyncio.run(
+            create_agent_reply(
+                AgentChatInput(
+                    user_id=DEMO_USER_ID,
+                    locale="zh-CN",
+                    message="今天深蹲做了 4 组，每组 8 次，80kg。",
+                )
             )
         )
 

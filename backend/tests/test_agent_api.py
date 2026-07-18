@@ -1,9 +1,16 @@
 from fastapi.testclient import TestClient
 
+from backend.app.core.config import get_settings
+from backend.app.llm.factory import get_llm_provider_router
 from backend.app.main import app
 
 
 client = TestClient(app)
+
+
+def _clear_llm_caches():
+    get_settings.cache_clear()
+    get_llm_provider_router.cache_clear()
 
 
 def test_agent_chat_returns_workout_record_draft_without_saving_log():
@@ -113,3 +120,50 @@ def test_agent_chat_rejects_unknown_user():
             "details": {"user_id": "missing-user"}
         }
     }
+
+
+def test_agent_chat_development_openai_mode_falls_back_without_key(monkeypatch):
+    monkeypatch.setenv("945_APP_ENV", "development")
+    monkeypatch.setenv("945_LLM_PROVIDER", "openai")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("945_OPENAI_MODEL", raising=False)
+    _clear_llm_caches()
+
+    response = client.post(
+        "/api/agent/chat",
+        json={
+            "user_id": "demo-user-945",
+            "locale": "zh-CN",
+            "message": "今天深蹲做了 4 组，每组 8 次，80kg。",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["record_draft"]["requires_confirmation"] is True
+
+
+def test_agent_chat_production_openai_mode_returns_config_error_without_saving(monkeypatch):
+    monkeypatch.setenv("945_APP_ENV", "production")
+    monkeypatch.setenv("945_LLM_PROVIDER", "openai")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("945_OPENAI_MODEL", raising=False)
+    _clear_llm_caches()
+
+    response = client.post(
+        "/api/agent/chat",
+        json={
+            "user_id": "demo-user-945",
+            "locale": "zh-CN",
+            "message": "今天练什么？",
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "LLM_CONFIG_ERROR"
+    messages = client.get("/api/agent/messages", params={"user_id": "demo-user-945"})
+    assert messages.json()["data"] == []
+    today = client.get(
+        "/api/today",
+        params={"user_id": "demo-user-945", "date": "2026-07-11"},
+    )
+    assert today.status_code == 200

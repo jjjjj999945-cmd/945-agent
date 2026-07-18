@@ -1,16 +1,13 @@
-from typing import Literal
-
 from backend.app.agents.tools import (
     create_meal_log_draft,
     create_plan_adjustment_draft,
     create_workout_log_draft,
     get_today_context,
 )
+from backend.app.llm.models import AgentIntent
 from backend.app.models.domain import RecordDraft
 from backend.app.rag.retriever import KnowledgeChunk, retrieve_knowledge
 
-
-AgentIntent = Literal["safety_warning", "log_workout", "log_meal", "adjust_plan", "ask_question"]
 
 HIGH_RISK_TERMS = ["胸闷", "眩晕", "晕厥", "强烈疼痛", "疑似受伤", "心脏不适", "极端节食", "进食障碍"]
 
