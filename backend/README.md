@@ -2,7 +2,7 @@
 
 这是 945 的真实后端入口。当前阶段已完成本地 demo 用户下的 MVP 后端闭环：资料、设置、计划读取、今日聚合、训练记录、饮食记录、身体数据、每日打卡、建议状态和最小 Agent 草稿对话。
 
-当前后端默认仍然运行本地 demo store，但已经具备 MongoDB repository 边界、Agent 白名单工具层、本地 RAG 检索、确定性 Agent graph 和每周长期记忆摘要。真实大模型、生产鉴权和云部署仍不在当前 MVP 范围内。
+当前后端默认仍然运行本地 demo store 和 deterministic LLM Provider，但已经具备 MongoDB repository 边界、Agent 白名单工具层、本地 RAG 检索、Provider Router、OpenAI Responses Provider 和每周长期记忆摘要。生产鉴权、云部署和向量数据库仍不在当前 MVP 范围内。
 
 ## 当前包含
 
@@ -29,7 +29,14 @@ backend/
     agents/
       graph.py
       nodes.py
+      prompts.py
+      tool_registry.py
       tools.py
+    llm/
+      deterministic.py
+      factory.py
+      models.py
+      openai_provider.py
     rag/
       retriever.py
     repositories/
@@ -123,13 +130,48 @@ GET /api/agent/messages?user_id=demo-user-945
 - 服务重启后，训练记录、饮食记录、身体数据、打卡、设置修改和 Agent 消息会重置。
 - `backend/app/repositories/mongo.py` 已提供 MongoDB repository 边界，用于后续把 demo store 的读写迁移到 MongoDB。
 - `backend/app/services/repository_store.py` 已把结构化集合映射到 repository-backed store。
-- `backend/app/agents/tools.py` 提供 Agent 白名单工具；关键写入仍只生成草稿。
+- `backend/app/agents/tool_registry.py` 提供 Agent 白名单工具注册、严格参数校验和显式分派；关键写入仍只生成草稿。
 - `backend/app/rag/retriever.py` 提供本地关键词 RAG 检索，不保存主业务事实。
-- `backend/app/agents/graph.py` 提供确定性 Agent graph，用于安全检查、意图路由、上下文构建、RAG 检索、工具草稿和回复生成。
+- `backend/app/agents/graph.py` 提供异步 Agent graph，用于安全检查、上下文构建、RAG 检索、Provider 调用、单轮工具执行和草稿校验。
+- `backend/app/llm/factory.py` 提供 Provider Router：开发环境 OpenAI 失败会降级到 deterministic，生产环境会返回稳定错误。
+- `backend/app/llm/openai_provider.py` 已接入 OpenAI Responses API，显式 `store=False`、`parallel_tool_calls=False`，并关闭 SDK 内部重试。
 - `backend/app/services/memory_service.py` 可以从结构化记录生成每周长期记忆摘要。
-- `/api/agent/chat` 当前只做规则版草稿生成和高风险词安全提醒。
+- `/api/agent/chat` 默认使用 deterministic Provider；配置 OpenAI 后可以走真实模型，但模型只能提出白名单工具调用。
 - Agent 不会自动保存训练或饮食记录；保存仍必须调用对应结构化写入接口。
 - 高风险输入会返回安全提醒，不继续输出高强度训练建议。
+
+## LLM Provider 配置
+
+默认本地模式不需要 API Key：
+
+```powershell
+$env:945_APP_ENV="development"
+$env:945_LLM_PROVIDER="deterministic"
+```
+
+开发环境启用真实 OpenAI：
+
+```powershell
+$env:945_APP_ENV="development"
+$env:945_LLM_PROVIDER="openai"
+$env:OPENAI_API_KEY="你的服务端 API Key"
+$env:945_OPENAI_MODEL="你的 OpenAI 模型 ID"
+$env:945_LLM_TIMEOUT_SECONDS="20"
+```
+
+生产环境启用 OpenAI 时必须配置 `OPENAI_API_KEY` 和 `945_OPENAI_MODEL`。缺少配置或 Provider 调用失败时，生产环境不会自动降级保存消息，而是返回稳定错误响应。
+
+稳定错误码：
+
+```text
+LLM_CONFIG_ERROR
+LLM_TIMEOUT
+LLM_RATE_LIMITED
+LLM_PROVIDER_ERROR
+LLM_OUTPUT_INVALID
+```
+
+开发环境自动降级只体现在后端运行元数据中，对前端成功响应形状保持兼容。无论 deterministic 还是 OpenAI，模型都不能直接写入训练、饮食或计划数据；记录类操作只返回 `RecordDraft`，用户确认后再调用结构化 API。
 
 ## MongoDB repository 配置
 
@@ -155,6 +197,13 @@ $env:945_MONGODB_DATABASE="945"
 python -m pytest backend/tests -q
 ```
 
+真实 OpenAI 冒烟测试默认跳过，避免误触发费用。只有明确配置后才运行：
+
+```powershell
+$env:945_RUN_OPENAI_SMOKE_TESTS="1"
+python -m pytest backend/tests/test_openai_smoke.py -q
+```
+
 前端兼容验证：
 
 ```powershell
@@ -164,9 +213,9 @@ npm run qa:app
 
 ## 下一步
 
-下一步建议进入真实模型和生产化准备，但不要破坏当前可测试闭环：
+下一步建议进入真实模型联调和生产化准备，但不要破坏当前可测试闭环：
 
-1. 接入真实 LLM provider，但保留 deterministic/mock provider 用于测试。
+1. 用明确配置的服务端 API Key 做一次 OpenAI 冒烟验证。
 2. 将本地关键词 RAG 替换或增强为 embedding/vector store。
 3. 增加真实 MongoDB 集成环境和启动脚本。
 4. 增加用户鉴权、数据隔离和生产配置。

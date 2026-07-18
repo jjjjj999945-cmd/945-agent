@@ -2,7 +2,7 @@
 
 版本：v0.1  
 日期：2026-07-15  
-状态：MVP 后端架构已部分实现
+状态：MVP 后端架构已实现，OpenAI Provider 可选启用
 
 ## 1. 这份文档解决什么问题
 
@@ -12,7 +12,7 @@
 2. RAG 在这个产品里到底负责什么，不负责什么。
 3. 从当前前端 mock demo 走到真实 Agent 系统，应该按什么顺序搭建。
 
-当前项目已经有桌面客户端 demo、TypeScript 数据类型、mock API、HTTP adapter、FastAPI 结构化 API、MongoDB repository 边界、Agent 工具层、本地 RAG 检索、确定性 Agent graph 和 Playwright QA。下一阶段可以接真实 LLM 和向量库，但必须保留当前可测试的 deterministic/mock 路径。
+当前项目已经有桌面客户端 demo、TypeScript 数据类型、mock API、HTTP adapter、FastAPI 结构化 API、MongoDB repository 边界、Agent 工具层、本地 RAG 检索、异步 Agent graph、OpenAI Responses Provider、Provider Router 和 Playwright QA。下一阶段可以做真实 OpenAI 联调、向量库和生产部署，但必须保留当前可测试的 deterministic/mock 路径。
 
 ## 2. 总体结论
 
@@ -26,6 +26,7 @@
     -> FastAPI
       -> 业务服务层
         -> Agent 编排层
+          -> LLM Provider Router
           -> 工具调用
           -> RAG 检索
           -> 安全边界
@@ -73,6 +74,7 @@ flowchart TD
 | FastAPI | 接收请求、鉴权预留、校验输入、返回统一响应 | 不把提示词写进路由 |
 | 业务服务层 | 组织计划、记录、建议、设置等业务流程 | 不直接生成自然语言 |
 | Agent Orchestrator | 编排安全检查、上下文构建、工具调用和模型输出 | 不绕过用户确认写入关键数据 |
+| LLM Provider Router | 在 deterministic 与 OpenAI Provider 之间路由，并处理开发降级/生产错误 | 不保存业务消息，不读取或写入结构化事实 |
 | Tool Router | 把 Agent 意图转为可控工具调用 | 不允许任意函数执行 |
 | RAG Retriever | 检索知识和长期摘要 | 不保存主业务事实 |
 | MongoDB | 保存结构化事实 | 不做语义检索 |
@@ -129,6 +131,14 @@ flowchart LR
 | Response Generator | 上下文、知识片段、工具结果 | 自然语言回复和可选草稿 |
 | Draft Validator | 草稿 | 字段校验、风险校验、是否需要确认 |
 
+当前实现状态：
+
+- `backend/app/agents/graph.py` 已改为异步编排。
+- Safety Guard 在任何 Provider 调用前执行；高风险输入不会调用 OpenAI。
+- Graph 会构造今日上下文、RAG 片段和最近对话，然后调用 Provider Router。
+- OpenAI Provider 每次最多一轮工具执行；工具执行结果再通过同一个 `call_id` 回传给 Responses API。
+- 失败轮次不会保存半截用户消息或 Agent 消息。
+
 ## 6. 工具调用边界
 
 Agent 可以使用这些工具：
@@ -146,6 +156,41 @@ Agent 可以使用这些工具：
 | `accept_advice` | 标记建议已采纳 | 是 |
 
 第一版不要开放“任意写库工具”。所有写入都应该是明确白名单工具，并且关键写入先产生 `RecordDraft`。
+
+当前 OpenAI 工具调用边界：
+
+- 模型只能调用后端本次请求提供的工具名。
+- 工具参数必须通过严格 Pydantic schema 校验，字符串数字不会被自动当作数字接受。
+- `create_workout_log_draft`、`create_meal_log_draft`、`create_plan_adjustment_draft` 只返回 `RecordDraft`。
+- `RecordDraft` 不会自动写入 `workout_logs`、`meal_logs` 或 `plans`。
+- 前端必须在用户确认后，再调用对应结构化 API 完成保存。
+
+## 6.1 OpenAI Responses Provider 边界
+
+当前已实现独立 Provider 层：
+
+```text
+Agent Graph
+  -> LLMProviderRouter
+    -> DeterministicProvider
+    -> OpenAIProvider
+```
+
+OpenAI Provider 的约束：
+
+- 请求显式设置 `store=False`，不把 945 对话交给 OpenAI 存储。
+- 请求显式设置 `parallel_tool_calls=False`，避免并行工具调用破坏单轮确认流程。
+- OpenAI SDK client 创建时设置 `max_retries=0`，只保留 945 Provider 层的一次显式传输重试。
+- 第一轮响应如果包含工具调用，必须只有一个 `function_call`。
+- 第二轮续接会完整回放第一轮 `response.output`，包括 reasoning item 和 function call item，然后追加 `function_call_output`。
+- 第二轮设置 `tool_choice="none"`，如果模型仍返回工具调用，Provider 会拒绝。
+- reasoning 和 function-call output items 只用于单次请求续接；945 自己的 `agent_messages` 仍是产品对话历史的来源。
+- SDK 异常不会作为 `__cause__` 或 `__context__` 泄出到上层业务错误。
+
+开发和生产差异：
+
+- `945_APP_ENV=development` 且 OpenAI 配置缺失或调用失败时，Router 会降级到 deterministic Provider，并把结果标记为 `degraded=True`。
+- `945_APP_ENV=production` 时不自动降级，返回稳定 LLM 错误，且不保存失败轮次消息。
 
 ## 7. 后端目录建议
 
@@ -324,7 +369,7 @@ backend/
 
 当工具和 RAG 都能单独跑后，再接编排图。
 
-当前状态：已实现 deterministic LangGraph-style graph，节点包含 safety guard、intent router、context builder、RAG retriever、tool planner、response generator 和 draft validator。当前不依赖真实 LLM。
+当前状态：已实现异步 LangGraph-style graph，节点包含 safety guard、context builder、RAG retriever、Provider Router、tool execution 和 draft validator。默认不依赖真实 LLM；配置 OpenAI 后可走 Responses Provider。
 
 建议节点：
 
@@ -436,12 +481,10 @@ src/services/apiClient.ts
 
 ## 12. 当前阶段的下一步建议
 
-当前最合理的下一步不是马上接大模型，而是：
+当前最合理的下一步是做生产化增强，而不是重写已有闭环：
 
-1. 创建 `backend/`。
-2. 实现 FastAPI 空壳。
-3. 把 `docs/API_CONTRACT.md` 里的核心接口做出来。
-4. 给前端加 `httpApi` adapter。
-5. 等结构化 API 稳定后，再接 Agent 工具层和 RAG。
-
-这样做的好处是：即使 Agent 还没接，产品也已经有真实数据闭环；Agent 接入后只是增强能力，不会把基础记录系统绑死在模型输出上。
+1. 用服务端 API Key 显式运行一次 OpenAI 冒烟测试。
+2. 为 MongoDB 提供本地启动脚本和真实集成测试环境。
+3. 将本地关键词 RAG 增强为 embedding/vector store。
+4. 增加生产鉴权、用户隔离、审计日志和配置管理。
+5. 扩展计划生成、计划调整确认和历史查询体验。

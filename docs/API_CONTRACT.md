@@ -30,7 +30,7 @@
 - `POST /api/agent/chat`
 - `GET /api/agent/messages`
 
-当前实现使用进程内 demo store，不接 MongoDB、LangGraph、RAG 或真实大模型。后续生产化阶段会继续实现计划生成、计划接受、计划调整、更多历史查询和真实 Agent 编排。
+当前默认实现使用进程内 demo store 和 deterministic LLM Provider；已具备 MongoDB repository 边界、本地 RAG、异步 Agent 编排、Provider Router 和可选 OpenAI Responses Provider。后续生产化阶段会继续实现计划生成、计划接受、更多历史查询、向量库、鉴权和云部署。
 
 ## 1. 目标
 
@@ -65,6 +65,18 @@
   }
 }
 ```
+
+Agent/LLM 相关稳定错误码：
+
+| code | HTTP | 含义 |
+| --- | --- | --- |
+| `LLM_CONFIG_ERROR` | `503` | 生产 OpenAI 模式缺少 API Key、模型 ID 或其他必要配置 |
+| `LLM_TIMEOUT` | `503` | 模型 Provider 超时 |
+| `LLM_RATE_LIMITED` | `503` | 模型 Provider 限流 |
+| `LLM_PROVIDER_ERROR` | `503` | 模型 Provider 连接失败、5xx 或其他 SDK 错误 |
+| `LLM_OUTPUT_INVALID` | `502` | 模型返回了未知工具、非法参数、第二轮工具调用等不可信输出 |
+
+开发环境可降级到 deterministic Provider；生产环境不会自动降级保存消息，失败轮次不会产生半截对话历史。
 
 MVP 使用本地 demo 用户：
 
@@ -506,3 +518,38 @@ Agent 对话。
   "error": null
 }
 ```
+
+当前响应体中的 Agent 消息仍使用 `AgentMessage` 形状，关键字段如下：
+
+```json
+{
+  "data": {
+    "message_id": "msg-agent-...",
+    "user_id": "demo-user-945",
+    "role": "agent",
+    "content": "我可以帮你整理成记录草稿。保存前请先确认。",
+    "locale": "zh-CN",
+    "record_draft": {
+      "type": "workout_log",
+      "requires_confirmation": true,
+      "payload": {
+        "exercise_name": "深蹲",
+        "sets": 4,
+        "reps": 8,
+        "weight_kg": 80,
+        "effort_note": "今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。"
+      }
+    },
+    "created_at": "2026-07-11T00:00:00.000Z"
+  },
+  "error": null
+}
+```
+
+重要边界：
+
+- `record_draft` 只是预览草稿，不会自动保存。
+- 训练草稿必须由用户确认后调用 `POST /api/workout-logs`。
+- 饮食草稿必须由用户确认后调用 `POST /api/meal-logs` 或 `POST /api/meal-logs/confirm-planned-meal`。
+- 计划调整草稿必须由用户确认后调用后续计划调整结构化 API；当前 MVP 还未实现直接改计划接口。
+- 高风险输入优先返回安全提醒，不调用 OpenAI Provider。
