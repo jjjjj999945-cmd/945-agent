@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { PageLoadState } from "../components/business/PageLoadState";
-import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
+import { DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
 import type { DietPageData, Locale } from "../types/domain";
@@ -28,7 +28,7 @@ export function DietPage({ locale }: { locale: Locale }) {
   async function confirmMeal(mealId: string) {
     const response = await api.confirmPlannedMeal({
       user_id: DEMO_USER_ID,
-      plan_id: demoPlan.plan_id,
+      plan_id: data?.plan.plan_id ?? "",
       date: TODAY_DATE,
       meal_id: mealId
     });
@@ -81,9 +81,9 @@ export function DietPage({ locale }: { locale: Locale }) {
             <strong>{isChinese ? "目标" : "Target"}: {data.targets.calories} {t("metrics.kcal")}</strong>
           </div>
           <div className="macro-rings">
-            <span><b>110</b>{isChinese ? "蛋白" : "PRO"}</span>
-            <span><b>320</b>{isChinese ? "碳水" : "CARB"}</span>
-            <span><b>65</b>{isChinese ? "脂肪" : "FAT"}</span>
+            <span><b>{data.targets.protein_g}</b>{isChinese ? "蛋白" : "PRO"}</span>
+            <span><b>{data.targets.carbs_g}</b>{isChinese ? "碳水" : "CARB"}</span>
+            <span><b>{data.targets.fat_g}</b>{isChinese ? "脂肪" : "FAT"}</span>
           </div>
         </article>
 

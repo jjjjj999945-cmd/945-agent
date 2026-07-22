@@ -1,8 +1,9 @@
 from copy import deepcopy
 from datetime import date, timedelta
+import re
 
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
-from backend.app.models.domain import MacroTargets, MealPlan, MealPlanDay, Plan, PlanAdjustmentInput, PlanGenerateInput, WorkoutPlan, WorkoutPlanDay
+from backend.app.models.domain import MacroTargets, MealPlan, MealPlanDay, Plan, PlanAdjustmentInput, PlanGenerateInput, PlannedFood, WorkoutPlan, WorkoutPlanDay
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import _active_repository_store, get_current_plan as get_demo_current_plan, get_profile, list_plans, save_plan
 
@@ -67,6 +68,35 @@ def _apply_training_schedule(plan: Plan, days_per_week: int, duration_minutes: i
     return plan.model_copy(update={"workout_plan": WorkoutPlan(days=scheduled)})
 
 
+def _scale_portion(portion: str, multiplier: float) -> str:
+    """Scale the leading quantity while keeping the existing serving unit."""
+    match = re.match(r"^(\d+(?:\.\d+)?)(\s*)(.*)$", portion)
+    if match is None:
+        return portion
+    quantity = float(match.group(1)) * multiplier
+    display = str(int(round(quantity))) if quantity >= 10 else f"{quantity:.1f}".rstrip("0").rstrip(".")
+    return f"{display}{match.group(2)}{match.group(3)}".strip()
+
+
+def _scale_foods(meal, values: dict[str, int]) -> list[PlannedFood]:
+    """Make the visible foods add up to the macro target assigned to a meal."""
+    original_calories = max(1, meal.total_macros.calories)
+    multiplier = values["calories"] / original_calories
+    foods: list[PlannedFood] = []
+    allocated = {key: 0 for key in values}
+    for index, food in enumerate(meal.foods):
+        if index == len(meal.foods) - 1:
+            macros = {key: values[key] - allocated[key] for key in values}
+        else:
+            macros = {key: round(getattr(food, key) * multiplier) for key in values}
+            allocated = {key: allocated[key] + macros[key] for key in values}
+        foods.append(food.model_copy(update={
+            "portion": _scale_portion(food.portion, multiplier),
+            **macros,
+        }))
+    return foods
+
+
 def _apply_meal_schedule(plan: Plan, days: int) -> Plan:
     target = plan.meal_plan.daily_targets
     ratios = (0.3, 0.4, 0.3)
@@ -88,6 +118,7 @@ def _apply_meal_schedule(plan: Plan, days: int) -> Plan:
             allocated = {key: allocated[key] + values[key] for key in allocated}
             meals.append(meal.model_copy(update={
                 "meal_id": f"meal-{day_index + 1}-{index + 1}",
+                "foods": _scale_foods(meal, values),
                 "total_macros": MacroTargets(**values),
             }))
         scheduled.append(MealPlanDay(date=(start + timedelta(days=day_index)).isoformat(), meals=meals))

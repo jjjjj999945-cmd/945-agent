@@ -119,6 +119,19 @@ def test_generated_plan_spreads_daily_macros_across_seven_meals_days():
         assert totals == meal_plan["daily_targets"]
 
 
+def test_generated_plan_scales_food_portions_and_food_macros_for_goal_targets():
+    fat_loss = client.post("/api/plans/generate", json={"user_id": "demo-user-945", "goal": "fat_loss"}).json()["data"]
+    muscle_gain = client.post("/api/plans/generate", json={"user_id": "demo-user-945", "goal": "muscle_gain"}).json()["data"]
+
+    fat_breakfast = fat_loss["meal_plan"]["days"][0]["meals"][0]
+    gain_breakfast = muscle_gain["meal_plan"]["days"][0]["meals"][0]
+    assert fat_breakfast["foods"][0]["portion"] == "407g"
+    assert gain_breakfast["foods"][0]["portion"] == "504g"
+    for meal in gain_breakfast, fat_breakfast:
+        totals = {key: sum(food[key] for food in meal["foods"]) for key in meal["total_macros"]}
+        assert totals == meal["total_macros"]
+
+
 def test_confirmed_plan_adjustment_creates_new_active_plan():
     original = client.get("/api/plans/current").json()["data"]
     adjusted = client.post(
