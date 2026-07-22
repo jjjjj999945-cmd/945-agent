@@ -70,6 +70,16 @@ def test_generate_and_accept_plan_replaces_active_plan():
     assert client.get("/api/plans/current").json()["data"]["plan_id"] == draft["plan_id"]
 
 
+def test_generated_plan_applies_goal_specific_training_and_macro_rules():
+    response = client.post("/api/plans/generate", json={"user_id": "demo-user-945", "goal": "muscle_gain"})
+
+    assert response.status_code == 200
+    plan = response.json()["data"]
+    assert plan["meal_plan"]["daily_targets"] == {"calories": 2600, "protein_g": 170, "carbs_g": 300, "fat_g": 75}
+    assert plan["workout_plan"]["days"][0]["exercises"][0]["sets"] == 5
+    assert plan["workout_plan"]["days"][0]["exercises"][0]["reps"] == "8-12"
+
+
 def test_confirmed_plan_adjustment_creates_new_active_plan():
     original = client.get("/api/plans/current").json()["data"]
     adjusted = client.post(

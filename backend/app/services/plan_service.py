@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
-from backend.app.models.domain import Plan, PlanAdjustmentInput, PlanGenerateInput, WorkoutPlan
+from backend.app.models.domain import MacroTargets, Plan, PlanAdjustmentInput, PlanGenerateInput, WorkoutPlan
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import _active_repository_store, get_current_plan as get_demo_current_plan, list_plans, save_plan
 
@@ -17,14 +17,47 @@ def _plan_id(kind: str) -> str:
     return f"plan-{TODAY_DATE}-{kind}-{timestamp().replace(':', '').replace('-', '')[-10:]}"
 
 
+GOAL_TARGETS = {
+    "fat_loss": (2100, 165, 190, 65),
+    "muscle_gain": (2600, 170, 300, 75),
+    "body_recomposition": (2300, 160, 240, 70),
+    "strength": (2500, 165, 285, 75),
+    "conditioning": (2350, 155, 275, 65),
+    "maintenance": (2400, 155, 260, 75),
+}
+
+
+def _apply_goal_rules(plan: Plan, goal: str) -> Plan:
+    calories, protein, carbs, fat = GOAL_TARGETS[goal]
+    days = deepcopy(plan.workout_plan.days)
+    for day in days:
+        for exercise in day.exercises:
+            if goal == "muscle_gain":
+                exercise.sets += 1
+                exercise.reps = "8-12"
+            elif goal == "strength":
+                exercise.sets += 1
+                exercise.reps = "4-6"
+                exercise.rest_seconds = max(exercise.rest_seconds, 120)
+            elif goal in ("fat_loss", "conditioning"):
+                exercise.sets = max(2, exercise.sets - 1)
+                exercise.reps = "10-15"
+    return plan.model_copy(update={
+        "goal": goal,
+        "workout_plan": WorkoutPlan(days=days),
+        "meal_plan": plan.meal_plan.model_copy(update={
+            "daily_targets": MacroTargets(calories=calories, protein_g=protein, carbs_g=carbs, fat_g=fat)
+        }),
+    })
+
+
 def generate_plan(input_data: PlanGenerateInput) -> Plan | None:
     current = get_current_plan(input_data.user_id)
     if current is None:
         return None
     now = timestamp()
-    draft = deepcopy(current).model_copy(update={
+    draft = _apply_goal_rules(deepcopy(current), input_data.goal or current.goal).model_copy(update={
         "plan_id": _plan_id("draft"),
-        "goal": input_data.goal or current.goal,
         "status": "draft",
         "generated_by": "mock",
         "created_at": now,
