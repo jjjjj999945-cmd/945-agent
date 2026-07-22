@@ -210,6 +210,21 @@ $env:945_RUN_OPENAI_SMOKE_TESTS="1"
 python -m pytest backend/tests/test_openai_smoke.py -q
 ```
 
+也可使用 `npm run qa:openai`。它只执行两条最小请求：一个中文训练知识问题和一个训练记录草稿请求；不会自动写入训练、饮食或计划数据。
+
+运行前需设置：
+
+```powershell
+$env:945_APP_ENV="development"
+$env:945_LLM_PROVIDER="openai"
+$env:OPENAI_API_KEY="你的服务端 API Key"
+$env:945_OPENAI_MODEL="你的模型 ID"
+$env:945_RUN_OPENAI_SMOKE_TESTS="1"
+npm run qa:openai
+```
+
+不要把 API Key 写入仓库、`.env.http`、测试快照或前端 `VITE_*` 变量。未设置 `945_RUN_OPENAI_SMOKE_TESTS=1` 时，测试会跳过，不产生模型调用。
+
 前端兼容验证：
 
 ```powershell

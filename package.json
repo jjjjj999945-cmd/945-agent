@@ -10,6 +10,7 @@
     "qa:app": "playwright test",
     "qa:http": "playwright test --config=playwright.http.config.ts",
     "qa:mongo": "playwright test --config=playwright.mongo.config.ts",
+    "qa:openai": "python -m pytest backend/tests/test_openai_smoke.py -q",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
