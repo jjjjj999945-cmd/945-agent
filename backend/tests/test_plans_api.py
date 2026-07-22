@@ -80,6 +80,18 @@ def test_generated_plan_applies_goal_specific_training_and_macro_rules():
     assert plan["workout_plan"]["days"][0]["exercises"][0]["reps"] == "8-12"
 
 
+def test_generated_plan_uses_profile_goal_when_request_omits_goal():
+    profile = client.patch("/api/profile/demo-user-945", json={"goal": "strength"})
+    assert profile.status_code == 200
+
+    response = client.post("/api/plans/generate", json={"user_id": "demo-user-945"})
+
+    assert response.status_code == 200
+    plan = response.json()["data"]
+    assert plan["goal"] == "strength"
+    assert plan["workout_plan"]["days"][0]["exercises"][0]["reps"] == "4-6"
+
+
 def test_confirmed_plan_adjustment_creates_new_active_plan():
     original = client.get("/api/plans/current").json()["data"]
     adjusted = client.post(

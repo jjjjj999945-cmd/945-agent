@@ -3,7 +3,7 @@ from copy import deepcopy
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
 from backend.app.models.domain import MacroTargets, Plan, PlanAdjustmentInput, PlanGenerateInput, WorkoutPlan
 from backend.app.services.demo_seed import timestamp
-from backend.app.services.demo_store import _active_repository_store, get_current_plan as get_demo_current_plan, list_plans, save_plan
+from backend.app.services.demo_store import _active_repository_store, get_current_plan as get_demo_current_plan, get_profile, list_plans, save_plan
 
 
 def get_current_plan(user_id: str = DEMO_USER_ID) -> Plan | None:
@@ -53,10 +53,12 @@ def _apply_goal_rules(plan: Plan, goal: str) -> Plan:
 
 def generate_plan(input_data: PlanGenerateInput) -> Plan | None:
     current = get_current_plan(input_data.user_id)
-    if current is None:
+    profile = get_profile(input_data.user_id)
+    if current is None or profile is None:
         return None
     now = timestamp()
-    draft = _apply_goal_rules(deepcopy(current), input_data.goal or current.goal).model_copy(update={
+    goal = input_data.goal or profile.goal
+    draft = _apply_goal_rules(deepcopy(current), goal).model_copy(update={
         "plan_id": _plan_id("draft"),
         "status": "draft",
         "generated_by": "mock",
