@@ -17,6 +17,7 @@ export function AgentPage({ locale }: { locale: Locale }) {
   const [input, setInput] = useState("");
   const [draft, setDraft] = useState<RecordDraft | null>(null);
   const [notice, setNotice] = useState("");
+  const [savingDraft, setSavingDraft] = useState(false);
 
   useEffect(() => {
     void loadMessages();
@@ -45,11 +46,13 @@ export function AgentPage({ locale }: { locale: Locale }) {
   }
 
   async function confirmDraft() {
-    if (!draft) return;
+    if (!draft || savingDraft) return;
+    setSavingDraft(true);
     const response = await saveRecordDraft(draft, {
       user_id: DEMO_USER_ID,
       date: TODAY_DATE
     });
+    setSavingDraft(false);
     if (response.error) {
       setNotice(response.error.message);
       return;
@@ -149,6 +152,7 @@ export function AgentPage({ locale }: { locale: Locale }) {
 
       <ConfirmDialog
         cancelLabel={t("actions.cancel")}
+        confirmDisabled={savingDraft}
         confirmLabel={t("actions.confirm")}
         onCancel={() => setDraft(null)}
         onConfirm={confirmDraft}

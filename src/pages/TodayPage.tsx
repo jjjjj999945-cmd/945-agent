@@ -458,6 +458,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
 
       <ConfirmDialog
         cancelLabel={t("actions.cancel")}
+        confirmDisabled={saving}
         confirmLabel={t("actions.confirm")}
         onCancel={() => setRecordDraft(null)}
         onConfirm={confirmRecordDraft}
