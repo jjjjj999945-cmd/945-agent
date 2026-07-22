@@ -108,6 +108,17 @@ def test_generated_plan_uses_profile_training_frequency_and_duration():
     assert all(len(day["exercises"]) <= 2 for day in workouts)
 
 
+def test_generated_plan_spreads_daily_macros_across_seven_meals_days():
+    response = client.post("/api/plans/generate", json={"user_id": "demo-user-945", "goal": "fat_loss"})
+
+    assert response.status_code == 200
+    meal_plan = response.json()["data"]["meal_plan"]
+    assert len(meal_plan["days"]) == 7
+    for day in meal_plan["days"]:
+        totals = {key: sum(meal["total_macros"][key] for meal in day["meals"]) for key in meal_plan["daily_targets"]}
+        assert totals == meal_plan["daily_targets"]
+
+
 def test_confirmed_plan_adjustment_creates_new_active_plan():
     original = client.get("/api/plans/current").json()["data"]
     adjusted = client.post(

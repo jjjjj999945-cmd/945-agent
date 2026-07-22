@@ -476,6 +476,7 @@ def build_today_response(user_id: str, date: str) -> TodayResponseData | None:
     today = create_today_response(date)
     plan = get_current_plan(user_id)
     if plan is not None:
+        today.user.goal = plan.goal
         today.today_workout = next((day for day in plan.workout_plan.days if day.date == date), None)
         today.today_meals = next((day.meals for day in plan.meal_plan.days if day.date == date), [])
         today.status_summary.calories_target = plan.meal_plan.daily_targets.calories

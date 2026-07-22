@@ -2,7 +2,7 @@ from copy import deepcopy
 from datetime import date, timedelta
 
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
-from backend.app.models.domain import MacroTargets, Plan, PlanAdjustmentInput, PlanGenerateInput, WorkoutPlan, WorkoutPlanDay
+from backend.app.models.domain import MacroTargets, MealPlan, MealPlanDay, Plan, PlanAdjustmentInput, PlanGenerateInput, WorkoutPlan, WorkoutPlanDay
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import _active_repository_store, get_current_plan as get_demo_current_plan, get_profile, list_plans, save_plan
 
@@ -67,6 +67,33 @@ def _apply_training_schedule(plan: Plan, days_per_week: int, duration_minutes: i
     return plan.model_copy(update={"workout_plan": WorkoutPlan(days=scheduled)})
 
 
+def _apply_meal_schedule(plan: Plan, days: int) -> Plan:
+    target = plan.meal_plan.daily_targets
+    ratios = (0.3, 0.4, 0.3)
+    start = date.fromisoformat(TODAY_DATE)
+    template = deepcopy(plan.meal_plan.days[0].meals)
+    scheduled: list[MealPlanDay] = []
+    for day_index in range(days):
+        meals = []
+        allocated = {"calories": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}
+        for index, meal in enumerate(template):
+            values = {
+                "calories": round(target.calories * ratios[index]),
+                "protein_g": round(target.protein_g * ratios[index]),
+                "carbs_g": round(target.carbs_g * ratios[index]),
+                "fat_g": round(target.fat_g * ratios[index]),
+            }
+            if index == len(template) - 1:
+                values = {key: getattr(target, key) - allocated[key] for key in allocated}
+            allocated = {key: allocated[key] + values[key] for key in allocated}
+            meals.append(meal.model_copy(update={
+                "meal_id": f"meal-{day_index + 1}-{index + 1}",
+                "total_macros": MacroTargets(**values),
+            }))
+        scheduled.append(MealPlanDay(date=(start + timedelta(days=day_index)).isoformat(), meals=meals))
+    return plan.model_copy(update={"meal_plan": MealPlan(daily_targets=target, days=scheduled)})
+
+
 def generate_plan(input_data: PlanGenerateInput) -> Plan | None:
     current = get_current_plan(input_data.user_id)
     profile = get_profile(input_data.user_id)
@@ -74,11 +101,11 @@ def generate_plan(input_data: PlanGenerateInput) -> Plan | None:
         return None
     now = timestamp()
     goal = input_data.goal or profile.goal
-    tailored = _apply_training_schedule(
+    tailored = _apply_meal_schedule(_apply_training_schedule(
         _apply_goal_rules(deepcopy(current), goal),
         profile.training_days_per_week,
         profile.training_duration_minutes,
-    )
+    ), input_data.days)
     draft = tailored.model_copy(update={
         "plan_id": _plan_id("draft"),
         "status": "draft",

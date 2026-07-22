@@ -318,6 +318,13 @@ class RepositoryBackedStore:
         if user_id != DEMO_USER_ID:
             return None
         today = create_today_response(date)
+        plan = self.get_current_plan(user_id)
+        if plan is not None:
+            today.user.goal = plan.goal
+            today.today_workout = next((day for day in plan.workout_plan.days if day.date == date), None)
+            today.today_meals = next((day.meals for day in plan.meal_plan.days if day.date == date), [])
+            today.status_summary.calories_target = plan.meal_plan.daily_targets.calories
+            today.status_summary.protein_target_g = plan.meal_plan.daily_targets.protein_g
         meal_logs = [log for log in self.list_meal_logs(user_id) if log.date == date]
         workout_logs = self.list_workout_logs(user_id)
         checkin = self.get_daily_checkin(user_id, date)
