@@ -112,6 +112,40 @@ test.describe.serial("945 real HTTP integration", () => {
     });
   });
 
+  test("generates a plan draft and activates it only after acceptance", async ({ page, request }) => {
+    const activeBefore = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    await page.goto("/plan");
+    await page.getByRole("button", { name: "生成计划" }).click();
+    await expect(page.getByText("Draft", { exact: true })).toBeVisible();
+    const activeDuringDraft = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(activeDuringDraft.data.plan_id).toBe(activeBefore.data.plan_id);
+
+    const acceptResponse = page.waitForResponse((response) =>
+      response.url().includes("/api/plans/") && response.url().endsWith("/accept") && response.request().method() === "POST"
+    );
+    await page.getByRole("button", { name: "接受计划" }).click();
+    expect((await acceptResponse).status()).toBe(200);
+    const activeAfter = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(activeAfter.data.plan_id).not.toBe(activeBefore.data.plan_id);
+    expect(activeAfter.data.status).toBe("active");
+  });
+
+  test("writes an Agent plan adjustment only after confirmation", async ({ page, request }) => {
+    await page.goto("/agent");
+    const before = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。").fill("今天太累了，帮我调整计划。");
+    await page.getByRole("button", { name: "发送" }).click();
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+    const unconfirmed = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(unconfirmed.data.plan_id).toBe(before.data.plan_id);
+    const adjustResponse = page.waitForResponse((response) => response.url().includes("/adjust") && response.request().method() === "POST");
+    await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
+    expect((await adjustResponse).status()).toBe(200);
+    const after = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(after.data.plan_id).not.toBe(before.data.plan_id);
+    expect(after.data.generated_by).toBe("agent");
+  });
+
   test("keeps high-risk Agent input out of draft confirmation", async ({ page }) => {
     await page.goto("/agent");
     await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。")
@@ -170,9 +204,13 @@ test.describe.serial("945 real HTTP integration", () => {
       await page.getByRole("button", { name: "发送" }).click();
       await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
       await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
-      await expect(page.getByText(index >= drafts.length - 2
-        ? "This draft type cannot be saved yet."
-        : "Workout draft is invalid.")).toBeVisible();
+      await expect(page.getByText(
+        index === drafts.length - 2
+          ? "This draft type cannot be saved yet."
+          : index === drafts.length - 1
+            ? "Plan adjustment draft is invalid."
+            : "Workout draft is invalid."
+      )).toBeVisible();
       await page.getByRole("dialog").getByRole("button", { name: "取消" }).click();
     }
 

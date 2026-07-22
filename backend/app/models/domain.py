@@ -184,6 +184,25 @@ class Plan(ApiModel):
     updated_at: str
 
 
+class PlanGenerateInput(ApiModel):
+    user_id: str
+    goal: Goal | None = None
+    days: int = 7
+    generate_workout_plan: bool = True
+    generate_meal_plan: bool = True
+
+
+class PlanAcceptInput(ApiModel):
+    user_id: str
+
+
+class PlanAdjustmentInput(ApiModel):
+    user_id: str
+    adjustment_type: Literal["reduce_intensity", "increase_intensity", "change_schedule", "swap_exercise", "adjust_nutrition"]
+    reason: str
+    confirmed: Literal[True]
+
+
 class DailyCheckin(ApiModel):
     checkin_id: str
     user_id: str

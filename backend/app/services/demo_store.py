@@ -15,6 +15,7 @@ from backend.app.models.domain import (
     FoodLog,
     ManualMealLogInput,
     MealLog,
+    Plan,
     ProfileCreateInput,
     ProfilePatchInput,
     SettingsData,
@@ -33,6 +34,7 @@ from backend.app.services.repository_store import RepositoryBackedStore
 
 current_user: User = deepcopy(DEMO_USER)
 current_profile: UserProfile = deepcopy(INITIAL_PROFILE)
+plans = [deepcopy(DEMO_PLAN)]
 advice_items: list[AgentAdvice] = [deepcopy(DEMO_ADVICE), deepcopy(INITIAL_WEEKLY_ADVICE)]
 workout_logs: list[WorkoutLog] = []
 meal_logs: list[MealLog] = []
@@ -64,11 +66,12 @@ def _active_repository_store() -> RepositoryBackedStore | None:
 
 
 def reset_demo_store() -> None:
-    global current_user, current_profile, advice_items
+    global current_user, current_profile, advice_items, plans
 
     current_user = deepcopy(DEMO_USER)
     current_profile = deepcopy(INITIAL_PROFILE)
     advice_items = [deepcopy(DEMO_ADVICE), deepcopy(INITIAL_WEEKLY_ADVICE)]
+    plans = [deepcopy(DEMO_PLAN)]
     workout_logs.clear()
     meal_logs.clear()
     body_metrics.clear()
@@ -241,6 +244,29 @@ def list_agent_messages(user_id: str) -> list[AgentMessage] | None:
     return [message for message in agent_messages if message.user_id == user_id]
 
 
+def get_current_plan(user_id: str) -> Plan | None:
+    if not is_demo_user(user_id):
+        return None
+    return next((plan for plan in reversed(plans) if plan.status == "active"), None)
+
+
+def list_plans(user_id: str) -> list[Plan] | None:
+    if not is_demo_user(user_id):
+        return None
+    return [plan for plan in plans if plan.user_id == user_id]
+
+
+def save_plan(plan: Plan) -> Plan | None:
+    if not is_demo_user(plan.user_id):
+        return None
+    existing = next((item for item in plans if item.plan_id == plan.plan_id), None)
+    if existing is None:
+        plans.append(plan)
+    else:
+        plans[plans.index(existing)] = plan
+    return plan
+
+
 def save_user_memory_summary(summary: UserMemorySummary) -> UserMemorySummary:
     store = _active_repository_store()
     if store:
@@ -307,7 +333,8 @@ def confirm_planned_meal(input_data: ConfirmPlannedMealInput) -> MealLog | None:
     if not is_demo_user(input_data.user_id):
         return None
 
-    day = next((item for item in DEMO_PLAN.meal_plan.days if item.date == input_data.date), None)
+    plan = get_current_plan(input_data.user_id)
+    day = next((item for item in plan.meal_plan.days if item.date == input_data.date), None) if plan else None
     meal = next((item for item in day.meals if item.meal_id == input_data.meal_id), None) if day else None
     if meal is None:
         return None
@@ -447,6 +474,12 @@ def build_today_response(user_id: str, date: str) -> TodayResponseData | None:
         return None
 
     today = create_today_response(date)
+    plan = get_current_plan(user_id)
+    if plan is not None:
+        today.today_workout = next((day for day in plan.workout_plan.days if day.date == date), None)
+        today.today_meals = next((day.meals for day in plan.meal_plan.days if day.date == date), [])
+        today.status_summary.calories_target = plan.meal_plan.daily_targets.calories
+        today.status_summary.protein_target_g = plan.meal_plan.daily_targets.protein_g
     today_meal_logs = [log for log in meal_logs if log.user_id == user_id and log.date == date]
     calories_logged = sum(log.calories for log in today_meal_logs)
     protein_logged = sum(log.protein_g for log in today_meal_logs)

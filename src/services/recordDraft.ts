@@ -1,4 +1,4 @@
-import type { MealLog, RecordDraft, WorkoutLog } from "../types/domain";
+import type { MealLog, Plan, RecordDraft, WorkoutLog } from "../types/domain";
 import { api } from "./apiClient";
 import { fail, type ApiResponse } from "./apiTypes";
 
@@ -27,7 +27,7 @@ function optionalWeight(payload: Record<string, unknown>) {
 export async function saveRecordDraft(
   draft: RecordDraft,
   context: DraftContext
-): Promise<ApiResponse<WorkoutLog | MealLog>> {
+): Promise<ApiResponse<WorkoutLog | MealLog | Plan>> {
   const payload = draft.payload;
   if (draft.type === "workout_log") {
     const exerciseName = typeof payload.exercise_name === "string" ? payload.exercise_name.trim() : "";
@@ -64,6 +64,20 @@ export async function saveRecordDraft(
       meal_name: mealName,
       foods: [],
       notes: typeof payload.note === "string" ? payload.note : undefined
+    });
+  }
+
+  if (draft.type === "plan_adjustment") {
+    const adjustmentType = typeof payload.adjustment_type === "string" ? payload.adjustment_type : "";
+    const reason = typeof payload.reason === "string" ? payload.reason.trim() : "";
+    if (!adjustmentType || !reason) return fail("INVALID_DRAFT", "Plan adjustment draft is invalid.");
+    const planResponse = await api.getCurrentPlan(context.user_id);
+    if (planResponse.error) return planResponse;
+    return api.adjustPlan({
+      user_id: context.user_id,
+      plan_id: planResponse.data.plan_id,
+      adjustment_type: adjustmentType,
+      reason
     });
   }
 

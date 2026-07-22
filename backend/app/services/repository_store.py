@@ -144,6 +144,17 @@ class RepositoryBackedStore:
             return None
         return self.repository.get_model("plans", Plan, {"user_id": user_id, "status": "active"})
 
+    def save_plan(self, plan: Plan) -> Plan | None:
+        if plan.user_id != DEMO_USER_ID:
+            return None
+        self.repository.upsert_model("plans", plan, id_field=COLLECTION_IDS["plans"])
+        return plan
+
+    def list_plans(self, user_id: str) -> list[Plan] | None:
+        if user_id != DEMO_USER_ID:
+            return None
+        return self.repository.list_models("plans", Plan, {"user_id": user_id})
+
     def get_advice(self, user_id: str) -> AdvicePageData | None:
         if user_id != DEMO_USER_ID:
             return None

@@ -51,3 +51,51 @@ def test_get_current_plan_rejects_unknown_user():
             }
         }
     }
+
+
+def test_generate_and_accept_plan_replaces_active_plan():
+    generated = client.post("/api/plans/generate", json={"user_id": "demo-user-945", "goal": "muscle_gain"})
+
+    assert generated.status_code == 200
+    draft = generated.json()["data"]
+    assert draft["status"] == "draft"
+    assert draft["goal"] == "muscle_gain"
+
+    active_before = client.get("/api/plans/current").json()["data"]
+    assert active_before["plan_id"] != draft["plan_id"]
+
+    accepted = client.post(f"/api/plans/{draft['plan_id']}/accept", json={"user_id": "demo-user-945"})
+    assert accepted.status_code == 200
+    assert accepted.json()["data"]["status"] == "active"
+    assert client.get("/api/plans/current").json()["data"]["plan_id"] == draft["plan_id"]
+
+
+def test_confirmed_plan_adjustment_creates_new_active_plan():
+    original = client.get("/api/plans/current").json()["data"]
+    adjusted = client.post(
+        f"/api/plans/{original['plan_id']}/adjust",
+        json={
+            "user_id": "demo-user-945",
+            "adjustment_type": "reduce_intensity",
+            "reason": "疲劳较高",
+            "confirmed": True,
+        },
+    )
+
+    assert adjusted.status_code == 200
+    plan = adjusted.json()["data"]
+    assert plan["plan_id"] != original["plan_id"]
+    assert plan["status"] == "active"
+    assert plan["generated_by"] == "agent"
+    assert plan["workout_plan"]["days"][0]["exercises"][0]["sets"] == original["workout_plan"]["days"][0]["exercises"][0]["sets"] - 1
+
+
+def test_plan_adjustment_requires_explicit_confirmation():
+    plan = client.get("/api/plans/current").json()["data"]
+    response = client.post(
+        f"/api/plans/{plan['plan_id']}/adjust",
+        json={"user_id": "demo-user-945", "adjustment_type": "reduce_intensity", "reason": "疲劳较高", "confirmed": False},
+    )
+
+    assert response.status_code == 422
+    assert client.get("/api/plans/current").json()["data"]["plan_id"] == plan["plan_id"]

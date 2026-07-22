@@ -12,6 +12,9 @@
 - `GET /api/demo-user`
 - `GET /api/today`
 - `GET /api/plans/current`
+- `POST /api/plans/generate`
+- `POST /api/plans/{plan_id}/accept`
+- `POST /api/plans/{plan_id}/adjust`
 - `GET /api/profile/{user_id}`
 - `POST /api/profile`
 - `PATCH /api/profile/{user_id}`
@@ -191,6 +194,8 @@ type AdviceType = "daily_advice" | "weekly_summary" | "plan_adjustment" | "safet
 
 生成训练计划和饮食计划。
 
+当前 MVP 返回 `status: "draft"` 的确定性 demo 计划，不会替换当前 active 计划；前端必须继续调用接受接口。
+
 请求：
 
 ```json
@@ -279,9 +284,13 @@ type AdviceType = "daily_advice" | "weekly_summary" | "plan_adjustment" | "safet
 
 将计划状态改为 `active`。
 
+当前 active 计划会归档，只有 draft 计划可以接受。
+
 ### POST `/api/plans/{plan_id}/adjust`
 
 用户确认后调整计划。
+
+当前 MVP 要求 `confirmed: true`，并创建新的 active 计划版本；未确认请求会返回 `422`，不会改写计划。
 
 请求：
 

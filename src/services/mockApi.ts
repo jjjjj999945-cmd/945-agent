@@ -19,6 +19,7 @@ import type {
   DietPageData,
   FoodLog,
   MealLog,
+  Plan,
   SettingsData,
   TodayResponseData,
   User,
@@ -46,6 +47,7 @@ let mealLogs: MealLog[] = [];
 let agentMessages: AgentMessage[] = [];
 let bodyMetrics: BodyMetric[] = [...demoBodyMetrics];
 let adviceItems: AgentAdvice[] = [demoAdvice, demoWeeklyAdvice];
+let currentPlan: Plan = demoPlan;
 
 function timestamp() {
   return new Date().toISOString();
@@ -99,6 +101,32 @@ function refreshTodayFromLogs() {
 }
 
 export const api = {
+  async getCurrentPlan(user_id = DEMO_USER_ID): Promise<ApiResponse<Plan>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+    return ok(currentPlan);
+  },
+
+  async generatePlan(input: { user_id: string; goal?: Plan["goal"] }): Promise<ApiResponse<Plan>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    return ok({ ...currentPlan, plan_id: `plan-draft-${Date.now()}`, goal: input.goal ?? currentPlan.goal, status: "draft", created_at: timestamp(), updated_at: timestamp() });
+  },
+
+  async acceptPlan(input: { user_id: string; plan_id: string }): Promise<ApiResponse<Plan>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    currentPlan = { ...currentPlan, plan_id: input.plan_id, status: "active", updated_at: timestamp() };
+    return ok(currentPlan);
+  },
+
+  async adjustPlan(input: { user_id: string; plan_id: string; adjustment_type: string; reason: string }): Promise<ApiResponse<Plan>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    if (input.plan_id !== currentPlan.plan_id) return fail("NOT_FOUND", "Active plan not found.", { plan_id: input.plan_id });
+    currentPlan = { ...currentPlan, plan_id: `plan-adjusted-${Date.now()}`, generated_by: "agent", updated_at: timestamp() };
+    return ok(currentPlan);
+  },
   async getDemoUser(): Promise<ApiResponse<User>> {
     return ok(currentUser);
   },

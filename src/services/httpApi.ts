@@ -15,6 +15,7 @@ import type {
   DietPageData,
   FoodLog,
   MealLog,
+  Plan,
   SettingsData,
   TodayResponseData,
   User,
@@ -133,6 +134,26 @@ function getLatestMetric(metrics: BodyMetric[]) {
 }
 
 export const httpApi = {
+  async getCurrentPlan(user_id = DEMO_USER_ID): Promise<ApiResponse<Plan>> {
+    return getCurrentPlan(user_id);
+  },
+
+  async generatePlan(input: { user_id: string; goal?: Plan["goal"] }): Promise<ApiResponse<Plan>> {
+    return post<Plan>("/api/plans/generate", input);
+  },
+
+  async acceptPlan(input: { user_id: string; plan_id: string }): Promise<ApiResponse<Plan>> {
+    return post<Plan>(`/api/plans/${input.plan_id}/accept`, { user_id: input.user_id });
+  },
+
+  async adjustPlan(input: { user_id: string; plan_id: string; adjustment_type: string; reason: string }): Promise<ApiResponse<Plan>> {
+    return post<Plan>(`/api/plans/${input.plan_id}/adjust`, {
+      user_id: input.user_id,
+      adjustment_type: input.adjustment_type,
+      reason: input.reason,
+      confirmed: true
+    });
+  },
   async getDemoUser(): Promise<ApiResponse<User>> {
     return request<User>("/api/demo-user");
   },
