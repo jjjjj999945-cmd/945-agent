@@ -64,31 +64,29 @@ flowchart TD
 
 ## 3. 当前项目处于什么阶段
 
-当前仓库还不是完整后端 Agent 系统。现在已经完成的是前端 MVP 基础层：
+当前仓库已完成本地 demo 用户下的 MVP 前后端闭环。默认开发模式仍使用 mock API；需要联调时，前端可以切换到 FastAPI HTTP adapter：
 
 ```text
 React / Vite 前端
   -> TypeScript domain types
-  -> demoData
-  -> mockApi
-  -> i18n
-  -> 桌面客户端主业务页面
-  -> Stitch prototype reference
+  -> mockApi 或 httpApi
+  -> FastAPI（HTTP 模式）
+  -> demo store + deterministic Agent Provider
 ```
 
-也就是说，现在的运行方式是：
+默认 mock 开发模式：
 
 ```text
 页面 -> mockApi -> demoData / 浏览器内存状态
 ```
 
-还不是：
+真实 HTTP 联调模式：
 
 ```text
-页面 -> FastAPI -> LangGraph -> MongoDB
+页面 -> httpApi -> FastAPI -> demo store / deterministic Agent Provider
 ```
 
-当前阶段的意义是先把前端页面、数据结构、接口形状和交互规则搭起来。后面接真实后端时，目标是不大改前端页面，只把 `mockApi` 替换成真实 API adapter。
+MongoDB、真实模型、生产鉴权和云部署仍是后续生产化工作。本项目保留了对应的 repository、Provider 和 Agent 编排边界，但本地联调不依赖它们。
 
 ## 4. 当前前端代码结构
 
@@ -118,7 +116,10 @@ src/
     demoData.ts
   services/
     apiTypes.ts
+    apiClient.ts
+    httpApi.ts
     mockApi.ts
+    recordDraft.ts
   i18n/
     zh-CN.ts
     en-US.ts
@@ -142,7 +143,9 @@ src/
 | `PrototypeRouter.tsx` | 保留 Stitch 导出页面，作为视觉参考 |
 | `domain.ts` | 定义 User、Plan、WorkoutLog、MealLog、AgentAdvice 等核心类型 |
 | `demoData.ts` | 本地 demo 用户、计划、餐食、训练和建议数据 |
-| `mockApi.ts` | 模拟未来 FastAPI 的接口形状和状态变化 |
+| `mockApi.ts` | 默认开发模式的本地 API 实现 |
+| `httpApi.ts` | HTTP 模式下调用 FastAPI，并归一化网络、校验和协议错误 |
+| `recordDraft.ts` | 将已确认的训练或饮食草稿转换为结构化写入请求 |
 | `i18n/*` | 多语言文案结构，当前支持 `zh-CN` 和 `en-US` |
 
 ## 5. 为什么要有 mockApi
@@ -165,16 +168,16 @@ api.sendAgentMessage()
 - 后端还没完成时也能验证产品流程。
 - 未来接 FastAPI 时，可以保持类似接口形状。
 
-当前：
+默认 mock 模式：
 
 ```text
 TodayPage -> mockApi.confirmPlannedMeal -> 更新浏览器内存状态
 ```
 
-未来：
+HTTP 联调模式：
 
 ```text
-TodayPage -> POST /api/meal-logs/confirm-planned-meal -> FastAPI -> MongoDB
+TodayPage -> POST /api/meal-logs/confirm-planned-meal -> FastAPI -> demo store
 ```
 
 ## 6. 数据模型怎么理解
@@ -387,7 +390,36 @@ npm run qa:app
 - Agent draft 确认
 - 语言切换
 
-## 12. 学习这个项目的建议顺序
+## 12. 真实 HTTP 联调
+
+默认 `npm run dev` 使用 mock API，适合不启动后端的前端开发。
+
+手动联调时，在一个终端启动 FastAPI：
+
+```powershell
+$env:945_STORAGE_BACKEND="demo"
+$env:945_LLM_PROVIDER="deterministic"
+$env:945_APP_ENV="development"
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+在另一个终端启动 HTTP 模式前端：
+
+```powershell
+npm run dev:http
+```
+
+访问 `http://127.0.0.1:5177/app`。自动化端到端联调会自行启动两个服务：
+
+```powershell
+npm run qa:http
+```
+
+该命令固定使用 demo store 和 deterministic Provider，因此不需要 MongoDB 或 API Key。
+
+Agent 聊天只能返回 `RecordDraft`。用户确认训练草稿后，前端才调用 `POST /api/workout-logs`；确认饮食草稿后，前端才调用 `POST /api/meal-logs`。计划调整草稿目前不写入计划。
+
+## 13. 学习这个项目的建议顺序
 
 如果你想理解整个项目，建议按这个顺序读：
 
@@ -413,7 +445,7 @@ npm run qa:app
 - 然后理解 mock API 为什么存在。
 - 最后再看具体 React 组件如何展示和更新状态。
 
-## 13. 下一步开发方向
+## 14. 下一步开发方向
 
 桌面客户端 P0 已经补齐后，接下来有两条主线：
 

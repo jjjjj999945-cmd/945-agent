@@ -211,6 +211,22 @@ npm run build
 npm run qa:app
 ```
 
+真实 HTTP 联调：
+
+```powershell
+npm run qa:http
+```
+
+`qa:http` 会启动 FastAPI 和 HTTP 模式 Vite，并显式固定 `945_STORAGE_BACKEND=demo`、`945_LLM_PROVIDER=deterministic`、`945_APP_ENV=development`。因此不需要 MongoDB 或 API Key，且不会调用真实 OpenAI。
+
+## 前端确认写入契约
+
+- `/api/agent/chat` 只返回聊天消息、建议和 `RecordDraft`，不会自动保存训练、饮食或计划。
+- 用户确认训练草稿后，前端调用 `POST /api/workout-logs`。
+- 用户确认饮食草稿后，前端调用 `POST /api/meal-logs`；计划餐确认使用 `POST /api/meal-logs/confirm-planned-meal`。
+- 计划调整草稿暂时只展示，不会修改当前计划。
+- 高风险输入优先返回安全提醒，不生成可确认的记录草稿。
+
 ## 下一步
 
 下一步建议进入真实模型联调和生产化准备，但不要破坏当前可测试闭环：
