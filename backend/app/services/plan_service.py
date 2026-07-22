@@ -1,7 +1,8 @@
 from copy import deepcopy
+from datetime import date, timedelta
 
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
-from backend.app.models.domain import MacroTargets, Plan, PlanAdjustmentInput, PlanGenerateInput, WorkoutPlan
+from backend.app.models.domain import MacroTargets, Plan, PlanAdjustmentInput, PlanGenerateInput, WorkoutPlan, WorkoutPlanDay
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import _active_repository_store, get_current_plan as get_demo_current_plan, get_profile, list_plans, save_plan
 
@@ -51,6 +52,21 @@ def _apply_goal_rules(plan: Plan, goal: str) -> Plan:
     })
 
 
+def _apply_training_schedule(plan: Plan, days_per_week: int, duration_minutes: int) -> Plan:
+    templates = deepcopy(plan.workout_plan.days)
+    start = date.fromisoformat(TODAY_DATE)
+    scheduled: list[WorkoutPlanDay] = []
+    for index in range(days_per_week):
+        template = templates[index % len(templates)]
+        exercises = template.exercises if duration_minutes >= 60 else template.exercises[: max(1, min(2, len(template.exercises)))]
+        scheduled.append(template.model_copy(update={
+            "date": (start + timedelta(days=round(index * 7 / days_per_week))).isoformat(),
+            "duration_minutes": duration_minutes,
+            "exercises": exercises,
+        }))
+    return plan.model_copy(update={"workout_plan": WorkoutPlan(days=scheduled)})
+
+
 def generate_plan(input_data: PlanGenerateInput) -> Plan | None:
     current = get_current_plan(input_data.user_id)
     profile = get_profile(input_data.user_id)
@@ -58,7 +74,12 @@ def generate_plan(input_data: PlanGenerateInput) -> Plan | None:
         return None
     now = timestamp()
     goal = input_data.goal or profile.goal
-    draft = _apply_goal_rules(deepcopy(current), goal).model_copy(update={
+    tailored = _apply_training_schedule(
+        _apply_goal_rules(deepcopy(current), goal),
+        profile.training_days_per_week,
+        profile.training_duration_minutes,
+    )
+    draft = tailored.model_copy(update={
         "plan_id": _plan_id("draft"),
         "status": "draft",
         "generated_by": "mock",

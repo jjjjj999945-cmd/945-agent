@@ -92,6 +92,22 @@ def test_generated_plan_uses_profile_goal_when_request_omits_goal():
     assert plan["workout_plan"]["days"][0]["exercises"][0]["reps"] == "4-6"
 
 
+def test_generated_plan_uses_profile_training_frequency_and_duration():
+    profile = client.patch(
+        "/api/profile/demo-user-945",
+        json={"training_days_per_week": 3, "training_duration_minutes": 45},
+    )
+    assert profile.status_code == 200
+
+    response = client.post("/api/plans/generate", json={"user_id": "demo-user-945"})
+
+    assert response.status_code == 200
+    workouts = response.json()["data"]["workout_plan"]["days"]
+    assert len(workouts) == 3
+    assert all(day["duration_minutes"] == 45 for day in workouts)
+    assert all(len(day["exercises"]) <= 2 for day in workouts)
+
+
 def test_confirmed_plan_adjustment_creates_new_active_plan():
     original = client.get("/api/plans/current").json()["data"]
     adjusted = client.post(
