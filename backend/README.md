@@ -191,6 +191,12 @@ $env:945_MONGODB_DATABASE="945"
 
 当前已完成 MongoDB 文档转换、按集合 upsert、按条件查询、Pydantic model 还原、demo seed 和 repository-backed store 委托测试。默认 demo 模式仍不需要 MongoDB 进程。
 
+本机便携版已部署在 `D:\MongoDB`。启动命令：
+
+```powershell
+& "D:\MongoDB\server\mongodb-win32-x86_64-windows-8.3.4\bin\mongod.exe" --dbpath D:\MongoDB\data --bind_ip 127.0.0.1 --port 27017 --logpath D:\MongoDB\log\mongod.log
+```
+
 ## 运行测试
 
 ```powershell
@@ -219,12 +225,20 @@ npm run qa:http
 
 `qa:http` 会启动 FastAPI 和 HTTP 模式 Vite，并显式固定 `945_STORAGE_BACKEND=demo`、`945_LLM_PROVIDER=deterministic`、`945_APP_ENV=development`。因此不需要 MongoDB 或 API Key，且不会调用真实 OpenAI。
 
+Mongo 持久化 HTTP QA：
+
+```powershell
+npm run qa:mongo
+```
+
+该命令仅清空专用的 `945_mongo_qa` 数据库，随后以 Mongo repository 跑完整 HTTP 用例；不会删除 `945_integration` 或其他数据库。
+
 ## 前端确认写入契约
 
 - `/api/agent/chat` 只返回聊天消息、建议和 `RecordDraft`，不会自动保存训练、饮食或计划。
 - 用户确认训练草稿后，前端调用 `POST /api/workout-logs`。
 - 用户确认饮食草稿后，前端调用 `POST /api/meal-logs`；计划餐确认使用 `POST /api/meal-logs/confirm-planned-meal`。
-- 计划调整草稿暂时只展示，不会修改当前计划。
+- 用户确认计划调整草稿后，前端调用 `POST /api/plans/{plan_id}/adjust` 创建新的 active 计划。
 - 高风险输入优先返回安全提醒，不生成可确认的记录草稿。
 
 ## 下一步
