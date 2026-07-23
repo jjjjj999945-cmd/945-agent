@@ -240,6 +240,12 @@ export const api = {
     });
   },
 
+  async generateAdvice(input: { user_id: string; date: string }): Promise<ApiResponse<AgentAdvice[]>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    return ok(adviceItems);
+  },
+
   async updateAdviceStatus(input: {
     user_id: string;
     advice_id: string;

@@ -949,6 +949,22 @@ button {
   border-top: 1px solid rgba(16, 43, 74, 0.1);
 }
 
+.advice-refresh-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 14px;
+}
+
+.advice-refresh-row button {
+  border: 1px solid rgba(31, 88, 216, 0.16);
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--accent);
+  font: 800 13px/1 Inter, sans-serif;
+  cursor: pointer;
+}
+
 .plan-preview-detail .plan-preview-summary {
   margin-top: 0;
   border-top: 0;

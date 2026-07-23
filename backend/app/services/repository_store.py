@@ -158,7 +158,11 @@ class RepositoryBackedStore:
     def get_advice(self, user_id: str) -> AdvicePageData | None:
         if user_id != DEMO_USER_ID:
             return None
-        advice = self.repository.list_models("agent_advice", AgentAdvice, {"user_id": user_id})
+        advice = sorted(
+            self.repository.list_models("agent_advice", AgentAdvice, {"user_id": user_id}),
+            key=lambda item: item.created_at,
+            reverse=True,
+        )
         return AdvicePageData(
             daily=next((item for item in advice if item.type == "daily_advice"), None),
             weekly=next((item for item in advice if item.type == "weekly_summary"), None),
@@ -179,6 +183,12 @@ class RepositoryBackedStore:
         updated = advice.model_copy(update={"accepted_status": accepted_status})
         self.repository.upsert_model("agent_advice", updated, id_field=COLLECTION_IDS["agent_advice"])
         return updated
+
+    def save_advice(self, advice: AgentAdvice) -> AgentAdvice | None:
+        if advice.user_id != DEMO_USER_ID:
+            return None
+        self.repository.upsert_model("agent_advice", advice, id_field=COLLECTION_IDS["agent_advice"])
+        return advice
 
     def create_workout_log(self, input_data: WorkoutLogInput) -> WorkoutLog | None:
         if input_data.user_id != DEMO_USER_ID:

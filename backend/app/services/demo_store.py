@@ -203,10 +203,11 @@ def get_advice(user_id: str) -> AdvicePageData | None:
     if not is_demo_user(user_id):
         return None
 
+    items = sorted((item for item in advice_items if item.user_id == user_id), key=lambda item: item.created_at, reverse=True)
     return AdvicePageData(
-        daily=next((item for item in advice_items if item.type == "daily_advice"), None),
-        weekly=next((item for item in advice_items if item.type == "weekly_summary"), None),
-        adjustments=[item for item in advice_items if item.type == "plan_adjustment"]
+        daily=next((item for item in items if item.type == "daily_advice"), None),
+        weekly=next((item for item in items if item.type == "weekly_summary"), None),
+        adjustments=[item for item in items if item.type == "plan_adjustment"]
     )
 
 
@@ -224,6 +225,20 @@ def update_advice_status(user_id: str, advice_id: str, accepted_status: AdviceSt
     updated = existing.model_copy(update={"accepted_status": accepted_status})
     advice_items[advice_items.index(existing)] = updated
     return updated
+
+
+def save_advice(advice: AgentAdvice) -> AgentAdvice | None:
+    store = _active_repository_store()
+    if store:
+        return store.save_advice(advice)
+    if not is_demo_user(advice.user_id):
+        return None
+    existing = next((item for item in advice_items if item.advice_id == advice.advice_id), None)
+    if existing:
+        advice_items[advice_items.index(existing)] = advice
+    else:
+        advice_items.append(advice)
+    return advice
 
 
 def save_agent_message(message: AgentMessage) -> AgentMessage:

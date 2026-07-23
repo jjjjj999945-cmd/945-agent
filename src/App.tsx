@@ -60,7 +60,7 @@ function renderPage(
     case "body":
       return <BodyPage locale={locale} />;
     case "advice":
-      return <AdvicePage locale={locale} />;
+      return <AdvicePage locale={locale} onNavigate={navigate} onAgentDraft={onAgentDraftChange} />;
     case "agent":
       return <AgentPage locale={locale} pendingDraft={agentDraft} onDraftHandled={() => onAgentDraftChange(null)} />;
     case "settings":

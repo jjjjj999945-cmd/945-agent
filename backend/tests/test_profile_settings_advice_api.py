@@ -114,6 +114,36 @@ def test_get_advice_and_update_advice_status():
     assert updated["accepted_status"] == "accepted"
 
 
+def test_generate_feedback_creates_recovery_advice_and_plan_adjustment_for_high_fatigue():
+    checkin = client.post(
+        "/api/daily-checkins",
+        json={"user_id": "demo-user-945", "date": "2026-07-11", "fatigue_level": 4, "sleep_hours": 6.5},
+    )
+    assert checkin.status_code == 200
+
+    generated = client.post("/api/advice/generate", json={"user_id": "demo-user-945", "date": "2026-07-11"})
+    assert generated.status_code == 200
+    items = generated.json()["data"]
+    assert items[0]["type"] == "daily_advice"
+    assert items[0]["risk_level"] == "medium"
+    assert items[2]["type"] == "plan_adjustment"
+    assert "草稿" in items[2]["content"]
+
+    advice = client.get("/api/advice").json()["data"]
+    assert advice["daily"]["advice_id"] == "advice-daily-2026-07-11"
+    assert advice["adjustments"][0]["advice_id"] == "advice-adjustment-2026-07-11"
+
+
+def test_generate_feedback_flags_low_protein_when_recovery_signals_are_normal():
+    generated = client.post("/api/advice/generate", json={"user_id": "demo-user-945", "date": "2026-07-11"})
+
+    assert generated.status_code == 200
+    daily = generated.json()["data"][0]
+    assert daily["type"] == "daily_advice"
+    assert "蛋白质" in daily["title"]
+    assert daily["risk_level"] == "low"
+
+
 def test_update_advice_status_rejects_missing_advice():
     response = client.patch(
         "/api/advice/missing-advice/status",

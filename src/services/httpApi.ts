@@ -257,6 +257,10 @@ export const httpApi = {
     return request<AdvicePageData>(withQuery("/api/advice", { user_id }));
   },
 
+  async generateAdvice(input: { user_id: string; date: string }): Promise<ApiResponse<AgentAdvice[]>> {
+    return post<AgentAdvice[]>("/api/advice/generate", input);
+  },
+
   async updateAdviceStatus(input: {
     user_id: string;
     advice_id: string;

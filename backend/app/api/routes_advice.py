@@ -3,11 +3,20 @@ from fastapi.responses import JSONResponse
 
 from backend.app.api.responses import error, ok
 from backend.app.data.demo_data import DEMO_USER_ID
-from backend.app.models.domain import AdviceStatusInput
+from backend.app.models.domain import AdviceStatusInput, FeedbackGenerateInput
 from backend.app.services.demo_store import get_advice, is_demo_user, update_advice_status
+from backend.app.services.feedback_service import generate_feedback
 
 
 router = APIRouter(prefix="/api/advice", tags=["advice"])
+
+
+@router.post("/generate")
+def generate(input_data: FeedbackGenerateInput) -> object:
+    feedback = generate_feedback(input_data)
+    if feedback is None:
+        return JSONResponse(status_code=404, content=error("NOT_FOUND", "Demo user not found.", {"user_id": input_data.user_id}))
+    return ok([item.model_dump() for item in feedback])
 
 
 @router.get("")

@@ -1,27 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageLoadState } from "../components/business/PageLoadState";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
-import type { AdvicePageData, AgentAdvice, Locale } from "../types/domain";
+import { TODAY_DATE } from "../data/demoData";
+import type { AdvicePageData, AgentAdvice, Locale, RecordDraft } from "../types/domain";
 
-export function AdvicePage({ locale }: { locale: Locale }) {
+export function AdvicePage({ locale, onNavigate, onAgentDraft }: { locale: Locale; onNavigate: (path: string) => void; onAgentDraft: (draft: RecordDraft) => void }) {
   const t = createTranslator(locale);
   const isChinese = locale === "zh-CN";
   const [data, setData] = useState<AdvicePageData | null>(null);
   const [notice, setNotice] = useState("");
+  const adviceRequestVersion = useRef(0);
 
   useEffect(() => {
     void loadAdvice();
   }, []);
 
   async function loadAdvice() {
+    const requestVersion = ++adviceRequestVersion.current;
     const response = await api.getAdvice(DEMO_USER_ID);
     if (response.error) {
       setNotice(response.error.message);
       return;
     }
-    setData(response.data);
+    if (requestVersion === adviceRequestVersion.current) setData(response.data);
   }
 
   async function updateAdvice(advice: AgentAdvice, status: AgentAdvice["accepted_status"]) {
@@ -38,9 +41,34 @@ export function AdvicePage({ locale }: { locale: Locale }) {
     await loadAdvice();
   }
 
+  async function refreshFeedback() {
+    const requestVersion = ++adviceRequestVersion.current;
+    const response = await api.generateAdvice({ user_id: DEMO_USER_ID, date: TODAY_DATE });
+    if (response.error) {
+      setNotice(response.error.message);
+      return;
+    }
+    if (requestVersion !== adviceRequestVersion.current) return;
+    setData({
+      daily: response.data.find((item) => item.type === "daily_advice") ?? null,
+      weekly: response.data.find((item) => item.type === "weekly_summary") ?? null,
+      adjustments: response.data.filter((item) => item.type === "plan_adjustment")
+    });
+    setNotice(isChinese ? "已根据最新记录生成执行反馈。" : "Execution feedback was generated from the latest records.");
+  }
+
+  function createAdjustmentDraft(advice: AgentAdvice) {
+    onAgentDraft({
+      type: "plan_adjustment",
+      requires_confirmation: true,
+      payload: { adjustment_type: "reduce_intensity", reason: advice.reason, target_date: TODAY_DATE }
+    });
+    onNavigate("/agent");
+  }
+
   if (!data) return <PageLoadState message={notice || t("status.loading")} />;
   const cards = [data.daily, data.weekly, ...data.adjustments].filter(Boolean) as AgentAdvice[];
-  const primaryAdvice = data.weekly ?? data.daily ?? cards[0];
+  const primaryAdvice = data.daily ?? data.weekly ?? cards[0];
   const adviceTypeLabels: Record<AgentAdvice["type"], string> = {
     daily_advice: isChinese ? "今日建议" : "Daily Advice",
     weekly_summary: isChinese ? "周总结" : "Weekly Summary",
@@ -56,6 +84,8 @@ export function AdvicePage({ locale }: { locale: Locale }) {
         <span>{t("page.advice.description")}</span>
       </header>
       {notice ? <div className="business-notice">{notice}</div> : null}
+
+      <div className="advice-refresh-row"><button onClick={() => void refreshFeedback()} type="button">{isChinese ? "刷新执行反馈" : "Refresh execution feedback"}</button></div>
 
       <section className="advice-analysis-layout">
         <div className="advice-main-stack">
@@ -95,7 +125,7 @@ export function AdvicePage({ locale }: { locale: Locale }) {
             <h2>{isChinese ? "更新日程？" : "Update Schedule?"}</h2>
             <p>{isChinese ? "立即把这次调整应用到你的训练日历。" : "Apply this adjustment to your calendar immediately."}</p>
             <div className="button-row">
-              <button onClick={() => void updateAdvice(primaryAdvice, "accepted")} type="button">{isChinese ? "接受调整" : "Accept Adjustment"}</button>
+              <button onClick={() => createAdjustmentDraft(primaryAdvice)} type="button">{isChinese ? "生成调整草稿" : "Create adjustment draft"}</button>
               <button className="ghost" onClick={() => void updateAdvice(primaryAdvice, "dismissed")} type="button">{isChinese ? "保留原计划" : "Keep Original Plan"}</button>
             </div>
           </article>

@@ -191,6 +191,22 @@ test.describe.serial("945 real HTTP integration", () => {
     expect(settings.data.profile).toMatchObject({ training_days_per_week: 3, training_duration_minutes: 45, equipment: ["bodyweight"] });
   });
 
+  test("turns execution feedback into a confirmation-required adjustment draft", async ({ page, request }) => {
+    await request.post(`${API_BASE_URL}/api/daily-checkins`, {
+      data: { user_id: "demo-user-945", date: "2026-07-11", fatigue_level: 4, sleep_hours: 6.5 },
+    });
+    const before = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    await page.goto("/advice");
+    const feedbackResponse = page.waitForResponse((response) => response.url().endsWith("/api/advice/generate") && response.request().method() === "POST");
+    await page.getByRole("button", { name: "刷新执行反馈" }).click();
+    expect((await feedbackResponse).status()).toBe(200);
+    await expect(page.getByText("恢复优先，今天降低训练强度")).toBeVisible();
+    await page.getByRole("button", { name: "生成调整草稿" }).click();
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+    const unconfirmed = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(unconfirmed.data.plan_id).toBe(before.data.plan_id);
+  });
+
   test("keeps high-risk Agent input out of draft confirmation", async ({ page }) => {
     await page.goto("/agent");
     await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。")

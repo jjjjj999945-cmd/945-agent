@@ -280,6 +280,11 @@ class AdviceStatusInput(ApiModel):
     accepted_status: AdviceStatus
 
 
+class FeedbackGenerateInput(ApiModel):
+    user_id: str
+    date: str
+
+
 class RecordDraft(ApiModel):
     type: Literal["workout_log", "meal_log", "daily_checkin", "plan_adjustment"]
     requires_confirmation: Literal[True]
