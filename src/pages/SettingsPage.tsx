@@ -3,6 +3,7 @@ import { PageLoadState } from "../components/business/PageLoadState";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
+import { authApi, hasSession } from "../services/authSession";
 import type { Goal, Locale, Plan, SettingsData, UnitSystem, UserProfile } from "../types/domain";
 
 export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLocaleChange: (locale: Locale) => void }) {
@@ -14,6 +15,9 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
   const [notice, setNotice] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [agentTone, setAgentTone] = useState<"clinical" | "encouraging" | "strict">("encouraging");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [securityNotice, setSecurityNotice] = useState("");
 
   useEffect(() => {
     void loadSettings();
@@ -124,6 +128,19 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
     setNotice(isChinese ? "数据导出已开始。" : "Data export started.");
   }
 
+  async function changePassword(event: React.FormEvent) {
+    event.preventDefault();
+    setSecurityNotice("");
+    const response = await authApi.changePassword({ current_password: currentPassword, new_password: newPassword });
+    if (response.error) {
+      setSecurityNotice(response.error.message);
+      return;
+    }
+    setCurrentPassword("");
+    setNewPassword("");
+    setSecurityNotice(isChinese ? "密码已更新。" : "Password updated.");
+  }
+
   if (!data || !profileDraft) return <PageLoadState message={notice || t("status.loading")} />;
   const goalChoices: Array<{ goal: Goal; label: string }> = isChinese
     ? [
@@ -199,6 +216,16 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
         </div>
 
         <div className="settings-side-stack">
+        {hasSession() ? <article className="business-panel compact account-security-panel">
+          <div className="section-heading"><h2>{isChinese ? "账户安全" : "Account security"}</h2><strong>{isChinese ? "已登录" : "Signed in"}</strong></div>
+          <form onSubmit={changePassword}>
+            <label>{isChinese ? "当前密码" : "Current password"}<input aria-label={isChinese ? "当前密码" : "Current password"} required type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+            <label>{isChinese ? "新密码" : "New password"}<input aria-label={isChinese ? "新密码" : "New password"} minLength={8} required type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
+            <button type="submit">{isChinese ? "更新密码" : "Update password"}</button>
+          </form>
+          {securityNotice ? <p className="form-error">{securityNotice}</p> : null}
+          <small>{isChinese ? "忘记密码需要验证邮箱服务，当前版本暂未开放。" : "Forgot-password requires a verified email service and is not available yet."}</small>
+        </article> : null}
         <article className="business-panel compact">
           <div className="section-heading"><h2>{isChinese ? "偏好设置" : "Preferences"}</h2><strong>{isChinese ? "已可用" : "Available"}</strong></div>
           <label>

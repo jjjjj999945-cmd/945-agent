@@ -30,7 +30,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!httpMode || !hasSession()) return;
+    if (!httpMode) return;
+    if (!hasSession()) {
+      setAuthenticated(false);
+      setSessionReady(true);
+      return;
+    }
     authApi.me().then((result) => {
       if (result.error) {
         clearSession();
@@ -45,6 +50,13 @@ export function App() {
     setPath(nextPath);
   }
 
+  function logout() {
+    clearSession();
+    setAuthenticated(false);
+    window.history.replaceState({}, "", "/");
+    setPath("/");
+  }
+
   if (isPrototypePath(path)) return <PrototypeRouter />;
   if (!sessionReady) return null;
   if (!authenticated) return <AuthPage onAuthenticated={() => window.location.replace("/onboarding")} />;
@@ -52,7 +64,7 @@ export function App() {
   const route = getRouteByPath(path);
 
   return (
-    <AppShell activeRoute={route.id} locale={locale} onLocaleChange={setLocale} onNavigate={navigate}>
+    <AppShell activeRoute={route.id} locale={locale} onLocaleChange={setLocale} onNavigate={navigate} onLogout={httpMode ? logout : undefined}>
       {renderPage(route.id, locale, navigate, setLocale, agentDraft, setAgentDraft)}
     </AppShell>
   );

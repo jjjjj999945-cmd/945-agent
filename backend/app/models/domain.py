@@ -203,6 +203,11 @@ class LoginInput(ApiModel):
     password: str
 
 
+class PasswordChangeInput(ApiModel):
+    current_password: str
+    new_password: str
+
+
 class AuthSession(ApiModel):
     access_token: str
     token_type: Literal["bearer"] = "bearer"

@@ -32,6 +32,30 @@ def test_auth_rejects_invalid_credentials_and_invalid_session():
     assert client.get("/api/auth/me", headers={"Authorization": "Bearer invalid"}).status_code == 401
 
 
+def test_authenticated_user_can_change_password():
+    registered = client.post("/api/auth/register", json={"display_name": "Password User", "email": "password-change@example.com", "password": "secure-pass-945"}).json()["data"]
+    headers = {"Authorization": f"Bearer {registered['access_token']}"}
+    changed = client.post("/api/auth/change-password", json={"current_password": "secure-pass-945", "new_password": "new-secure-pass-945"}, headers=headers)
+    assert changed.status_code == 200
+    assert client.post("/api/auth/login", json={"email": "password-change@example.com", "password": "secure-pass-945"}).status_code == 401
+    assert client.post("/api/auth/login", json={"email": "password-change@example.com", "password": "new-secure-pass-945"}).status_code == 200
+
+
+def test_login_rate_limit_and_production_auth_requirement(monkeypatch):
+    email = "rate-limit@example.com"
+    for _ in range(5):
+        assert client.post("/api/auth/login", json={"email": email, "password": "wrong-password"}).status_code == 401
+    assert client.post("/api/auth/login", json={"email": email, "password": "wrong-password"}).status_code == 429
+
+    monkeypatch.setenv("945_APP_ENV", "production")
+    get_settings.cache_clear()
+    try:
+        assert client.get("/api/workout-logs?user_id=demo-user-945").status_code == 401
+    finally:
+        monkeypatch.delenv("945_APP_ENV", raising=False)
+        get_settings.cache_clear()
+
+
 def test_mongo_session_isolates_two_users(monkeypatch):
     monkeypatch.setenv("945_STORAGE_BACKEND", "mongo")
     get_settings.cache_clear()

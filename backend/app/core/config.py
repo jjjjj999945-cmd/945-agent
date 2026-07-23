@@ -24,6 +24,8 @@ class Settings(BaseModel):
     auth_secret: SecretStr = SecretStr("945-development-secret-change-before-production")
     auth_token_ttl_seconds: int = 604800
     auth_required: bool = False
+    auth_login_max_attempts: int = 5
+    auth_login_window_seconds: int = 900
 
 
 @lru_cache
@@ -39,5 +41,7 @@ def get_settings() -> Settings:
         llm_timeout_seconds=os.getenv("945_LLM_TIMEOUT_SECONDS", "20"),
         auth_secret=os.getenv("945_AUTH_SECRET", "945-development-secret-change-before-production"),
         auth_token_ttl_seconds=int(os.getenv("945_AUTH_TOKEN_TTL_SECONDS", "604800")),
-        auth_required=os.getenv("945_AUTH_REQUIRED", "false").lower() == "true",
+        auth_required=os.getenv("945_AUTH_REQUIRED", "true" if os.getenv("945_APP_ENV") == "production" else "false").lower() == "true",
+        auth_login_max_attempts=int(os.getenv("945_AUTH_LOGIN_MAX_ATTEMPTS", "5")),
+        auth_login_window_seconds=int(os.getenv("945_AUTH_LOGIN_WINDOW_SECONDS", "900")),
     )

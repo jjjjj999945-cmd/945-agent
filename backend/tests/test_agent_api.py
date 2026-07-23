@@ -145,6 +145,7 @@ def test_agent_chat_development_openai_mode_falls_back_without_key(monkeypatch):
 def test_agent_chat_production_openai_mode_returns_config_error_without_saving(monkeypatch):
     monkeypatch.setenv("945_APP_ENV", "production")
     monkeypatch.setenv("945_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("945_AUTH_REQUIRED", "false")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("945_OPENAI_MODEL", raising=False)
     _clear_llm_caches()

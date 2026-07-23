@@ -3922,3 +3922,8 @@ select {
 .onboarding-form .onboarding-choice { align-items: center; color: #34423a; display: flex; gap: 6px; }
 .onboarding-form .onboarding-choice input { min-height: auto; padding: 0; }
 .form-error { color: #b42318; margin: 0; }
+.logout-button { background: transparent; border: 1px solid #c7d1ca; border-radius: 4px; color: #405047; cursor: pointer; font: inherit; padding: 7px 10px; }
+.account-security-panel form { display: grid; gap: 10px; }
+.account-security-panel label { color: #536158; display: grid; font-size: 13px; gap: 6px; }
+.account-security-panel input { border: 1px solid #c7d1ca; border-radius: 4px; font: inherit; padding: 8px; }
+.account-security-panel button { margin-top: 4px; }

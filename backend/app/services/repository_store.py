@@ -87,6 +87,9 @@ class RepositoryBackedStore:
     def get_credential(self, email: str) -> AuthCredential | None:
         return self.repository.get_model("auth_credentials", AuthCredential, {"email": email})
 
+    def save_credential(self, credential: AuthCredential) -> None:
+        self.repository.upsert_model("auth_credentials", credential, id_field=COLLECTION_IDS["auth_credentials"])
+
     def get_profile(self, user_id: str) -> UserProfile | None:
         return self.repository.get_model("user_profiles", UserProfile, {"user_id": user_id})
 

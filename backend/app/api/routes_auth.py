@@ -2,8 +2,8 @@ from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
 from backend.app.api.responses import error, ok
-from backend.app.models.domain import LoginInput, RegisterInput
-from backend.app.services.auth_service import get_session, login, register
+from backend.app.models.domain import LoginInput, PasswordChangeInput, RegisterInput
+from backend.app.services.auth_service import change_password, get_session, is_login_rate_limited, login, register
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -18,6 +18,8 @@ def register_user(input_data: RegisterInput) -> object:
 
 @router.post("/login")
 def login_user(input_data: LoginInput) -> object:
+    if is_login_rate_limited(input_data.email.strip().lower()):
+        return JSONResponse(status_code=429, content=error("LOGIN_RATE_LIMITED", "Too many failed login attempts. Try again later."))
     session = login(input_data)
     if session is None:
         return JSONResponse(status_code=401, content=error("INVALID_CREDENTIALS", "Email or password is incorrect."))
@@ -31,3 +33,14 @@ def current_user(authorization: str | None = Header(default=None)) -> object:
     if user is None:
         return JSONResponse(status_code=401, content=error("UNAUTHORIZED", "A valid session is required."))
     return ok(user.model_dump())
+
+
+@router.post("/change-password")
+def update_password(input_data: PasswordChangeInput, authorization: str | None = Header(default=None)) -> object:
+    token = authorization.removeprefix("Bearer ") if authorization and authorization.startswith("Bearer ") else ""
+    user = get_session(token)
+    if user is None:
+        return JSONResponse(status_code=401, content=error("UNAUTHORIZED", "A valid session is required."))
+    if not change_password(user.user_id, input_data):
+        return JSONResponse(status_code=400, content=error("PASSWORD_CHANGE_FAILED", "Current password is incorrect or the new password is too short."))
+    return ok({"changed": True})

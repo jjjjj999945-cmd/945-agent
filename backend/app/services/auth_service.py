@@ -6,13 +6,14 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from backend.app.core.config import get_settings
-from backend.app.models.domain import AuthCredential, AuthSession, LoginInput, RegisterInput, User
+from backend.app.models.domain import AuthCredential, AuthSession, LoginInput, PasswordChangeInput, RegisterInput, User
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import _active_repository_store
 
 
 _credentials: dict[str, AuthCredential] = {}
 _users: dict[str, User] = {}
+_failed_login_attempts: dict[str, list[datetime]] = {}
 
 
 def _password_hash(password: str, salt: str) -> str:
@@ -49,12 +50,49 @@ def register(input_data: RegisterInput) -> AuthSession | None:
 
 
 def login(input_data: LoginInput) -> AuthSession | None:
+    email = input_data.email.strip().lower()
+    if is_login_rate_limited(email):
+        return None
     store = _active_repository_store()
-    credential = store.get_credential(input_data.email.strip().lower()) if store else _credentials.get(input_data.email.strip().lower())
+    credential = store.get_credential(email) if store else _credentials.get(email)
     if credential is None or not hmac.compare_digest(credential.password_hash, _password_hash(input_data.password, credential.password_salt)):
+        record_failed_login(email)
         return None
     user = store.get_user(credential.user_id) if store else _users.get(credential.user_id)
+    _failed_login_attempts.pop(email, None)
     return AuthSession(access_token=_token(user.user_id), user=user) if user else None
+
+
+def is_login_rate_limited(email: str) -> bool:
+    settings = get_settings()
+    cutoff = datetime.now(UTC) - timedelta(seconds=settings.auth_login_window_seconds)
+    attempts = [item for item in _failed_login_attempts.get(email, []) if item >= cutoff]
+    _failed_login_attempts[email] = attempts
+    return len(attempts) >= settings.auth_login_max_attempts
+
+
+def record_failed_login(email: str) -> None:
+    _failed_login_attempts.setdefault(email, []).append(datetime.now(UTC))
+
+
+def change_password(user_id: str, input_data: PasswordChangeInput) -> bool:
+    store = _active_repository_store()
+    credential = next((item for item in _credentials.values() if item.user_id == user_id), None) if store is None else None
+    if store is not None:
+        # Credentials are indexed by email, so find the account through the small auth collection.
+        credentials = store.repository.list_models("auth_credentials", AuthCredential, {"user_id": user_id})
+        credential = credentials[0] if credentials else None
+    if credential is None or len(input_data.new_password) < 8:
+        return False
+    if not hmac.compare_digest(credential.password_hash, _password_hash(input_data.current_password, credential.password_salt)):
+        return False
+    updated = credential.model_copy(update={"password_salt": secrets.token_hex(16)})
+    updated = updated.model_copy(update={"password_hash": _password_hash(input_data.new_password, updated.password_salt)})
+    if store is not None:
+        store.save_credential(updated)
+    else:
+        _credentials[updated.email] = updated
+    return True
 
 
 def get_session(token: str) -> User | None:

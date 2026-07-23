@@ -7,10 +7,11 @@ type AppShellProps = {
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
   onNavigate: (path: string) => void;
+  onLogout?: () => void;
   children: React.ReactNode;
 };
 
-export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, children }: AppShellProps) {
+export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, onLogout, children }: AppShellProps) {
   const t = createTranslator(locale);
   const railIcons: Record<RouteId, string> = {
     today: "dashboard",
@@ -93,6 +94,7 @@ export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, chil
               <span className="material-symbols-outlined">sync</span>
               {locale === "zh-CN" ? "同步教练" : "Sync Agent"}
             </button>
+            {onLogout ? <button className="logout-button" onClick={onLogout} type="button">{locale === "zh-CN" ? "退出登录" : "Sign out"}</button> : null}
           </div>
         </header>
         <section className="business-main">{children}</section>

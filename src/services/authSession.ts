@@ -40,5 +40,13 @@ export const authApi = {
   me() {
     const token = getAccessToken();
     return authRequest<User>("/api/auth/me", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  },
+  changePassword(input: { current_password: string; new_password: string }) {
+    const token = getAccessToken();
+    return authRequest<{ changed: true }>("/api/auth/change-password", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: JSON.stringify(input)
+    });
   }
 };

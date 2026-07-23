@@ -287,11 +287,13 @@ python -m uvicorn backend.app.main:app --reload
 
 - `POST /api/auth/register`：创建邮箱密码账号；密码使用 PBKDF2-HMAC-SHA256 哈希保存，绝不通过 API 返回。
 - `POST /api/auth/login`、`GET /api/auth/me`：获取与恢复 Bearer 会话。
+- `POST /api/auth/change-password`：已登录用户校验当前密码后修改密码；新密码至少 8 位。
 - 已携带 Bearer token 的业务请求只能访问 token 所属的 `user_id`，跨用户请求返回 `403 FORBIDDEN`。
-- 设置 `945_AUTH_REQUIRED=true` 可强制所有业务接口必须带 token；默认 `false`，用于保留本地 demo 兼容性。
+- 生产环境默认强制所有业务接口带 token；开发和 demo 环境可设置 `945_AUTH_REQUIRED=false` 保持兼容。
+- 登录失败会按邮箱在单进程内限流，默认 15 分钟内 5 次失败后返回 `429 LOGIN_RATE_LIMITED`。可通过 `945_AUTH_LOGIN_MAX_ATTEMPTS` 和 `945_AUTH_LOGIN_WINDOW_SECONDS` 调整。
 - 多用户持久化只在 Mongo 模式可用。demo 模式仍是固定的本地演示用户，进程重启后会恢复初始状态。
 
-当前 token 为有时效的 HMAC token，没有刷新与撤销机制；上线生产前必须替换为可撤销的会话体系、设置高强度 `945_AUTH_SECRET`，并补充限流、邮箱验证和重置密码流程。
+当前 token 为有时效的 HMAC token，没有刷新与撤销机制，修改密码也不会让旧 token 立刻失效；退出登录只清理客户端本地会话。上线生产前必须替换为可撤销的会话体系、设置高强度 `945_AUTH_SECRET`，并接入 Redis 限流、邮箱验证和密码重置流程。
 
 ## 验证
 
