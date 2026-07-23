@@ -146,11 +146,15 @@ export const httpApi = {
     return post<Plan>(`/api/plans/${input.plan_id}/accept`, { user_id: input.user_id });
   },
 
-  async adjustPlan(input: { user_id: string; plan_id: string; adjustment_type: string; reason: string }): Promise<ApiResponse<Plan>> {
+  async adjustPlan(input: { user_id: string; plan_id: string; adjustment_type: string; reason: string; target_date?: string; target_exercise_id?: string; target_meal_id?: string; replacement_name?: string }): Promise<ApiResponse<Plan>> {
     return post<Plan>(`/api/plans/${input.plan_id}/adjust`, {
       user_id: input.user_id,
       adjustment_type: input.adjustment_type,
       reason: input.reason,
+      target_date: input.target_date,
+      target_exercise_id: input.target_exercise_id,
+      target_meal_id: input.target_meal_id,
+      replacement_name: input.replacement_name,
       confirmed: true
     });
   },

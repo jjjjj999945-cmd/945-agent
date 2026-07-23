@@ -132,6 +132,57 @@ def test_generated_plan_scales_food_portions_and_food_macros_for_goal_targets():
         assert totals == meal["total_macros"]
 
 
+def test_generated_plan_respects_equipment_dietary_and_schedule_constraints():
+    profile = client.patch(
+        "/api/profile/demo-user-945",
+        json={
+            "equipment": [],
+            "dietary_preferences": ["vegetarian"],
+            "allergies": ["dairy", "gluten", "seafood"],
+            "constraints": ["busy_weekdays"],
+            "training_days_per_week": 4,
+            "training_duration_minutes": 60,
+        },
+    )
+    assert profile.status_code == 200
+
+    plan = client.post("/api/plans/generate", json={"user_id": "demo-user-945"}).json()["data"]
+    workouts = plan["workout_plan"]["days"]
+    assert workouts[0]["exercises"][0]["name"] == "俯卧撑"
+    assert all(day["duration_minutes"] <= 45 for day in workouts if day["date"] in {"2026-07-13", "2026-07-15", "2026-07-16"})
+    breakfast = plan["meal_plan"]["days"][0]["meals"][0]["foods"]
+    dinner = plan["meal_plan"]["days"][0]["meals"][2]["foods"]
+    assert {food["name"] for food in breakfast} >= {"无糖豆乳酸奶", "米饭"}
+    assert dinner[0]["name"] == "烤豆腐"
+
+
+def test_confirmed_plan_adjustments_can_skip_workout_swap_exercise_and_swap_meal():
+    original = client.get("/api/plans/current").json()["data"]
+    date = original["workout_plan"]["days"][0]["date"]
+    exercise_id = original["workout_plan"]["days"][0]["exercises"][0]["exercise_id"]
+    meal_id = original["meal_plan"]["days"][0]["meals"][0]["meal_id"]
+
+    swapped_exercise = client.post(
+        f"/api/plans/{original['plan_id']}/adjust",
+        json={"user_id": "demo-user-945", "adjustment_type": "swap_exercise", "reason": "肩部不适", "target_date": date, "target_exercise_id": exercise_id, "replacement_name": "地板卧推", "confirmed": True},
+    ).json()["data"]
+    assert swapped_exercise["workout_plan"]["days"][0]["exercises"][0]["name"] == "地板卧推"
+
+    skipped = client.post(
+        f"/api/plans/{swapped_exercise['plan_id']}/adjust",
+        json={"user_id": "demo-user-945", "adjustment_type": "skip_workout", "reason": "需要恢复", "target_date": date, "confirmed": True},
+    ).json()["data"]
+    assert skipped["workout_plan"]["days"][0]["exercises"] == []
+
+    swapped_meal = client.post(
+        f"/api/plans/{skipped['plan_id']}/adjust",
+        json={"user_id": "demo-user-945", "adjustment_type": "swap_meal", "reason": "食材不足", "target_date": date, "target_meal_id": meal_id, "replacement_name": "火鸡藜麦饭碗", "confirmed": True},
+    ).json()["data"]
+    meal = swapped_meal["meal_plan"]["days"][0]["meals"][0]
+    assert meal["foods"][0]["name"] == "火鸡藜麦饭碗"
+    assert meal["foods"][0]["calories"] == meal["total_macros"]["calories"]
+
+
 def test_confirmed_plan_adjustment_creates_new_active_plan():
     original = client.get("/api/plans/current").json()["data"]
     adjusted = client.post(

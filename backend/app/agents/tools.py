@@ -88,19 +88,46 @@ def create_meal_log_draft(message: str, locale: str = "zh-CN") -> RecordDraft | 
     )
 
 
-def build_plan_adjustment_draft(adjustment_type: str, reason: str) -> RecordDraft:
+def build_plan_adjustment_draft(
+    adjustment_type: str,
+    reason: str,
+    target_date: str | None = None,
+    target_exercise_id: str | None = None,
+    target_meal_id: str | None = None,
+    replacement_name: str | None = None,
+) -> RecordDraft:
+    payload = {"adjustment_type": adjustment_type, "reason": reason}
+    for key, value in {
+        "target_date": target_date,
+        "target_exercise_id": target_exercise_id,
+        "target_meal_id": target_meal_id,
+        "replacement_name": replacement_name,
+    }.items():
+        if value is not None:
+            payload[key] = value
     return RecordDraft(
         type="plan_adjustment",
         requires_confirmation=True,
-        payload={"adjustment_type": adjustment_type, "reason": reason},
+        payload=payload,
     )
 
 
 def create_plan_adjustment_draft(message: str) -> RecordDraft | None:
     normalized = message.lower()
-    if "调整" not in normalized and "adjust" not in normalized:
+    adjustment_terms = ("调整", "adjust", "跳过", "skip", "换餐", "替换餐", "swap meal", "换动作", "替换动作", "swap exercise")
+    if not any(term in normalized for term in adjustment_terms):
         return None
-    return build_plan_adjustment_draft("reduce_intensity", message)
+    if "跳过" in normalized or "skip" in normalized:
+        adjustment_type = "skip_workout"
+    elif "换餐" in normalized or "替换餐" in normalized or "swap meal" in normalized:
+        adjustment_type = "swap_meal"
+    elif "换动作" in normalized or "替换动作" in normalized or "swap exercise" in normalized:
+        adjustment_type = "swap_exercise"
+    elif "增加强度" in normalized or "increase intensity" in normalized:
+        adjustment_type = "increase_intensity"
+    else:
+        adjustment_type = "reduce_intensity"
+    return build_plan_adjustment_draft(adjustment_type, message, target_date=TODAY_DATE)
 
 
 def accept_advice(user_id: str, advice_id: str, accepted_status: AdviceStatus = "accepted") -> AgentAdvice | None:

@@ -120,7 +120,7 @@ export const api = {
     return ok(currentPlan);
   },
 
-  async adjustPlan(input: { user_id: string; plan_id: string; adjustment_type: string; reason: string }): Promise<ApiResponse<Plan>> {
+  async adjustPlan(input: { user_id: string; plan_id: string; adjustment_type: string; reason: string; target_date?: string; target_exercise_id?: string; target_meal_id?: string; replacement_name?: string }): Promise<ApiResponse<Plan>> {
     const user = ensureDemoUser(input.user_id);
     if (user.error) return user;
     if (input.plan_id !== currentPlan.plan_id) return fail("NOT_FOUND", "Active plan not found.", { plan_id: input.plan_id });

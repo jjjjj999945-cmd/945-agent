@@ -77,7 +77,11 @@ export async function saveRecordDraft(
       user_id: context.user_id,
       plan_id: planResponse.data.plan_id,
       adjustment_type: adjustmentType,
-      reason
+      reason,
+      target_date: typeof payload.target_date === "string" ? payload.target_date : context.date,
+      target_exercise_id: typeof payload.target_exercise_id === "string" ? payload.target_exercise_id : undefined,
+      target_meal_id: typeof payload.target_meal_id === "string" ? payload.target_meal_id : undefined,
+      replacement_name: typeof payload.replacement_name === "string" ? payload.replacement_name : undefined
     });
   }
 

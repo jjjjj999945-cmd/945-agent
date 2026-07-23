@@ -198,9 +198,13 @@ class PlanAcceptInput(ApiModel):
 
 class PlanAdjustmentInput(ApiModel):
     user_id: str
-    adjustment_type: Literal["reduce_intensity", "increase_intensity", "change_schedule", "swap_exercise", "adjust_nutrition"]
+    adjustment_type: Literal["reduce_intensity", "increase_intensity", "change_schedule", "swap_exercise", "skip_workout", "swap_meal", "adjust_nutrition"]
     reason: str
     confirmed: Literal[True]
+    target_date: str | None = None
+    target_exercise_id: str | None = None
+    target_meal_id: str | None = None
+    replacement_name: str | None = None
 
 
 class DailyCheckin(ApiModel):
