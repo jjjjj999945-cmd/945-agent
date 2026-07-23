@@ -4,7 +4,7 @@ import { DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
 import { saveRecordDraft } from "../services/recordDraft";
-import type { AgentMessage, Locale, RecordDraft } from "../types/domain";
+import type { AgentMessage, Locale, RecordDraft, TodayResponseData } from "../types/domain";
 
 export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Locale; pendingDraft?: RecordDraft | null; onDraftHandled?: () => void }) {
   const t = createTranslator(locale);
@@ -14,6 +14,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
     user: isChinese ? "你" : "You"
   };
   const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [today, setToday] = useState<TodayResponseData | null>(null);
   const [input, setInput] = useState("");
   const [draft, setDraft] = useState<RecordDraft | null>(null);
   const [notice, setNotice] = useState("");
@@ -21,6 +22,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
 
   useEffect(() => {
     void loadMessages();
+    void loadTodayContext();
   }, []);
 
   useEffect(() => {
@@ -30,6 +32,11 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
   async function loadMessages() {
     const response = await api.getAgentMessages(DEMO_USER_ID);
     if (!response.error) setMessages(response.data);
+  }
+
+  async function loadTodayContext() {
+    const response = await api.getToday({ user_id: DEMO_USER_ID, date: TODAY_DATE });
+    if (!response.error) setToday(response.data);
   }
 
   async function send() {
@@ -47,6 +54,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
     setDraft(response.data.record_draft ?? null);
     setInput("");
     await loadMessages();
+    await loadTodayContext();
   }
 
   async function confirmDraft() {
@@ -64,6 +72,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
     setDraft(null);
     onDraftHandled?.();
     setNotice(t("status.agentDraftConfirmed"));
+    await loadTodayContext();
   }
 
   function formatRecordDraft(recordDraft: RecordDraft | null) {
@@ -105,16 +114,8 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       <article className="business-panel chat-window">
         <div className="agent-thread">
           <div className="agent-bubble agent">
-            <strong>{isChinese ? "945 智能教练 · 09:41" : "945 Agent · 09:41 AM"}</strong>
-            <span>{isChinese ? "早上好。我已经看过你昨晚恢复阶段的身体数据，心率变异性比基线略低。" : "Good morning. I've reviewed your biometric data from last night's recovery phase. Your HRV is trending slightly lower than baseline."}</span>
-          </div>
-          <div className="agent-bubble user">
-            <strong>{isChinese ? "你 · 09:45" : "You · 09:45 AM"}</strong>
-            <span>{isChinese ? "说实话今天有点没劲。是不是该把强度降一点？" : "Feeling a bit sluggish, to be honest. Maybe we should dial back the intensity?"}</span>
-          </div>
-          <div className="agent-bubble agent">
-            <strong>{isChinese ? "945 智能教练 · 09:46" : "945 Agent · 09:46 AM"}</strong>
-            <span>{isChinese ? "明白。结合你的疲劳反馈和心率变异性数据，我建议今天改成 2 区恢复骑行。" : "Understood. Given the self-reported fatigue and HRV data, I recommend pivoting to a Zone 2 recovery ride."}</span>
+            <strong>{isChinese ? "945 智能教练" : "945 Agent"}</strong>
+            <span>{today?.latest_advice?.content ?? (isChinese ? "我会根据你的计划、记录和每日打卡生成可确认的建议。" : "I use your plan, records, and daily check-ins to produce confirmation-required suggestions.")}</span>
           </div>
           {messages.map((message) => (
             <div className={`agent-bubble ${message.role}`} key={message.message_id}>
@@ -135,25 +136,18 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       <aside className="agent-status-panel">
         <article className="business-panel compact">
           <div className="section-heading"><span>{isChinese ? "教练状态" : "Agent Status"}</span><strong>{isChinese ? "在线" : "Active"}</strong></div>
-          <small>{isChinese ? "上下文：Oura 戒指、Whoop、Apple 健康" : "Context: Oura Ring, Whoop, Apple Health"}</small>
+          <small>{isChinese ? "上下文：当前计划、训练记录、饮食记录、每日打卡与建议。" : "Context: active plan, workout records, meal records, check-ins, and advice."}</small>
         </article>
         <article className="business-panel plan-draft-card">
-          <div className="section-heading"><span>{isChinese ? "计划草稿" : "Plan Draft"}</span><strong>⋮</strong></div>
-          <h2>{isChinese ? "恢复骑行" : "Recovery Ride"}</h2>
-          <p>{isChinese ? "2 区专注 · 45 分钟" : "Zone 2 Focus · 45 min"}</p>
-          <div className="exercise-row"><span>{isChinese ? "热身" : "Warm-up"}</span><strong>{isChinese ? "10 分钟 @ 100W" : "10 min @ 100W"}</strong></div>
-          <div className="exercise-row"><span>{isChinese ? "主训练" : "Main Set"}</span><strong>{isChinese ? "30 分钟 @ 140W" : "30 min @ 140W"}</strong></div>
-          <button
-            onClick={() => setNotice(isChinese ? "Garmin 同步将在后续版本提供。" : "Garmin sync will be available later.")}
-            type="button"
-          >
-            {isChinese ? "同步到 Garmin" : "Push to Garmin"}
-          </button>
+          <div className="section-heading"><span>{isChinese ? "今日训练" : "Today's workout"}</span><strong>{today?.today_workout ? `${today.today_workout.duration_minutes} ${t("metrics.durationMinutes")}` : "-"}</strong></div>
+          <h2>{today?.today_workout?.name ?? (isChinese ? "今天没有训练安排" : "No workout scheduled")}</h2>
+          {today?.today_workout?.exercises.map((exercise) => <div className="exercise-row" key={exercise.exercise_id}><span>{exercise.name}</span><strong>{exercise.sets} × {exercise.reps}</strong></div>)}
         </article>
         <article className="business-panel compact">
-          <h2>{isChinese ? "实时状态" : "Live Context"}</h2>
-          <div className="context-bar"><span style={{ width: "68%" }} /></div>
-          <small>{isChinese ? "心率变异性偏低 · 主观强度偏高" : "HRV trending low · RPE elevated"}</small>
+          <h2>{isChinese ? "今日执行状态" : "Today status"}</h2>
+          <div className="exercise-row"><span>{isChinese ? "蛋白质" : "Protein"}</span><strong>{today ? `${today.status_summary.protein_logged_g}/${today.status_summary.protein_target_g}g` : "-"}</strong></div>
+          <div className="exercise-row"><span>{isChinese ? "热量" : "Calories"}</span><strong>{today ? `${today.status_summary.calories_logged}/${today.status_summary.calories_target}` : "-"}</strong></div>
+          <small>{today?.status_summary.recovery_status === "fatigued" ? (isChinese ? "恢复状态：疲劳，建议优先恢复。" : "Recovery status: fatigued. Prioritize recovery.") : (isChinese ? "恢复状态正常。" : "Recovery status: normal.")}</small>
         </article>
       </aside>
       </section>

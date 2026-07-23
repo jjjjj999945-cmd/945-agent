@@ -8,7 +8,7 @@ test.describe("PRD-driven frontend foundation", () => {
       ["/diet", "饮食"],
       ["/body", "身体数据"],
       ["/advice", "建议"],
-      ["/agent", "恢复骑行"],
+      ["/agent", "945 智能教练"],
       ["/settings", "设置"]
     ] as const;
 
