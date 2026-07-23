@@ -144,6 +144,19 @@ def test_generate_feedback_flags_low_protein_when_recovery_signals_are_normal():
     assert daily["risk_level"] == "low"
 
 
+def test_export_returns_user_owned_structured_data():
+    response = client.get("/api/settings/export", params={"user_id": "demo-user-945"})
+
+    assert response.status_code == 200
+    exported = response.json()["data"]
+    assert exported["schema_version"] == "1.0"
+    assert exported["exported_at"]
+    assert exported["user"]["user_id"] == "demo-user-945"
+    assert exported["profile"]["user_id"] == "demo-user-945"
+    assert isinstance(exported["plans"], list)
+    assert "agent_messages" in exported
+
+
 def test_update_advice_status_rejects_missing_advice():
     response = client.patch(
         "/api/advice/missing-advice/status",

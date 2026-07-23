@@ -274,6 +274,12 @@ export const api = {
     });
   },
 
+  async exportData(user_id = DEMO_USER_ID): Promise<ApiResponse<Record<string, unknown>>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+    return ok({ schema_version: "1.0", exported_at: timestamp(), user: currentUser, profile: currentProfile, plans: [currentPlan], workout_logs: workoutLogs, meal_logs: mealLogs, body_metrics: bodyMetrics, daily_checkins: dailyCheckins, advice: adviceItems, agent_messages: agentMessages });
+  },
+
   async saveSettings(input: Partial<SettingsData> & { user_id: string }): Promise<ApiResponse<SettingsData>> {
     const user = ensureDemoUser(input.user_id);
     if (user.error) return user;

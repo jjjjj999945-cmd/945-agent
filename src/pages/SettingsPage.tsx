@@ -108,6 +108,22 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
     setNotice(isChinese ? "新计划已接受并生效。" : "The new plan is accepted and active.");
   }
 
+  async function exportData() {
+    const response = await api.exportData(DEMO_USER_ID);
+    if (response.error) {
+      setNotice(response.error.message);
+      return;
+    }
+    const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `945-data-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setNotice(isChinese ? "数据导出已开始。" : "Data export started.");
+  }
+
   if (!data || !profileDraft) return <PageLoadState message={notice || t("status.loading")} />;
   const goalChoices: Array<{ goal: Goal; label: string }> = isChinese
     ? [
@@ -204,7 +220,7 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
             {isChinese ? "推送通知" : "Push Notifications"}
             <input checked={notificationsEnabled} onChange={(event) => changeNotifications(event.target.checked)} type="checkbox" />
           </label>
-          <button disabled type="button">{t("labels.dataExport")} · {t("labels.futureCapability")}</button>
+          <button onClick={() => void exportData()} type="button">{t("labels.dataExport")}</button>
           <small>{t("safety.nonMedical")}</small>
         </article>
         <article className="business-panel compact">

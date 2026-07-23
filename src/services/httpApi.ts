@@ -276,6 +276,10 @@ export const httpApi = {
     return request<SettingsData>(withQuery("/api/settings", { user_id }));
   },
 
+  async exportData(user_id = DEMO_USER_ID): Promise<ApiResponse<Record<string, unknown>>> {
+    return request<Record<string, unknown>>(withQuery("/api/settings/export", { user_id }));
+  },
+
   async saveSettings(input: Partial<SettingsData> & { user_id: string }): Promise<ApiResponse<SettingsData>> {
     const profile = input.profile
       ? {
