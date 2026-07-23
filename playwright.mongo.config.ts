@@ -22,6 +22,12 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 60_000
     },
-    { command: "npm run dev:http", url: "http://127.0.0.1:5177/app", reuseExistingServer: false, timeout: 60_000 }
+    {
+      command: "npm run dev:http",
+      url: "http://127.0.0.1:5177/app",
+      env: { "VITE_945_AUTH_ENABLED": "false" },
+      reuseExistingServer: false,
+      timeout: 60_000
+    }
   ]
 });

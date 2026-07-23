@@ -3,6 +3,7 @@ from copy import deepcopy
 from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_USER_ID, NOW, create_today_response
 from backend.app.models.domain import (
     AdvicePageData,
+    AuthCredential,
     AdviceStatus,
     AgentAdvice,
     AgentMessage,
@@ -41,6 +42,7 @@ COLLECTION_IDS = {
     "agent_advice": "advice_id",
     "agent_messages": "message_id",
     "user_memory_summaries": "summary_id",
+    "auth_credentials": "email",
 }
 
 
@@ -60,25 +62,39 @@ class RepositoryBackedStore:
         )
 
     def is_demo_user(self, user_id: str) -> bool:
-        return self.get_current_user().user_id == user_id
+        return self.get_user(user_id) is not None
+
+    def get_user(self, user_id: str) -> User | None:
+        return self.repository.get_model("users", User, {"user_id": user_id})
 
     def get_current_user(self) -> User:
-        user = self.repository.get_model("users", User, {"user_id": DEMO_USER_ID})
+        user = self.get_user(DEMO_USER_ID)
         if user is None:
             self.seed_demo_data()
             user = self.repository.get_model("users", User, {"user_id": DEMO_USER_ID})
         return user
 
+    def save_registered_user(self, user: User, credential: AuthCredential) -> None:
+        self.repository.upsert_model("users", user, id_field=COLLECTION_IDS["users"])
+        self.repository.upsert_model("auth_credentials", credential, id_field=COLLECTION_IDS["auth_credentials"])
+        profile = deepcopy(INITIAL_PROFILE).model_copy(update={
+            "profile_id": f"profile-{user.user_id}",
+            "user_id": user.user_id,
+            "updated_at": user.updated_at,
+        })
+        self.repository.upsert_model("user_profiles", profile, id_field=COLLECTION_IDS["user_profiles"])
+
+    def get_credential(self, email: str) -> AuthCredential | None:
+        return self.repository.get_model("auth_credentials", AuthCredential, {"email": email})
+
     def get_profile(self, user_id: str) -> UserProfile | None:
-        if user_id != DEMO_USER_ID:
-            return None
         return self.repository.get_model("user_profiles", UserProfile, {"user_id": user_id})
 
     def save_profile(self, input_data: ProfileCreateInput) -> UserProfile | None:
-        if input_data.user_id != DEMO_USER_ID:
-            return None
         now = timestamp()
-        existing_user = self.get_current_user()
+        existing_user = self.get_user(input_data.user_id)
+        if existing_user is None:
+            return None
         user = User(
             user_id=input_data.user_id,
             display_name=input_data.display_name,
@@ -88,7 +104,7 @@ class RepositoryBackedStore:
             updated_at=now
         )
         profile = UserProfile(
-            profile_id="profile-demo-user-945",
+            profile_id=f"profile-{input_data.user_id}",
             user_id=input_data.user_id,
             age=input_data.age,
             gender=input_data.gender,
@@ -120,13 +136,15 @@ class RepositoryBackedStore:
         profile = self.get_profile(user_id)
         if profile is None:
             return None
-        user = self.get_current_user()
+        user = self.get_user(user_id)
+        if user is None:
+            return None
         return SettingsData(user=user, profile=profile, language=user.locale, unit_system=user.unit_system)
 
     def update_settings(self, input_data: SettingsPatchInput) -> SettingsData | None:
-        if input_data.user_id != DEMO_USER_ID:
+        user = self.get_user(input_data.user_id)
+        if user is None:
             return None
-        user = self.get_current_user()
         updated_user = user.model_copy(
             update={
                 "locale": input_data.language or user.locale,
@@ -140,23 +158,21 @@ class RepositoryBackedStore:
         return self.get_settings(input_data.user_id)
 
     def get_current_plan(self, user_id: str) -> Plan | None:
-        if user_id != DEMO_USER_ID:
-            return None
         return self.repository.get_model("plans", Plan, {"user_id": user_id, "status": "active"})
 
     def save_plan(self, plan: Plan) -> Plan | None:
-        if plan.user_id != DEMO_USER_ID:
+        if self.get_user(plan.user_id) is None:
             return None
         self.repository.upsert_model("plans", plan, id_field=COLLECTION_IDS["plans"])
         return plan
 
     def list_plans(self, user_id: str) -> list[Plan] | None:
-        if user_id != DEMO_USER_ID:
+        if self.get_user(user_id) is None:
             return None
         return self.repository.list_models("plans", Plan, {"user_id": user_id})
 
     def get_advice(self, user_id: str) -> AdvicePageData | None:
-        if user_id != DEMO_USER_ID:
+        if self.get_user(user_id) is None:
             return None
         advice = sorted(
             self.repository.list_models("agent_advice", AgentAdvice, {"user_id": user_id}),
@@ -175,7 +191,7 @@ class RepositoryBackedStore:
         advice_id: str,
         accepted_status: AdviceStatus
     ) -> AgentAdvice | None:
-        if user_id != DEMO_USER_ID:
+        if self.get_user(user_id) is None:
             return None
         advice = self.repository.get_model("agent_advice", AgentAdvice, {"advice_id": advice_id, "user_id": user_id})
         if advice is None:
@@ -185,13 +201,13 @@ class RepositoryBackedStore:
         return updated
 
     def save_advice(self, advice: AgentAdvice) -> AgentAdvice | None:
-        if advice.user_id != DEMO_USER_ID:
+        if self.get_user(advice.user_id) is None:
             return None
         self.repository.upsert_model("agent_advice", advice, id_field=COLLECTION_IDS["agent_advice"])
         return advice
 
     def create_workout_log(self, input_data: WorkoutLogInput) -> WorkoutLog | None:
-        if input_data.user_id != DEMO_USER_ID:
+        if self.get_user(input_data.user_id) is None:
             return None
         now = timestamp()
         count = len(self.list_workout_logs(input_data.user_id))
@@ -205,12 +221,12 @@ class RepositoryBackedStore:
         return saved
 
     def list_workout_logs(self, user_id: str) -> list[WorkoutLog] | None:
-        if user_id != DEMO_USER_ID:
+        if self.get_user(user_id) is None:
             return None
         return self.repository.list_models("workout_logs", WorkoutLog, {"user_id": user_id})
 
     def confirm_planned_meal(self, input_data: ConfirmPlannedMealInput) -> MealLog | None:
-        if input_data.user_id != DEMO_USER_ID:
+        if self.get_user(input_data.user_id) is None:
             return None
         plan = self.get_current_plan(input_data.user_id)
         day = next((item for item in plan.meal_plan.days if item.date == input_data.date), None) if plan else None
@@ -239,7 +255,7 @@ class RepositoryBackedStore:
         return saved
 
     def create_manual_meal_log(self, input_data: ManualMealLogInput) -> MealLog | None:
-        if input_data.user_id != DEMO_USER_ID:
+        if self.get_user(input_data.user_id) is None:
             return None
         now = timestamp()
         saved = MealLog(
@@ -257,12 +273,12 @@ class RepositoryBackedStore:
         return saved
 
     def list_meal_logs(self, user_id: str) -> list[MealLog] | None:
-        if user_id != DEMO_USER_ID:
+        if self.get_user(user_id) is None:
             return None
         return self.repository.list_models("meal_logs", MealLog, {"user_id": user_id})
 
     def save_body_metric(self, input_data: BodyMetricInput) -> BodyMetric | None:
-        if input_data.user_id != DEMO_USER_ID:
+        if self.get_user(input_data.user_id) is None:
             return None
         saved = BodyMetric(
             **input_data.model_dump(),
@@ -273,7 +289,7 @@ class RepositoryBackedStore:
         return saved
 
     def list_body_metrics(self, user_id: str) -> list[BodyMetric] | None:
-        if user_id != DEMO_USER_ID:
+        if self.get_user(user_id) is None:
             return None
         return sorted(
             self.repository.list_models("body_metrics", BodyMetric, {"user_id": user_id}),
@@ -281,7 +297,7 @@ class RepositoryBackedStore:
         )
 
     def save_daily_checkin(self, input_data: DailyCheckinInput) -> DailyCheckin | None:
-        if input_data.user_id != DEMO_USER_ID:
+        if self.get_user(input_data.user_id) is None:
             return None
         existing = self.get_daily_checkin(input_data.user_id, input_data.date)
         now = timestamp()
@@ -298,7 +314,7 @@ class RepositoryBackedStore:
         return self.repository.get_model("daily_checkins", DailyCheckin, {"user_id": user_id, "date": date})
 
     def list_daily_checkins(self, user_id: str) -> list[DailyCheckin] | None:
-        if user_id != DEMO_USER_ID:
+        if self.get_user(user_id) is None:
             return None
         return self.repository.list_models("daily_checkins", DailyCheckin, {"user_id": user_id})
 
@@ -307,7 +323,7 @@ class RepositoryBackedStore:
         return message
 
     def list_agent_messages(self, user_id: str) -> list[AgentMessage] | None:
-        if user_id != DEMO_USER_ID:
+        if self.get_user(user_id) is None:
             return None
         return self.repository.list_models("agent_messages", AgentMessage, {"user_id": user_id})
 
@@ -320,14 +336,17 @@ class RepositoryBackedStore:
         return summary
 
     def list_user_memory_summaries(self, user_id: str) -> list[UserMemorySummary] | None:
-        if user_id != DEMO_USER_ID:
+        if self.get_user(user_id) is None:
             return None
         return self.repository.list_models("user_memory_summaries", UserMemorySummary, {"user_id": user_id})
 
     def build_today_response(self, user_id: str, date: str) -> TodayResponseData | None:
-        if user_id != DEMO_USER_ID:
+        user = self.get_user(user_id)
+        if user is None:
             return None
         today = create_today_response(date)
+        today.user.user_id = user.user_id
+        today.user.display_name = user.display_name
         plan = self.get_current_plan(user_id)
         if plan is not None:
             today.user.goal = plan.goal

@@ -3902,3 +3902,14 @@ select {
     transition-duration: 0.01ms;
   }
 }
+/* Account access is intentionally separate from the workbench shell. */
+.auth-page { align-items: center; background: #f4f6f3; display: flex; justify-content: center; min-height: 100vh; padding: 24px; }
+.auth-panel { background: #ffffff; border: 1px solid #d8ddd8; border-radius: 8px; box-shadow: 0 16px 36px rgba(25, 40, 32, .10); max-width: 420px; padding: 36px; width: 100%; }
+.auth-brand { color: #1a6b50; font-size: 30px; font-weight: 800; margin-bottom: 28px; }
+.auth-panel h1 { font-size: 24px; margin: 0 0 24px; }
+.auth-panel form { display: grid; gap: 16px; }
+.auth-panel label { color: #3c4842; display: grid; font-size: 14px; gap: 7px; }
+.auth-panel input { border: 1px solid #b9c5bc; border-radius: 4px; font: inherit; padding: 10px 12px; }
+.auth-panel form button { background: #1a6b50; border: 0; border-radius: 4px; color: white; cursor: pointer; font: inherit; font-weight: 700; padding: 11px 14px; }
+.auth-switch { background: transparent; border: 0; color: #1a6b50; cursor: pointer; font: inherit; margin-top: 18px; padding: 0; }
+.auth-error { color: #b42318; font-size: 14px; margin: 0; }

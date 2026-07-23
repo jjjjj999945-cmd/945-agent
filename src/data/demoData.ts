@@ -7,7 +7,8 @@ import type {
   UserProfile
 } from "../types/domain";
 
-export const DEMO_USER_ID = "demo-user-945";
+// HTTP mode replaces this with the authenticated user's ID after a full session reload.
+export const DEMO_USER_ID = window.localStorage.getItem("945.auth.user_id") ?? "demo-user-945";
 export const TODAY_DATE = "2026-07-11";
 
 const now = "2026-07-11T00:00:00.000Z";

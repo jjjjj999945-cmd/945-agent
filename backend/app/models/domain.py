@@ -184,6 +184,31 @@ class Plan(ApiModel):
     updated_at: str
 
 
+class AuthCredential(ApiModel):
+    email: str
+    user_id: str
+    password_hash: str
+    password_salt: str
+    created_at: str
+
+
+class RegisterInput(ApiModel):
+    display_name: str
+    email: str
+    password: str
+
+
+class LoginInput(ApiModel):
+    email: str
+    password: str
+
+
+class AuthSession(ApiModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    user: User
+
+
 class PlanGenerateInput(ApiModel):
     user_id: str
     goal: Goal | None = None

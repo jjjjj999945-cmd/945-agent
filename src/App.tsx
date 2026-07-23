@@ -10,13 +10,18 @@ import { PrototypeRouter } from "./pages/PrototypeRouter";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TodayPage } from "./pages/TodayPage";
 import { WorkoutPage } from "./pages/WorkoutPage";
+import { AuthPage } from "./pages/AuthPage";
 import { getRouteByPath, isPrototypePath, type RouteId } from "./routes";
 import type { Locale, RecordDraft } from "./types/domain";
+import { authApi, clearSession, hasSession } from "./services/authSession";
 
 export function App() {
   const [locale, setLocale] = useState<Locale>("zh-CN");
   const [path, setPath] = useState(window.location.pathname);
   const [agentDraft, setAgentDraft] = useState<RecordDraft | null>(null);
+  const httpMode = import.meta.env.VITE_945_API_MODE === "http" && import.meta.env.VITE_945_AUTH_ENABLED !== "false";
+  const [sessionReady, setSessionReady] = useState(!httpMode);
+  const [authenticated, setAuthenticated] = useState(!httpMode || hasSession());
 
   useEffect(() => {
     const onPopState = () => setPath(window.location.pathname);
@@ -24,12 +29,25 @@ export function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  useEffect(() => {
+    if (!httpMode || !hasSession()) return;
+    authApi.me().then((result) => {
+      if (result.error) {
+        clearSession();
+        setAuthenticated(false);
+      }
+      setSessionReady(true);
+    });
+  }, [httpMode]);
+
   function navigate(nextPath: string) {
     window.history.pushState({}, "", nextPath);
     setPath(nextPath);
   }
 
   if (isPrototypePath(path)) return <PrototypeRouter />;
+  if (!sessionReady) return null;
+  if (!authenticated) return <AuthPage onAuthenticated={() => window.location.replace("/onboarding")} />;
 
   const route = getRouteByPath(path);
 

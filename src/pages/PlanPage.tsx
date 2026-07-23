@@ -97,7 +97,15 @@ export function PlanPage({ locale, onNavigate, onAgentDraft }: { locale: Locale;
     onNavigate("/agent");
   }
 
-  if (!plan) return <PageLoadState message={notice || t("status.loading")} />;
+  if (!plan) {
+    return <div className="business-page">
+      <header className="page-header"><p>945</p><h1>{t("page.plan.title")}</h1><span>{t("page.plan.description")}</span></header>
+      <section className="business-panel compact"><h2>{isChinese ? "生成你的首个计划" : "Generate your first plan"}</h2>
+        <p>{notice || (isChinese ? "根据已填写的资料生成 7 天训练与饮食计划。" : "Create a 7-day workout and nutrition plan from your profile.")}</p>
+        <button disabled={saving} onClick={() => void generate()} type="button">{t("actions.generate")}</button>
+      </section>
+    </div>;
+  }
 
   const dates = Array.from(new Set([...plan.workout_plan.days, ...plan.meal_plan.days].map((day) => day.date))).sort();
 

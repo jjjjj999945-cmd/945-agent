@@ -2,7 +2,7 @@ from copy import deepcopy
 from datetime import date, timedelta
 import re
 
-from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
+from backend.app.data.demo_data import DEMO_PLAN, DEMO_USER_ID, TODAY_DATE
 from backend.app.models.domain import MacroTargets, MealPlan, MealPlanDay, Plan, PlanAdjustmentInput, PlanGenerateInput, PlannedFood, PlannedMeal, UserProfile, WorkoutPlan, WorkoutPlanDay
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import _active_repository_store, get_current_plan as get_demo_current_plan, get_profile, list_plans, save_plan
@@ -185,8 +185,19 @@ def _apply_profile_meal_constraints(plan: Plan, profile: UserProfile) -> Plan:
 def generate_plan(input_data: PlanGenerateInput) -> Plan | None:
     current = get_current_plan(input_data.user_id)
     profile = get_profile(input_data.user_id)
-    if current is None or profile is None:
+    if profile is None:
         return None
+    # A newly registered user has a profile but no accepted plan yet. Start from
+    # the deterministic template and still persist the result as a user-owned draft.
+    if current is None:
+        now = timestamp()
+        current = deepcopy(DEMO_PLAN).model_copy(update={
+            "plan_id": _plan_id("template"),
+            "user_id": input_data.user_id,
+            "status": "draft",
+            "created_at": now,
+            "updated_at": now,
+        })
     now = timestamp()
     goal = input_data.goal or profile.goal
     base_plan = _apply_profile_meal_constraints(_apply_profile_workout_constraints(

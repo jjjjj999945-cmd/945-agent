@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.responses import ok
 from backend.app.api.routes_advice import router as advice_router
+from backend.app.api.routes_auth import router as auth_router
 from backend.app.api.routes_agent import router as agent_router
 from backend.app.api.routes_body_metrics import router as body_metrics_router
 from backend.app.api.routes_daily_checkins import router as daily_checkins_router
@@ -34,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(demo_router)
+app.include_router(auth_router)
 app.include_router(plans_router)
 app.include_router(workout_logs_router)
 app.include_router(meal_logs_router)

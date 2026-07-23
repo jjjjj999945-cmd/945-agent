@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
 from backend.app.api.responses import error, ok
+from backend.app.api.auth import authorize_user
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
 from backend.app.services.today_service import get_demo_user, get_today
 
@@ -15,7 +16,8 @@ def demo_user() -> dict[str, object]:
 
 
 @router.get("/today")
-def today(user_id: str = DEMO_USER_ID, date: str = TODAY_DATE) -> object:
+def today(user_id: str = DEMO_USER_ID, date: str = TODAY_DATE, authorization: str | None = Header(default=None)) -> object:
+    if denied := authorize_user(user_id, authorization): return denied
     today_data = get_today(user_id=user_id, date=date)
     if today_data is None:
         return JSONResponse(

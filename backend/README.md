@@ -263,5 +263,40 @@ npm run qa:mongo
 1. 用明确配置的服务端 API Key 做一次 OpenAI 冒烟验证。
 2. 将本地关键词 RAG 替换或增强为 embedding/vector store。
 3. 增加真实 MongoDB 集成环境和启动脚本。
-4. 增加用户鉴权、数据隔离和生产配置。
+4. 补齐生产级鉴权、数据隔离审计和部署配置。
 5. 扩展计划生成、计划调整和确认工作流。
+# 945 后端
+
+945 使用 FastAPI 提供训练计划、饮食记录、身体数据、每日打卡、建议与 Agent 草稿接口。默认以 `demo` 存储模式运行；设置 `945_STORAGE_BACKEND=mongo` 后，业务记录和邮箱密码凭据都会持久化到 MongoDB。
+
+## 启动
+
+```powershell
+python -m uvicorn backend.app.main:app --reload
+```
+
+Mongo 模式需要先启动 MongoDB：
+
+```powershell
+$env:945_STORAGE_BACKEND = "mongo"
+$env:945_MONGODB_DATABASE = "945"
+python -m uvicorn backend.app.main:app --reload
+```
+
+## 认证与多用户边界
+
+- `POST /api/auth/register`：创建邮箱密码账号；密码使用 PBKDF2-HMAC-SHA256 哈希保存，绝不通过 API 返回。
+- `POST /api/auth/login`、`GET /api/auth/me`：获取与恢复 Bearer 会话。
+- 已携带 Bearer token 的业务请求只能访问 token 所属的 `user_id`，跨用户请求返回 `403 FORBIDDEN`。
+- 设置 `945_AUTH_REQUIRED=true` 可强制所有业务接口必须带 token；默认 `false`，用于保留本地 demo 兼容性。
+- 多用户持久化只在 Mongo 模式可用。demo 模式仍是固定的本地演示用户，进程重启后会恢复初始状态。
+
+当前 token 为有时效的 HMAC token，没有刷新与撤销机制；上线生产前必须替换为可撤销的会话体系、设置高强度 `945_AUTH_SECRET`，并补充限流、邮箱验证和重置密码流程。
+
+## 验证
+
+```powershell
+python -m pytest backend/tests -q
+npm run build
+npm run qa:app
+```

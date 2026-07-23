@@ -24,6 +24,7 @@ import type {
   WorkoutLog
 } from "../types/domain";
 import { fail, type ApiResponse } from "./apiTypes";
+import { getAccessToken } from "./authSession";
 
 type DailyCheckinInput = Omit<DailyCheckin, "checkin_id" | "created_at" | "updated_at">;
 type WorkoutLogInput = Omit<WorkoutLog, "workout_log_id" | "created_at" | "updated_at">;
@@ -61,6 +62,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse
       ...init,
       headers: {
         "Content-Type": "application/json",
+        ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
         ...init?.headers
       }
     });
