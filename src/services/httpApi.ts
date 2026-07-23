@@ -169,7 +169,8 @@ export const httpApi = {
   },
 
   async updateProfile(input: Partial<UserProfile> & { user_id: string }): Promise<ApiResponse<UserProfile>> {
-    return patch<UserProfile>(`/api/profile/${input.user_id}`, input);
+    const { user_id, profile_id: _profileId, updated_at: _updatedAt, ...profile } = input;
+    return patch<UserProfile>(`/api/profile/${user_id}`, profile);
   },
 
   async getToday(input: { user_id?: string; date?: string } = {}): Promise<ApiResponse<TodayResponseData>> {

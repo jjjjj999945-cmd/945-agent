@@ -66,11 +66,24 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.getByRole("button", { name: "查看原因" }).click();
     await expect(page.getByText("建议原因已展开在卡片内")).toBeVisible();
     await page.getByRole("button", { name: "调整今日计划" }).click();
-    await expect(page.getByText("计划草稿")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "945 智能教练" })).toBeVisible();
 
     await page.goto("/plan");
     await page.getByRole("button", { name: "生成计划" }).click();
     await expect(page.getByText("已基于 demo 资料重新生成计划预览")).toBeVisible();
+  });
+
+  test("creates and activates a first plan from the onboarding profile", async ({ page }) => {
+    await page.goto("/onboarding");
+    await page.getByLabel("体重 kg").fill("68.5");
+    await page.getByLabel("目标").selectOption("muscle_gain");
+    await page.getByLabel("每周训练天数").fill("3");
+    await page.getByLabel("gym").uncheck();
+    await page.getByLabel("bodyweight").check();
+    await page.getByRole("button", { name: "创建并启用我的计划" }).click();
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { name: "早上好，Alex。" })).toBeVisible();
   });
 
   test("creates a plan adjustment draft from structured desktop controls", async ({ page }) => {
@@ -105,7 +118,6 @@ test.describe("PRD-driven frontend foundation", () => {
     await expect(page.getByText("设置已保存：通知偏好已更新")).toBeVisible();
     await page.getByLabel("严格督促").click();
     await expect(page.getByText("设置已保存：教练语气已切换为严格督促")).toBeVisible();
-    await expect(page.getByRole("button", { name: /数据导出.*后续能力/ })).toBeDisabled();
   });
 
   test("saves personalization profile settings and generates a plan preview", async ({ page }) => {

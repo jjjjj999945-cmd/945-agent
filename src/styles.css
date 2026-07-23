@@ -3913,3 +3913,12 @@ select {
 .auth-panel form button { background: #1a6b50; border: 0; border-radius: 4px; color: white; cursor: pointer; font: inherit; font-weight: 700; padding: 11px 14px; }
 .auth-switch { background: transparent; border: 0; color: #1a6b50; cursor: pointer; font: inherit; margin-top: 18px; padding: 0; }
 .auth-error { color: #b42318; font-size: 14px; margin: 0; }
+.onboarding-form { display: grid; gap: 16px; max-width: 960px; }
+.onboarding-fields { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.onboarding-form label { color: #536158; display: grid; font-size: 13px; gap: 6px; }
+.onboarding-form input, .onboarding-form select { background: #fff; border: 1px solid #c7d1ca; border-radius: 4px; font: inherit; min-height: 38px; padding: 7px 9px; }
+.onboarding-form fieldset { border: 0; display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 18px 0 0; padding: 0; }
+.onboarding-form legend { color: #536158; font-size: 13px; margin-bottom: 7px; }
+.onboarding-form .onboarding-choice { align-items: center; color: #34423a; display: flex; gap: 6px; }
+.onboarding-form .onboarding-choice input { min-height: auto; padding: 0; }
+.form-error { color: #b42318; margin: 0; }
