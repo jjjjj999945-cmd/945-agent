@@ -165,6 +165,32 @@ test.describe.serial("945 real HTTP integration", () => {
     expect(after.data.workout_plan.days[0].exercises).toEqual([]);
   });
 
+  test("persists personalization settings before generating a tailored plan preview", async ({ page, request }) => {
+    await page.goto("/settings");
+    await page.getByLabel("每周训练天数").fill("3");
+    await page.getByLabel("单次训练分钟").fill("45");
+    await page.getByLabel("健身房").uncheck();
+    await page.getByLabel("哑铃").uncheck();
+    await page.getByLabel("徒手").check();
+    await page.getByLabel("素食").check();
+    await page.getByLabel("乳制品").check();
+    await page.getByLabel("工作日繁忙").check();
+    const settingsResponse = page.waitForResponse((response) => response.url().endsWith("/api/settings") && response.request().method() === "PATCH");
+    const generatedResponse = page.waitForResponse((response) => response.url().endsWith("/api/plans/generate") && response.request().method() === "POST");
+    await page.getByRole("button", { name: "保存并生成计划预览" }).click();
+
+    expect((await settingsResponse).status()).toBe(200);
+    const planResponse = await generatedResponse;
+    expect(planResponse.status()).toBe(200);
+    const plan = (await planResponse.json()).data;
+    expect(plan.workout_plan.days).toHaveLength(3);
+    const exerciseNames = plan.workout_plan.days.flatMap((day: { exercises: Array<{ name: string }> }) => day.exercises.map((exercise) => exercise.name));
+    expect(exerciseNames).toContain("徒手深蹲");
+    expect(plan.meal_plan.days[0].meals[0].foods.map((food: { name: string }) => food.name)).toContain("无糖豆乳酸奶");
+    const settings = await (await request.get(`${API_BASE_URL}/api/settings?user_id=demo-user-945`)).json();
+    expect(settings.data.profile).toMatchObject({ training_days_per_week: 3, training_duration_minutes: 45, equipment: ["bodyweight"] });
+  });
+
   test("keeps high-risk Agent input out of draft confirmation", async ({ page }) => {
     await page.goto("/agent");
     await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。")

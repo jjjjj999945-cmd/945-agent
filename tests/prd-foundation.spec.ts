@@ -108,4 +108,17 @@ test.describe("PRD-driven frontend foundation", () => {
     await expect(page.getByRole("button", { name: /数据导出.*后续能力/ })).toBeDisabled();
   });
 
+  test("saves personalization profile settings and generates a plan preview", async ({ page }) => {
+    await page.goto("/settings");
+    await page.getByLabel("每周训练天数").fill("3");
+    await page.getByLabel("哑铃").uncheck();
+    await page.getByLabel("素食").check();
+    await page.getByLabel("乳制品").check();
+    await page.getByRole("button", { name: "保存并生成计划预览" }).click();
+
+    await expect(page.getByText("资料已保存，计划预览已生成。")).toBeVisible();
+    await expect(page.getByText("计划预览", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "接受此计划" })).toBeVisible();
+  });
+
 });

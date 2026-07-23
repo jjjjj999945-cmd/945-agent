@@ -903,6 +903,47 @@ button {
   resize: vertical;
 }
 
+.profile-preferences-card {
+  grid-column: 1 / -1;
+}
+
+.preference-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.preference-choice-grid fieldset {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(16, 43, 74, 0.1);
+  border-radius: var(--r-sm);
+}
+
+.preference-choice-grid legend {
+  padding: 0 4px;
+  color: #6b7280;
+  font: 700 12px/1.2 Inter, sans-serif;
+}
+
+.plan-preview-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(16, 43, 74, 0.1);
+}
+
+.plan-preview-summary span {
+  flex: 1;
+  color: #6b7280;
+}
+
 .agent-reply {
   border: 1px solid rgba(31, 88, 216, 0.16);
   border-radius: 16px;
