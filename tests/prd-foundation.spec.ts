@@ -118,6 +118,8 @@ test.describe("PRD-driven frontend foundation", () => {
 
     await expect(page.getByText("资料已保存，计划预览已生成。")).toBeVisible();
     await expect(page.getByText("计划预览", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "训练安排" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "饮食安排" })).toBeVisible();
     await expect(page.getByRole("button", { name: "接受此计划" })).toBeVisible();
   });
 

@@ -944,6 +944,49 @@ button {
   color: #6b7280;
 }
 
+.plan-preview-detail {
+  margin-top: 14px;
+  border-top: 1px solid rgba(16, 43, 74, 0.1);
+}
+
+.plan-preview-detail .plan-preview-summary {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.plan-preview-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.plan-preview-columns section {
+  min-width: 0;
+}
+
+.plan-preview-columns h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.preview-day-row {
+  display: grid;
+  gap: 4px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(16, 43, 74, 0.08);
+}
+
+.preview-day-row strong {
+  color: #171c1f;
+  font-size: 13px;
+}
+
+.preview-day-row span {
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .agent-reply {
   border: 1px solid rgba(31, 88, 216, 0.16);
   border-radius: 16px;

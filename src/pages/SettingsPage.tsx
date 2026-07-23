@@ -172,7 +172,13 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
             <fieldset><legend>{isChinese ? "时间限制" : "Schedule constraints"}</legend><label className="toggle-row"><input checked={profileDraft.constraints.includes("busy_weekdays")} onChange={() => toggleProfileValue("constraints", "busy_weekdays")} type="checkbox" />{isChinese ? "工作日繁忙" : "Busy weekdays"}</label></fieldset>
           </div>
           <div className="button-row"><button onClick={() => void saveProfileAndGeneratePlan()} type="button">{isChinese ? "保存并生成计划预览" : "Save and generate preview"}</button></div>
-          {planPreview ? <div className="plan-preview-summary"><strong>{isChinese ? "计划预览" : "Plan preview"}</strong><span>{planPreview.goal.replace(/_/g, " ")} · {planPreview.workout_plan.days.length} {isChinese ? "个训练日" : "workout days"} · {planPreview.meal_plan.daily_targets.calories} {t("metrics.kcal")}</span><button onClick={() => void acceptPlanPreview()} type="button">{isChinese ? "接受此计划" : "Accept this plan"}</button></div> : null}
+          {planPreview ? <div className="plan-preview-detail" aria-label={isChinese ? "个性化计划预览" : "Personalized plan preview"}>
+            <div className="plan-preview-summary"><strong>{isChinese ? "计划预览" : "Plan preview"}</strong><span>{planPreview.goal.replace(/_/g, " ")} · {planPreview.workout_plan.days.length} {isChinese ? "个训练日" : "workout days"} · {planPreview.meal_plan.daily_targets.calories} {t("metrics.kcal")}</span><button onClick={() => void acceptPlanPreview()} type="button">{isChinese ? "接受此计划" : "Accept this plan"}</button></div>
+            <div className="plan-preview-columns">
+              <section><h3>{isChinese ? "训练安排" : "Workout schedule"}</h3>{planPreview.workout_plan.days.map((day) => <div className="preview-day-row" key={day.date}><strong>{day.date} · {day.name}</strong><span>{day.exercises.map((exercise) => `${exercise.name} ${exercise.sets} × ${exercise.reps}`).join(" / ") || (isChinese ? "恢复日" : "Recovery day")}</span></div>)}</section>
+              <section><h3>{isChinese ? "饮食安排" : "Meal schedule"}</h3>{planPreview.meal_plan.days.map((day) => <div className="preview-day-row" key={day.date}><strong>{day.date} · {day.meals.reduce((sum, meal) => sum + meal.total_macros.calories, 0)} {t("metrics.kcal")}</strong><span>{day.meals.map((meal) => `${meal.name}: ${meal.foods.map((food) => `${food.name} ${food.portion}`).join(", ")}`).join(" · ")}</span></div>)}</section>
+            </div>
+          </div> : null}
         </article>
         </div>
 
