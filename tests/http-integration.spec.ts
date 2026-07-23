@@ -146,6 +146,25 @@ test.describe.serial("945 real HTTP integration", () => {
     expect(after.data.generated_by).toBe("agent");
   });
 
+  test("writes a structured plan-page adjustment only after Agent confirmation", async ({ page, request }) => {
+    const before = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    await page.goto("/plan");
+    await page.getByLabel("调整方式").selectOption("skip_workout");
+    await page.getByLabel("调整原因").fill("恢复不足，需要跳过今天训练");
+    await page.getByRole("button", { name: "生成调整草稿" }).click();
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+
+    const unconfirmed = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(unconfirmed.data.plan_id).toBe(before.data.plan_id);
+
+    const adjustResponse = page.waitForResponse((response) => response.url().includes("/adjust") && response.request().method() === "POST");
+    await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
+    expect((await adjustResponse).status()).toBe(200);
+    const after = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(after.data.plan_id).not.toBe(before.data.plan_id);
+    expect(after.data.workout_plan.days[0].exercises).toEqual([]);
+  });
+
   test("keeps high-risk Agent input out of draft confirmation", async ({ page }) => {
     await page.goto("/agent");
     await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。")

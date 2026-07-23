@@ -73,6 +73,18 @@ test.describe("PRD-driven frontend foundation", () => {
     await expect(page.getByText("已基于 demo 资料重新生成计划预览")).toBeVisible();
   });
 
+  test("creates a plan adjustment draft from structured desktop controls", async ({ page }) => {
+    await page.goto("/plan");
+    await page.getByLabel("调整方式").selectOption("skip_workout");
+    await page.getByLabel("调整原因").fill("恢复不足，需要跳过今天训练");
+    await page.getByRole("button", { name: "生成调整草稿" }).click();
+
+    await expect(page).toHaveURL(/\/agent$/);
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+    await expect(page.getByRole("dialog").getByText("调整类型: skip_workout")).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "取消" }).click();
+  });
+
   test("exposes desktop client semantics for agent, workout, and settings", async ({ page }) => {
     await page.goto("/agent");
     await expect(page.getByRole("heading", { name: "945 智能教练", exact: true })).toBeVisible();

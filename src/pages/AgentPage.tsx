@@ -6,7 +6,7 @@ import { api } from "../services/apiClient";
 import { saveRecordDraft } from "../services/recordDraft";
 import type { AgentMessage, Locale, RecordDraft } from "../types/domain";
 
-export function AgentPage({ locale }: { locale: Locale }) {
+export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Locale; pendingDraft?: RecordDraft | null; onDraftHandled?: () => void }) {
   const t = createTranslator(locale);
   const isChinese = locale === "zh-CN";
   const roleLabels: Record<AgentMessage["role"], string> = {
@@ -22,6 +22,10 @@ export function AgentPage({ locale }: { locale: Locale }) {
   useEffect(() => {
     void loadMessages();
   }, []);
+
+  useEffect(() => {
+    if (pendingDraft) setDraft(pendingDraft);
+  }, [pendingDraft]);
 
   async function loadMessages() {
     const response = await api.getAgentMessages(DEMO_USER_ID);
@@ -58,6 +62,7 @@ export function AgentPage({ locale }: { locale: Locale }) {
       return;
     }
     setDraft(null);
+    onDraftHandled?.();
     setNotice(t("status.agentDraftConfirmed"));
   }
 
@@ -78,7 +83,10 @@ export function AgentPage({ locale }: { locale: Locale }) {
       ["次数", payload.reps],
       ["重量", payload.weight_kg ? `${payload.weight_kg} kg` : undefined],
       ["餐食名称", payload.meal_name],
-      ["备注", payload.effort_note ?? payload.note]
+      ["调整类型", payload.adjustment_type],
+      ["目标日期", payload.target_date],
+      ["替换名称", payload.replacement_name],
+      ["备注", payload.effort_note ?? payload.note ?? payload.reason]
     ].filter(([, value]) => value !== undefined && value !== "");
     return rows.map(([label, value]) => `${label}: ${value}`).join("\n");
   }
@@ -154,7 +162,7 @@ export function AgentPage({ locale }: { locale: Locale }) {
         cancelLabel={t("actions.cancel")}
         confirmDisabled={savingDraft}
         confirmLabel={t("actions.confirm")}
-        onCancel={() => setDraft(null)}
+        onCancel={() => { setDraft(null); onDraftHandled?.(); }}
         onConfirm={confirmDraft}
         open={Boolean(draft)}
         title={t("agent.confirmDraftTitle")}
