@@ -86,7 +86,17 @@ React / Vite 前端
 页面 -> httpApi -> FastAPI -> demo store / deterministic Agent Provider
 ```
 
-MongoDB、真实模型、生产鉴权和云部署仍是后续生产化工作。本项目保留了对应的 repository、Provider 和 Agent 编排边界，但本地联调不依赖它们。
+MongoDB、真实模型和云部署仍需按环境接入。本项目已具备 Mongo repository、多用户鉴权、会话撤销和 Docker Compose 配置；本地 mock 联调仍不依赖这些外部服务。
+
+### 本地生产化容器运行
+
+仓库根目录提供 `docker-compose.yml`、`Dockerfile.backend`、`Dockerfile.frontend` 和 `.env.production.example`。复制示例环境文件为 `.env.production`，填入高强度 `945_AUTH_SECRET` 后执行：
+
+```powershell
+docker compose up --build -d
+```
+
+前端默认暴露在 `http://127.0.0.1:8080`，同源 `/api` 请求经 Nginx 转发给 FastAPI，MongoDB 数据保存在 Docker 命名卷中。
 
 ## 4. 当前前端代码结构
 

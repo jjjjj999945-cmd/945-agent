@@ -37,8 +37,16 @@ def test_authenticated_user_can_change_password():
     headers = {"Authorization": f"Bearer {registered['access_token']}"}
     changed = client.post("/api/auth/change-password", json={"current_password": "secure-pass-945", "new_password": "new-secure-pass-945"}, headers=headers)
     assert changed.status_code == 200
+    assert client.get("/api/auth/me", headers=headers).status_code == 401
     assert client.post("/api/auth/login", json={"email": "password-change@example.com", "password": "secure-pass-945"}).status_code == 401
     assert client.post("/api/auth/login", json={"email": "password-change@example.com", "password": "new-secure-pass-945"}).status_code == 200
+
+
+def test_logout_revokes_current_token():
+    registered = client.post("/api/auth/register", json={"display_name": "Logout User", "email": "logout@example.com", "password": "secure-pass-945"}).json()["data"]
+    headers = {"Authorization": f"Bearer {registered['access_token']}"}
+    assert client.post("/api/auth/logout", headers=headers).status_code == 200
+    assert client.get("/api/auth/me", headers=headers).status_code == 401
 
 
 def test_login_rate_limit_and_production_auth_requirement(monkeypatch):

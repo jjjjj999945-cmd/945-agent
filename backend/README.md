@@ -288,12 +288,25 @@ python -m uvicorn backend.app.main:app --reload
 - `POST /api/auth/register`：创建邮箱密码账号；密码使用 PBKDF2-HMAC-SHA256 哈希保存，绝不通过 API 返回。
 - `POST /api/auth/login`、`GET /api/auth/me`：获取与恢复 Bearer 会话。
 - `POST /api/auth/change-password`：已登录用户校验当前密码后修改密码；新密码至少 8 位。
+- `POST /api/auth/logout`：撤销该账号当前全部会话；旧 Bearer token 会立即失效。
 - 已携带 Bearer token 的业务请求只能访问 token 所属的 `user_id`，跨用户请求返回 `403 FORBIDDEN`。
 - 生产环境默认强制所有业务接口带 token；开发和 demo 环境可设置 `945_AUTH_REQUIRED=false` 保持兼容。
 - 登录失败会按邮箱在单进程内限流，默认 15 分钟内 5 次失败后返回 `429 LOGIN_RATE_LIMITED`。可通过 `945_AUTH_LOGIN_MAX_ATTEMPTS` 和 `945_AUTH_LOGIN_WINDOW_SECONDS` 调整。
 - 多用户持久化只在 Mongo 模式可用。demo 模式仍是固定的本地演示用户，进程重启后会恢复初始状态。
 
-当前 token 为有时效的 HMAC token，没有刷新与撤销机制，修改密码也不会让旧 token 立刻失效；退出登录只清理客户端本地会话。上线生产前必须替换为可撤销的会话体系、设置高强度 `945_AUTH_SECRET`，并接入 Redis 限流、邮箱验证和密码重置流程。
+当前 token 为有时效的 HMAC token，通过用户会话版本支持退出登录和修改密码后的立即撤销，但没有 refresh token、设备级会话管理或分布式 token 黑名单。上线生产前仍需设置高强度 `945_AUTH_SECRET`，并接入 Redis 限流、邮箱验证和密码重置流程。
+
+## Docker 部署
+
+1. 安装 Docker Desktop，并将 `.env.production.example` 复制为 `.env.production`。
+2. 为 `945_AUTH_SECRET` 设置至少 32 字符的随机值，不能使用示例值。
+3. 在仓库根目录执行：
+
+```powershell
+docker compose up --build -d
+```
+
+客户端服务默认在 `http://127.0.0.1:8080`，Nginx 会将 `/api/*` 和 `/health` 转发到 FastAPI。MongoDB 使用命名卷 `mongo_data` 持久化数据。当前机器没有安装 Docker CLI，因此本轮只完成静态配置和应用测试，尚未执行真实容器启动验证。
 
 ## 验证
 

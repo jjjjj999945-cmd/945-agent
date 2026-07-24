@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 
 from backend.app.api.responses import error, ok
 from backend.app.models.domain import LoginInput, PasswordChangeInput, RegisterInput
-from backend.app.services.auth_service import change_password, get_session, is_login_rate_limited, login, register
+from backend.app.services.auth_service import change_password, get_session, is_login_rate_limited, login, register, revoke_sessions
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -44,3 +44,13 @@ def update_password(input_data: PasswordChangeInput, authorization: str | None =
     if not change_password(user.user_id, input_data):
         return JSONResponse(status_code=400, content=error("PASSWORD_CHANGE_FAILED", "Current password is incorrect or the new password is too short."))
     return ok({"changed": True})
+
+
+@router.post("/logout")
+def logout(authorization: str | None = Header(default=None)) -> object:
+    token = authorization.removeprefix("Bearer ") if authorization and authorization.startswith("Bearer ") else ""
+    user = get_session(token)
+    if user is None:
+        return JSONResponse(status_code=401, content=error("UNAUTHORIZED", "A valid session is required."))
+    revoke_sessions(user.user_id)
+    return ok({"logged_out": True})

@@ -190,6 +190,7 @@ class AuthCredential(ApiModel):
     password_hash: str
     password_salt: str
     created_at: str
+    session_version: int = 1
 
 
 class RegisterInput(ApiModel):

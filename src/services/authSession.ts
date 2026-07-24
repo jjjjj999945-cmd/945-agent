@@ -48,5 +48,12 @@ export const authApi = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: JSON.stringify(input)
     });
+  },
+  logout() {
+    const token = getAccessToken();
+    return authRequest<{ logged_out: true }>("/api/auth/logout", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
   }
 };

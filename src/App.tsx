@@ -50,7 +50,8 @@ export function App() {
     setPath(nextPath);
   }
 
-  function logout() {
+  async function logout() {
+    await authApi.logout();
     clearSession();
     setAuthenticated(false);
     window.history.replaceState({}, "", "/");

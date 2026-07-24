@@ -20,9 +20,9 @@ def _password_hash(password: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 310_000).hex()
 
 
-def _token(user_id: str) -> str:
+def _token(user_id: str, session_version: int) -> str:
     settings = get_settings()
-    payload = {"sub": user_id, "exp": int((datetime.now(UTC) + timedelta(seconds=settings.auth_token_ttl_seconds)).timestamp())}
+    payload = {"sub": user_id, "ver": session_version, "exp": int((datetime.now(UTC) + timedelta(seconds=settings.auth_token_ttl_seconds)).timestamp())}
     encoded = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=")
     signature = hmac.new(settings.auth_secret.get_secret_value().encode(), encoded, hashlib.sha256).digest()
     return f"{encoded.decode()}.{base64.urlsafe_b64encode(signature).rstrip(b'=').decode()}"
@@ -46,7 +46,7 @@ def register(input_data: RegisterInput) -> AuthSession | None:
     else:
         _credentials[email] = credential
         _users[user.user_id] = user
-    return AuthSession(access_token=_token(user.user_id), user=user)
+    return AuthSession(access_token=_token(user.user_id, credential.session_version), user=user)
 
 
 def login(input_data: LoginInput) -> AuthSession | None:
@@ -60,7 +60,7 @@ def login(input_data: LoginInput) -> AuthSession | None:
         return None
     user = store.get_user(credential.user_id) if store else _users.get(credential.user_id)
     _failed_login_attempts.pop(email, None)
-    return AuthSession(access_token=_token(user.user_id), user=user) if user else None
+    return AuthSession(access_token=_token(user.user_id, credential.session_version), user=user) if user else None
 
 
 def is_login_rate_limited(email: str) -> bool:
@@ -86,8 +86,24 @@ def change_password(user_id: str, input_data: PasswordChangeInput) -> bool:
         return False
     if not hmac.compare_digest(credential.password_hash, _password_hash(input_data.current_password, credential.password_salt)):
         return False
-    updated = credential.model_copy(update={"password_salt": secrets.token_hex(16)})
+    updated = credential.model_copy(update={"password_salt": secrets.token_hex(16), "session_version": credential.session_version + 1})
     updated = updated.model_copy(update={"password_hash": _password_hash(input_data.new_password, updated.password_salt)})
+    if store is not None:
+        store.save_credential(updated)
+    else:
+        _credentials[updated.email] = updated
+    return True
+
+
+def revoke_sessions(user_id: str) -> bool:
+    store = _active_repository_store()
+    credential = next((item for item in _credentials.values() if item.user_id == user_id), None) if store is None else None
+    if store is not None:
+        credentials = store.repository.list_models("auth_credentials", AuthCredential, {"user_id": user_id})
+        credential = credentials[0] if credentials else None
+    if credential is None:
+        return False
+    updated = credential.model_copy(update={"session_version": credential.session_version + 1})
     if store is not None:
         store.save_credential(updated)
     else:
@@ -105,6 +121,14 @@ def get_session(token: str) -> User | None:
         if payload["exp"] < int(datetime.now(UTC).timestamp()):
             return None
         store = _active_repository_store()
+        credential = None
+        if store is not None:
+            credentials = store.repository.list_models("auth_credentials", AuthCredential, {"user_id": payload["sub"]})
+            credential = credentials[0] if credentials else None
+        else:
+            credential = next((item for item in _credentials.values() if item.user_id == payload["sub"]), None)
+        if credential is None or payload.get("ver") != credential.session_version:
+            return None
         return store.get_user(payload["sub"]) if store else _users.get(payload["sub"])
     except (KeyError, ValueError, json.JSONDecodeError):
         return None
