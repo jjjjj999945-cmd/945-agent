@@ -12,29 +12,31 @@ def test_get_current_plan_returns_active_demo_plan():
     assert response.status_code == 200
     body = response.json()
     assert body["error"] is None
-    assert body["data"]["plan_id"] == "plan-2026-07-11-demo"
-    assert body["data"]["user_id"] == "demo-user-945"
-    assert body["data"]["goal"] == "body_recomposition"
-    assert body["data"]["status"] == "active"
-    assert body["data"]["start_date"] == "2026-07-11"
-    assert body["data"]["end_date"] == "2026-07-17"
-    assert body["data"]["generated_by"] == "mock"
-    assert body["data"]["workout_plan"]["days"][0]["name"] == "上肢力量"
-    assert body["data"]["workout_plan"]["days"][0]["exercises"][0]["exercise_id"] == "ex-db-press"
-    assert body["data"]["meal_plan"]["daily_targets"] == {
+    assert body["data"]["coverage_status"] == "active_today"
+    plan = body["data"]["plan"]
+    assert plan["plan_id"] == "plan-2026-07-11-demo"
+    assert plan["user_id"] == "demo-user-945"
+    assert plan["goal"] == "body_recomposition"
+    assert plan["status"] == "active"
+    assert plan["start_date"] == "2026-07-11"
+    assert plan["end_date"] == "2026-07-17"
+    assert plan["generated_by"] == "mock"
+    assert plan["workout_plan"]["days"][0]["name"] == "上肢力量"
+    assert plan["workout_plan"]["days"][0]["exercises"][0]["exercise_id"] == "ex-db-press"
+    assert plan["meal_plan"]["daily_targets"] == {
         "calories": 2300,
         "protein_g": 160,
         "carbs_g": 240,
         "fat_g": 70
     }
-    assert body["data"]["meal_plan"]["days"][0]["meals"][0]["meal_id"] == "meal-breakfast-1"
+    assert plan["meal_plan"]["days"][0]["meals"][0]["meal_id"] == "meal-breakfast-1"
 
 
 def test_get_current_plan_accepts_explicit_demo_user():
     response = client.get("/api/plans/current", params={"user_id": "demo-user-945"})
 
     assert response.status_code == 200
-    assert response.json()["data"]["plan_id"] == "plan-2026-07-11-demo"
+    assert response.json()["data"]["plan"]["plan_id"] == "plan-2026-07-11-demo"
 
 
 def test_get_current_plan_rejects_unknown_user():
@@ -53,6 +55,15 @@ def test_get_current_plan_rejects_unknown_user():
     }
 
 
+def test_current_plan_endpoint_returns_expired_state_without_executable_plan(monkeypatch):
+    monkeypatch.setenv("945_REFERENCE_DATE", "2026-07-26")
+
+    response = client.get("/api/plans/current?user_id=demo-user-945")
+
+    assert response.json()["data"]["coverage_status"] == "expired"
+    assert response.json()["data"]["plan"] is None
+
+
 def test_generate_and_accept_plan_replaces_active_plan():
     generated = client.post("/api/plans/generate", json={"user_id": "demo-user-945", "goal": "muscle_gain"})
 
@@ -61,13 +72,13 @@ def test_generate_and_accept_plan_replaces_active_plan():
     assert draft["status"] == "draft"
     assert draft["goal"] == "muscle_gain"
 
-    active_before = client.get("/api/plans/current").json()["data"]
+    active_before = client.get("/api/plans/current").json()["data"]["plan"]
     assert active_before["plan_id"] != draft["plan_id"]
 
     accepted = client.post(f"/api/plans/{draft['plan_id']}/accept", json={"user_id": "demo-user-945"})
     assert accepted.status_code == 200
     assert accepted.json()["data"]["status"] == "active"
-    assert client.get("/api/plans/current").json()["data"]["plan_id"] == draft["plan_id"]
+    assert client.get("/api/plans/current").json()["data"]["plan"]["plan_id"] == draft["plan_id"]
 
 
 def test_generated_plan_applies_goal_specific_training_and_macro_rules():
@@ -157,7 +168,7 @@ def test_generated_plan_respects_equipment_dietary_and_schedule_constraints():
 
 
 def test_confirmed_plan_adjustments_can_skip_workout_swap_exercise_and_swap_meal():
-    original = client.get("/api/plans/current").json()["data"]
+    original = client.get("/api/plans/current").json()["data"]["plan"]
     date = original["workout_plan"]["days"][0]["date"]
     exercise_id = original["workout_plan"]["days"][0]["exercises"][0]["exercise_id"]
     meal_id = original["meal_plan"]["days"][0]["meals"][0]["meal_id"]
@@ -184,7 +195,7 @@ def test_confirmed_plan_adjustments_can_skip_workout_swap_exercise_and_swap_meal
 
 
 def test_confirmed_plan_adjustment_creates_new_active_plan():
-    original = client.get("/api/plans/current").json()["data"]
+    original = client.get("/api/plans/current").json()["data"]["plan"]
     adjusted = client.post(
         f"/api/plans/{original['plan_id']}/adjust",
         json={
@@ -204,11 +215,11 @@ def test_confirmed_plan_adjustment_creates_new_active_plan():
 
 
 def test_plan_adjustment_requires_explicit_confirmation():
-    plan = client.get("/api/plans/current").json()["data"]
+    plan = client.get("/api/plans/current").json()["data"]["plan"]
     response = client.post(
         f"/api/plans/{plan['plan_id']}/adjust",
         json={"user_id": "demo-user-945", "adjustment_type": "reduce_intensity", "reason": "疲劳较高", "confirmed": False},
     )
 
     assert response.status_code == 422
-    assert client.get("/api/plans/current").json()["data"]["plan_id"] == plan["plan_id"]
+    assert client.get("/api/plans/current").json()["data"]["plan"]["plan_id"] == plan["plan_id"]

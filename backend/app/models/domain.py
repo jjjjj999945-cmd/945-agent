@@ -12,6 +12,7 @@ AdviceType = Literal["daily_advice", "weekly_summary", "plan_adjustment", "safet
 RiskLevel = Literal["low", "medium", "high"]
 AdviceStatus = Literal["pending", "accepted", "dismissed", "deferred"]
 PlanStatus = Literal["draft", "active", "archived"]
+PlanCoverageStatus = Literal["active_today", "expired", "none"]
 PlanGenerator = Literal["agent", "mock"]
 CompletionStatus = Literal["planned", "completed", "partially_completed", "skipped"]
 MealLogSource = Literal["planned_meal_confirmation", "manual_entry"]
@@ -182,6 +183,14 @@ class Plan(ApiModel):
     generated_by: PlanGenerator
     created_at: str
     updated_at: str
+
+
+class CurrentPlanResponse(ApiModel):
+    plan: Plan | None
+    coverage_status: PlanCoverageStatus
+
+
+PlanLifecycleState = CurrentPlanResponse
 
 
 class AuthCredential(ApiModel):

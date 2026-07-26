@@ -2,10 +2,12 @@ from copy import deepcopy
 from datetime import date, timedelta
 import re
 
+from backend.app.core.dates import app_date as current_date
 from backend.app.data.demo_data import DEMO_PLAN, DEMO_USER_ID, TODAY_DATE
-from backend.app.models.domain import MacroTargets, MealPlan, MealPlanDay, Plan, PlanAdjustmentInput, PlanGenerateInput, PlannedFood, PlannedMeal, UserProfile, WorkoutPlan, WorkoutPlanDay
+from backend.app.models.domain import CurrentPlanResponse, MacroTargets, MealPlan, MealPlanDay, Plan, PlanAdjustmentInput, PlanGenerateInput, PlannedFood, PlannedMeal, UserProfile, WorkoutPlan, WorkoutPlanDay
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import _active_repository_store, get_current_plan as get_demo_current_plan, get_profile, list_plans, save_plan
+from backend.app.services.plan_lifecycle import current_plan_state
 
 
 def get_current_plan(user_id: str = DEMO_USER_ID) -> Plan | None:
@@ -13,6 +15,12 @@ def get_current_plan(user_id: str = DEMO_USER_ID) -> Plan | None:
     if store:
         return store.get_current_plan(user_id)
     return get_demo_current_plan(user_id)
+
+
+def get_current_plan_response(user_id: str = DEMO_USER_ID) -> CurrentPlanResponse | None:
+    if get_profile(user_id) is None:
+        return None
+    return current_plan_state(get_current_plan(user_id), current_date())
 
 
 def _plan_id(kind: str) -> str:
