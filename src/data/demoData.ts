@@ -6,12 +6,17 @@ import type {
   User,
   UserProfile
 } from "../types/domain";
+import { appToday } from "../services/dateContext";
 
 // HTTP mode replaces this with the authenticated user's ID after a full session reload.
 export const DEMO_USER_ID = window.localStorage.getItem("945.auth.user_id") ?? "demo-user-945";
-export const TODAY_DATE = "2026-07-11";
+const dateAfter = (days: number) => {
+  const value = new Date(`${appToday}T12:00:00`);
+  value.setDate(value.getDate() + days);
+  return value.toISOString().slice(0, 10);
+};
 
-const now = "2026-07-11T00:00:00.000Z";
+const now = `${appToday}T00:00:00.000Z`;
 
 export const demoUser: User = {
   user_id: DEMO_USER_ID,
@@ -41,19 +46,19 @@ export const demoProfile: UserProfile = {
 };
 
 export const demoPlan: Plan = {
-  plan_id: "plan-2026-07-11-demo",
+  plan_id: `plan-${appToday}-demo`,
   user_id: DEMO_USER_ID,
   goal: "body_recomposition",
   status: "active",
-  start_date: "2026-07-11",
-  end_date: "2026-07-17",
+  start_date: appToday,
+  end_date: dateAfter(6),
   generated_by: "mock",
   created_at: now,
   updated_at: now,
   workout_plan: {
     days: [
       {
-        date: TODAY_DATE,
+        date: appToday,
         name: "上肢力量",
         focus: "chest_back_shoulders",
         duration_minutes: 55,
@@ -88,7 +93,7 @@ export const demoPlan: Plan = {
         ]
       },
       {
-        date: "2026-07-13",
+        date: dateAfter(2),
         name: "下肢力量",
         focus: "legs_glutes",
         duration_minutes: 60,
@@ -115,7 +120,7 @@ export const demoPlan: Plan = {
     },
     days: [
       {
-        date: TODAY_DATE,
+        date: appToday,
         meals: [
           {
             meal_id: "meal-breakfast-1",
@@ -216,9 +221,9 @@ export const demoPlan: Plan = {
 };
 
 export const demoAdvice: AgentAdvice = {
-  advice_id: "advice-2026-07-11-1",
+  advice_id: `advice-${appToday}-1`,
   user_id: DEMO_USER_ID,
-  date: TODAY_DATE,
+  date: appToday,
   type: "daily_advice",
   title: "今天保持计划，但降低最后一组强度",
   content:
@@ -234,7 +239,7 @@ export const demoAdvice: AgentAdvice = {
 export const demoWeeklyAdvice: AgentAdvice = {
   advice_id: "advice-weekly-001",
   user_id: DEMO_USER_ID,
-  date: TODAY_DATE,
+  date: appToday,
   type: "weekly_summary",
   title: "本周执行稳定，但恢复信号偏疲劳",
   content: "你完成了大部分训练计划，饮食蛋白质基本达标。建议下周保留力量训练频率，但降低一次高强度腿部训练量。",
@@ -243,24 +248,24 @@ export const demoWeeklyAdvice: AgentAdvice = {
   recommended_actions: ["下周腿部训练减少 2 组", "保持每日蛋白质目标", "睡眠低于 7 小时时降低训练强度"],
   risk_level: "medium",
   accepted_status: "pending",
-  created_at: "2026-07-11T09:00:00.000Z"
+  created_at: `${appToday}T09:00:00.000Z`
 };
 
 export const demoBodyMetrics: BodyMetric[] = [
   {
-    metric_id: "metric-2026-07-05",
+    metric_id: `metric-${dateAfter(-6)}`,
     user_id: DEMO_USER_ID,
-    date: "2026-07-05",
+    date: dateAfter(-6),
     weight_kg: 76.0,
     body_fat_percentage: 18.8,
     waist_cm: 84,
     bmi: 24.8,
-    created_at: "2026-07-05T00:00:00.000Z"
+    created_at: `${dateAfter(-6)}T00:00:00.000Z`
   },
   {
-    metric_id: "metric-2026-07-11",
+    metric_id: `metric-${appToday}`,
     user_id: DEMO_USER_ID,
-    date: TODAY_DATE,
+    date: appToday,
     weight_kg: 75.6,
     body_fat_percentage: 18.5,
     waist_cm: 83,
@@ -270,11 +275,11 @@ export const demoBodyMetrics: BodyMetric[] = [
 ];
 
 export function createInitialTodayData(): TodayResponseData {
-  const todayWorkout = demoPlan.workout_plan.days.find((day) => day.date === TODAY_DATE) ?? null;
-  const todayMealPlan = demoPlan.meal_plan.days.find((day) => day.date === TODAY_DATE);
+  const todayWorkout = demoPlan.workout_plan.days.find((day) => day.date === appToday) ?? null;
+  const todayMealPlan = demoPlan.meal_plan.days.find((day) => day.date === appToday);
 
   return {
-    date: TODAY_DATE,
+    date: appToday,
     user: {
       user_id: demoUser.user_id,
       display_name: demoUser.display_name,

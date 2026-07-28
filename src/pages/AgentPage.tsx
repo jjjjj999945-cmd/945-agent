@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/business/ConfirmDialog";
-import { DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
+import { DEMO_USER_ID } from "../data/demoData";
+import { appToday } from "../services/dateContext";
+import { usePlanContext } from "../contexts/PlanContext";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
 import { saveRecordDraft } from "../services/recordDraft";
@@ -8,6 +10,7 @@ import type { AgentMessage, Locale, RecordDraft, TodayResponseData } from "../ty
 
 export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Locale; pendingDraft?: RecordDraft | null; onDraftHandled?: () => void }) {
   const t = createTranslator(locale);
+  const { currentPlan } = usePlanContext();
   const isChinese = locale === "zh-CN";
   const roleLabels: Record<AgentMessage["role"], string> = {
     agent: isChinese ? "智能教练" : "Agent",
@@ -35,7 +38,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
   }
 
   async function loadTodayContext() {
-    const response = await api.getToday({ user_id: DEMO_USER_ID, date: TODAY_DATE });
+    const response = await api.getToday({ user_id: DEMO_USER_ID, date: appToday });
     if (!response.error) setToday(response.data);
   }
 
@@ -45,7 +48,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       user_id: DEMO_USER_ID,
       locale,
       message: input,
-      context: { current_page: "agent", date: TODAY_DATE }
+      context: { current_page: "agent", date: appToday }
     });
     if (response.error) {
       setNotice(response.error.message);
@@ -62,7 +65,8 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
     setSavingDraft(true);
     const response = await saveRecordDraft(draft, {
       user_id: DEMO_USER_ID,
-      date: TODAY_DATE
+      date: appToday,
+      plan_id: currentPlan?.plan_id
     });
     setSavingDraft(false);
     if (response.error) {

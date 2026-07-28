@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PageLoadState } from "../components/business/PageLoadState";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
+import { usePlanContext } from "../contexts/PlanContext";
 import { api } from "../services/apiClient";
 import type { Locale, Plan, RecordDraft } from "../types/domain";
 
@@ -29,7 +30,7 @@ const adjustmentLabels: Record<Locale, Record<AdjustmentType, string>> = {
 export function PlanPage({ locale, onNavigate, onAgentDraft }: { locale: Locale; onNavigate: (path: string) => void; onAgentDraft: (draft: RecordDraft) => void }) {
   const t = createTranslator(locale);
   const isChinese = locale === "zh-CN";
-  const [activePlan, setActivePlan] = useState<Plan | null>(null);
+  const { currentPlan, refreshPlanState } = usePlanContext();
   const [draft, setDraft] = useState<Plan | null>(null);
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
@@ -39,16 +40,11 @@ export function PlanPage({ locale, onNavigate, onAgentDraft }: { locale: Locale;
   const [replacementName, setReplacementName] = useState("");
   const [reason, setReason] = useState("");
 
-  useEffect(() => { void loadPlan(); }, []);
-
-  async function loadPlan() {
-    const response = await api.getCurrentPlan(DEMO_USER_ID);
-    if (response.error) setNotice(response.error.message);
-    else {
-      setActivePlan(response.data.plan);
-      setTargetDate(response.data.plan?.workout_plan.days[0]?.date ?? response.data.plan?.meal_plan.days[0]?.date ?? "");
+  useEffect(() => {
+    if (!draft) {
+      setTargetDate(currentPlan?.workout_plan.days[0]?.date ?? currentPlan?.meal_plan.days[0]?.date ?? "");
     }
-  }
+  }, [currentPlan, draft]);
 
   async function generate() {
     setSaving(true);
@@ -65,12 +61,12 @@ export function PlanPage({ locale, onNavigate, onAgentDraft }: { locale: Locale;
     const response = await api.acceptPlan({ user_id: DEMO_USER_ID, plan_id: draft.plan_id });
     setSaving(false);
     if (response.error) return setNotice(response.error.message);
-    setActivePlan(response.data);
     setDraft(null);
+    await refreshPlanState();
     setNotice(t("status.saved"));
   }
 
-  const plan = draft ?? activePlan;
+  const plan = draft ?? currentPlan;
   const targetDay = useMemo(() => plan?.workout_plan.days.find((day) => day.date === targetDate), [plan, targetDate]);
   const mealDay = useMemo(() => plan?.meal_plan.days.find((day) => day.date === targetDate), [plan, targetDate]);
   const adjustsMeal = adjustmentType === "swap_meal";

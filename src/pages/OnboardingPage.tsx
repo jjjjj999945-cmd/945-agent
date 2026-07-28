@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
+import { usePlanContext } from "../contexts/PlanContext";
 import { api } from "../services/apiClient";
 import type { ExperienceLevel, Goal, Locale } from "../types/domain";
 
@@ -20,6 +21,7 @@ function toggle(values: string[], value: string) {
 }
 
 export function OnboardingPage({ locale, onNavigate }: OnboardingPageProps) {
+  const { refreshPlanState } = usePlanContext();
   const t = createTranslator(locale);
   const zh = locale === "zh-CN";
   const [age, setAge] = useState(29);
@@ -71,6 +73,7 @@ export function OnboardingPage({ locale, onNavigate }: OnboardingPageProps) {
       setError(accepted.error.message);
       return;
     }
+    await refreshPlanState();
     onNavigate("/");
   }
 

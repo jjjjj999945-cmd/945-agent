@@ -71,12 +71,10 @@ export async function saveRecordDraft(
     const adjustmentType = typeof payload.adjustment_type === "string" ? payload.adjustment_type : "";
     const reason = typeof payload.reason === "string" ? payload.reason.trim() : "";
     if (!adjustmentType || !reason) return fail("INVALID_DRAFT", "Plan adjustment draft is invalid.");
-    const planResponse = await api.getCurrentPlan(context.user_id);
-    if (planResponse.error) return planResponse;
-    if (!planResponse.data.plan) return fail("PLAN_UNAVAILABLE", "Current plan does not cover today.", { coverage_status: planResponse.data.coverage_status });
+    if (!context.plan_id) return fail("PLAN_UNAVAILABLE", "Current plan does not cover today.");
     return api.adjustPlan({
       user_id: context.user_id,
-      plan_id: planResponse.data.plan.plan_id,
+      plan_id: context.plan_id,
       adjustment_type: adjustmentType,
       reason,
       target_date: typeof payload.target_date === "string" ? payload.target_date : context.date,

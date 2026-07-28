@@ -1,6 +1,5 @@
 import {
   DEMO_USER_ID,
-  TODAY_DATE,
   createInitialTodayData,
   demoAdvice,
   demoBodyMetrics,
@@ -30,6 +29,7 @@ import type {
 } from "../types/domain";
 import { fail, ok, type ApiResponse } from "./apiTypes";
 import { appToday } from "./dateContext";
+import { getMockDietPageData, getMockWorkoutPageData } from "./mockPlanLifecycle";
 
 type DailyCheckinInput = Omit<DailyCheckin, "checkin_id" | "created_at" | "updated_at">;
 type WorkoutLogInput = Omit<WorkoutLog, "workout_log_id" | "created_at" | "updated_at">;
@@ -76,7 +76,7 @@ function sumFoods(foods: FoodLog[]) {
 
 function refreshTodayFromLogs() {
   const todayMealTotals = mealLogs
-    .filter((log) => log.date === TODAY_DATE)
+    .filter((log) => log.date === appToday)
     .reduce(
       (total, log) => ({
         calories: total.calories + log.calories,
@@ -97,7 +97,7 @@ function refreshTodayFromLogs() {
       protein_logged_g: Math.max(102, todayMealTotals.protein_g),
       weekly_workouts_completed: Math.max(3, completedWorkouts)
     },
-    daily_checkin: dailyCheckins.find((checkin) => checkin.date === TODAY_DATE) ?? null,
+    daily_checkin: dailyCheckins.find((checkin) => checkin.date === appToday) ?? null,
     latest_advice: demoAdvice
   };
 }
@@ -176,7 +176,7 @@ export const api = {
     refreshTodayFromLogs();
     return ok({
       ...todayData,
-      date: input.date ?? TODAY_DATE
+      date: input.date ?? appToday
     });
   },
 
@@ -184,17 +184,19 @@ export const api = {
     const user = ensureDemoUser(user_id);
     if (user.error) return user;
 
-    const plannedSets = currentPlan.workout_plan.days.reduce(
-      (sum, day) => sum + day.exercises.reduce((inner, exercise) => inner + exercise.sets, 0),
-      0
-    );
+    return getMockWorkoutPageData(getCurrentPlanData(), (plan) => {
+      const plannedSets = plan.workout_plan.days.reduce(
+        (sum, day) => sum + day.exercises.reduce((inner, exercise) => inner + exercise.sets, 0),
+        0
+      );
 
-    return ok({
-      plan: currentPlan,
-      selected_day: currentPlan.workout_plan.days[0],
-      logs: workoutLogs,
-      completion_rate: todayData.status_summary.weekly_workouts_completed / todayData.status_summary.weekly_workouts_planned,
-      weekly_volume_sets: plannedSets
+      return {
+        plan,
+        selected_day: plan.workout_plan.days[0],
+        logs: workoutLogs,
+        completion_rate: todayData.status_summary.weekly_workouts_completed / todayData.status_summary.weekly_workouts_planned,
+        weekly_volume_sets: plannedSets
+      };
     });
   },
 
@@ -202,12 +204,12 @@ export const api = {
     const user = ensureDemoUser(user_id);
     if (user.error) return user;
 
-    return ok({
-      plan: currentPlan,
-      selected_day: currentPlan.meal_plan.days[0],
+    return getMockDietPageData(getCurrentPlanData(), (plan) => ({
+      plan,
+      selected_day: plan.meal_plan.days[0],
       logs: mealLogs,
-      targets: currentPlan.meal_plan.daily_targets
-    });
+      targets: plan.meal_plan.daily_targets
+    }));
   },
 
   async getBodyMetrics(user_id = DEMO_USER_ID): Promise<ApiResponse<BodyPageData>> {

@@ -3,10 +3,12 @@ import { PageLoadState } from "../components/business/PageLoadState";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
+import { usePlanContext } from "../contexts/PlanContext";
 import { authApi, hasSession } from "../services/authSession";
 import type { Goal, Locale, Plan, SettingsData, UnitSystem, UserProfile } from "../types/domain";
 
 export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLocaleChange: (locale: Locale) => void }) {
+  const { refreshPlanState } = usePlanContext();
   const t = createTranslator(locale);
   const isChinese = locale === "zh-CN";
   const [data, setData] = useState<SettingsData | null>(null);
@@ -108,6 +110,7 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
       setNotice(response.error.message);
       return;
     }
+    await refreshPlanState();
     setPlanPreview(null);
     setNotice(isChinese ? "新计划已接受并生效。" : "The new plan is accepted and active.");
   }
