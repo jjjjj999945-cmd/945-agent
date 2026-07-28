@@ -32,6 +32,18 @@ def test_classify_plan_coverage_returns_expired_for_active_plan_ending_before_to
     assert classify_plan_coverage(plan, "2026-07-26") == "expired"
 
 
+def test_classify_plan_coverage_returns_expired_for_draft_plan_covering_today():
+    plan = make_plan(status="draft", start_date="2026-07-26", end_date="2026-08-01")
+
+    assert classify_plan_coverage(plan, "2026-07-26") == "expired"
+
+
+def test_classify_plan_coverage_returns_expired_for_archived_plan_covering_today():
+    plan = make_plan(status="archived", start_date="2026-07-26", end_date="2026-08-01")
+
+    assert classify_plan_coverage(plan, "2026-07-26") == "expired"
+
+
 def test_plan_lifecycle_state_aliases_the_current_plan_response_contract():
     assert getattr(domain, "PlanLifecycleState", None) is domain.CurrentPlanResponse
 
