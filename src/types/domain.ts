@@ -102,6 +102,23 @@ export type Plan = {
   updated_at: string;
 };
 
+export type PlanCoverageStatus = "active_today" | "expired" | "none";
+
+export type CurrentPlanData = {
+  plan: Plan | null;
+  coverage_status: PlanCoverageStatus;
+};
+
+export type PlanContextValue = {
+  profile: UserProfile | null;
+  currentPlan: Plan | null;
+  coverageStatus: PlanCoverageStatus;
+  refreshPlanState: () => Promise<void>;
+  today: string;
+  isLoading: boolean;
+  error: string | null;
+};
+
 export type StatusSummary = {
   weekly_workouts_completed: number;
   weekly_workouts_planned: number;

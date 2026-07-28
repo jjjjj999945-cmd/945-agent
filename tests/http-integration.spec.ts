@@ -118,7 +118,7 @@ test.describe.serial("945 real HTTP integration", () => {
     await page.getByRole("button", { name: "生成计划" }).click();
     await expect(page.getByText("Draft", { exact: true })).toBeVisible();
     const activeDuringDraft = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
-    expect(activeDuringDraft.data.plan_id).toBe(activeBefore.data.plan_id);
+    expect(activeDuringDraft.data.plan.plan_id).toBe(activeBefore.data.plan.plan_id);
 
     const acceptResponse = page.waitForResponse((response) =>
       response.url().includes("/api/plans/") && response.url().endsWith("/accept") && response.request().method() === "POST"
@@ -126,8 +126,8 @@ test.describe.serial("945 real HTTP integration", () => {
     await page.getByRole("button", { name: "接受计划" }).click();
     expect((await acceptResponse).status()).toBe(200);
     const activeAfter = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
-    expect(activeAfter.data.plan_id).not.toBe(activeBefore.data.plan_id);
-    expect(activeAfter.data.status).toBe("active");
+    expect(activeAfter.data.plan.plan_id).not.toBe(activeBefore.data.plan.plan_id);
+    expect(activeAfter.data.plan.status).toBe("active");
   });
 
   test("writes an Agent plan adjustment only after confirmation", async ({ page, request }) => {
@@ -137,13 +137,13 @@ test.describe.serial("945 real HTTP integration", () => {
     await page.getByRole("button", { name: "发送" }).click();
     await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
     const unconfirmed = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
-    expect(unconfirmed.data.plan_id).toBe(before.data.plan_id);
+    expect(unconfirmed.data.plan.plan_id).toBe(before.data.plan.plan_id);
     const adjustResponse = page.waitForResponse((response) => response.url().includes("/adjust") && response.request().method() === "POST");
     await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
     expect((await adjustResponse).status()).toBe(200);
     const after = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
-    expect(after.data.plan_id).not.toBe(before.data.plan_id);
-    expect(after.data.generated_by).toBe("agent");
+    expect(after.data.plan.plan_id).not.toBe(before.data.plan.plan_id);
+    expect(after.data.plan.generated_by).toBe("agent");
   });
 
   test("writes a structured plan-page adjustment only after Agent confirmation", async ({ page, request }) => {
@@ -155,14 +155,14 @@ test.describe.serial("945 real HTTP integration", () => {
     await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
 
     const unconfirmed = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
-    expect(unconfirmed.data.plan_id).toBe(before.data.plan_id);
+    expect(unconfirmed.data.plan.plan_id).toBe(before.data.plan.plan_id);
 
     const adjustResponse = page.waitForResponse((response) => response.url().includes("/adjust") && response.request().method() === "POST");
     await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
     expect((await adjustResponse).status()).toBe(200);
     const after = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
-    expect(after.data.plan_id).not.toBe(before.data.plan_id);
-    expect(after.data.workout_plan.days[0].exercises).toEqual([]);
+    expect(after.data.plan.plan_id).not.toBe(before.data.plan.plan_id);
+    expect(after.data.plan.workout_plan.days[0].exercises).toEqual([]);
   });
 
   test("persists personalization settings before generating a tailored plan preview", async ({ page, request }) => {
@@ -204,7 +204,7 @@ test.describe.serial("945 real HTTP integration", () => {
     await page.getByRole("button", { name: "生成调整草稿" }).click();
     await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
     const unconfirmed = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
-    expect(unconfirmed.data.plan_id).toBe(before.data.plan_id);
+    expect(unconfirmed.data.plan.plan_id).toBe(before.data.plan.plan_id);
   });
 
   test("keeps high-risk Agent input out of draft confirmation", async ({ page }) => {

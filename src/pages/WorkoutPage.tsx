@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { PageLoadState } from "../components/business/PageLoadState";
-import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
+import { DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
 import type { Locale, WorkoutPageData } from "../types/domain";
@@ -41,9 +41,19 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
     const day = data?.selected_day;
     if (!day) return;
 
+    const planResponse = await api.getCurrentPlan(DEMO_USER_ID);
+    if (planResponse.error) {
+      setNotice(planResponse.error.message);
+      return;
+    }
+    if (!planResponse.data.plan) {
+      setNotice("当前计划没有覆盖今天。");
+      return;
+    }
+
     const response = await api.saveWorkoutLog({
       user_id: DEMO_USER_ID,
-      plan_id: demoPlan.plan_id,
+      plan_id: planResponse.data.plan.plan_id,
       date: TODAY_DATE,
       status: "completed",
       duration_minutes: day.duration_minutes,

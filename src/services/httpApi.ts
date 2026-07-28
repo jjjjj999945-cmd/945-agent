@@ -2,7 +2,6 @@ import {
   DEMO_USER_ID,
   TODAY_DATE,
   demoBodyMetrics,
-  demoPlan,
   demoProfile
 } from "../data/demoData";
 import type {
@@ -11,6 +10,7 @@ import type {
   AgentMessage,
   BodyMetric,
   BodyPageData,
+  CurrentPlanData,
   DailyCheckin,
   DietPageData,
   FoodLog,
@@ -119,7 +119,7 @@ function patch<T>(path: string, body: unknown) {
 }
 
 async function getCurrentPlan(user_id = DEMO_USER_ID) {
-  return request<typeof demoPlan>(withQuery("/api/plans/current", { user_id }));
+  return request<CurrentPlanData>(withQuery("/api/plans/current", { user_id }));
 }
 
 async function getWorkoutLogs(user_id = DEMO_USER_ID) {
@@ -136,7 +136,7 @@ function getLatestMetric(metrics: BodyMetric[]) {
 }
 
 export const httpApi = {
-  async getCurrentPlan(user_id = DEMO_USER_ID): Promise<ApiResponse<Plan>> {
+  async getCurrentPlan(user_id = DEMO_USER_ID): Promise<ApiResponse<CurrentPlanData>> {
     return getCurrentPlan(user_id);
   },
 
@@ -188,19 +188,22 @@ export const httpApi = {
       getWorkoutLogs(user_id),
       this.getToday({ user_id, date: TODAY_DATE })
     ]);
-    if (planResponse.error) return planResponse;
-    if (logsResponse.error) return logsResponse;
-    if (todayResponse.error) return todayResponse;
+    if (planResponse.error) return fail<WorkoutPageData>(planResponse.error.code, planResponse.error.message, planResponse.error.details);
+    if (logsResponse.error) return fail<WorkoutPageData>(logsResponse.error.code, logsResponse.error.message, logsResponse.error.details);
+    if (todayResponse.error) return fail<WorkoutPageData>(todayResponse.error.code, todayResponse.error.message, todayResponse.error.details);
 
-    const plannedSets = planResponse.data.workout_plan.days.reduce(
+    const plan = planResponse.data.plan;
+    if (!plan) return fail<WorkoutPageData>("PLAN_UNAVAILABLE", "Current plan does not cover today.", { coverage_status: planResponse.data.coverage_status });
+
+    const plannedSets = plan.workout_plan.days.reduce(
       (sum, day) => sum + day.exercises.reduce((inner, exercise) => inner + exercise.sets, 0),
       0
     );
 
     return {
       data: {
-        plan: planResponse.data,
-        selected_day: planResponse.data.workout_plan.days[0],
+        plan,
+        selected_day: plan.workout_plan.days[0],
         logs: logsResponse.data,
         completion_rate:
           todayResponse.data.status_summary.weekly_workouts_completed /
@@ -213,15 +216,18 @@ export const httpApi = {
 
   async getDiet(user_id = DEMO_USER_ID): Promise<ApiResponse<DietPageData>> {
     const [planResponse, logsResponse] = await Promise.all([getCurrentPlan(user_id), getMealLogs(user_id)]);
-    if (planResponse.error) return planResponse;
-    if (logsResponse.error) return logsResponse;
+    if (planResponse.error) return fail<DietPageData>(planResponse.error.code, planResponse.error.message, planResponse.error.details);
+    if (logsResponse.error) return fail<DietPageData>(logsResponse.error.code, logsResponse.error.message, logsResponse.error.details);
+
+    const plan = planResponse.data.plan;
+    if (!plan) return fail<DietPageData>("PLAN_UNAVAILABLE", "Current plan does not cover today.", { coverage_status: planResponse.data.coverage_status });
 
     return {
       data: {
-        plan: planResponse.data,
-        selected_day: planResponse.data.meal_plan.days[0],
+        plan,
+        selected_day: plan.meal_plan.days[0],
         logs: logsResponse.data,
-        targets: planResponse.data.meal_plan.daily_targets
+        targets: plan.meal_plan.daily_targets
       },
       error: null
     };

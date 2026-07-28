@@ -45,8 +45,8 @@ export function PlanPage({ locale, onNavigate, onAgentDraft }: { locale: Locale;
     const response = await api.getCurrentPlan(DEMO_USER_ID);
     if (response.error) setNotice(response.error.message);
     else {
-      setActivePlan(response.data);
-      setTargetDate(response.data.workout_plan.days[0]?.date ?? response.data.meal_plan.days[0]?.date ?? "");
+      setActivePlan(response.data.plan);
+      setTargetDate(response.data.plan?.workout_plan.days[0]?.date ?? response.data.plan?.meal_plan.days[0]?.date ?? "");
     }
   }
 

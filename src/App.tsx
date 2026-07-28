@@ -11,9 +11,10 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { TodayPage } from "./pages/TodayPage";
 import { WorkoutPage } from "./pages/WorkoutPage";
 import { AuthPage } from "./pages/AuthPage";
+import { PlanProvider, usePlanContext } from "./contexts/PlanContext";
 import { getRouteByPath, isPrototypePath, type RouteId } from "./routes";
 import type { Locale, RecordDraft } from "./types/domain";
-import { authApi, clearSession, hasSession } from "./services/authSession";
+import { authApi, clearSession, getCurrentUserId, hasSession } from "./services/authSession";
 
 export function App() {
   const [locale, setLocale] = useState<Locale>("zh-CN");
@@ -66,9 +67,53 @@ export function App() {
 
   return (
     <AppShell activeRoute={route.id} locale={locale} onLocaleChange={setLocale} onNavigate={navigate} onLogout={httpMode ? logout : undefined}>
-      {renderPage(route.id, locale, navigate, setLocale, agentDraft, setAgentDraft)}
+      <PlanProvider userId={getCurrentUserId("demo-user-945")}>
+        <PlanAwarePage
+          routeId={route.id}
+          locale={locale}
+          navigate={navigate}
+          onLocaleChange={setLocale}
+          agentDraft={agentDraft}
+          onAgentDraftChange={setAgentDraft}
+        />
+      </PlanProvider>
     </AppShell>
   );
+}
+
+function PlanAwarePage({
+  routeId,
+  locale,
+  navigate,
+  onLocaleChange,
+  agentDraft,
+  onAgentDraftChange
+}: {
+  routeId: RouteId;
+  locale: Locale;
+  navigate: (path: string) => void;
+  onLocaleChange: (locale: Locale) => void;
+  agentDraft: RecordDraft | null;
+  onAgentDraftChange: (draft: RecordDraft | null) => void;
+}) {
+  const { coverageStatus, isLoading } = usePlanContext();
+
+  if (routeId === "today" && !isLoading && coverageStatus !== "active_today") {
+    return (
+      <div className="business-page">
+        <header className="page-header">
+          <p>945</p>
+          <h1>当前计划没有覆盖今天</h1>
+          <span>完成资料建档并启用新计划后，今天的训练和饮食安排会显示在这里。</span>
+        </header>
+        <section className="business-panel compact">
+          <button onClick={() => navigate("/onboarding")} type="button">开始创建计划</button>
+        </section>
+      </div>
+    );
+  }
+
+  return renderPage(routeId, locale, navigate, onLocaleChange, agentDraft, onAgentDraftChange);
 }
 
 function renderPage(

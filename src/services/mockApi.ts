@@ -15,6 +15,7 @@ import type {
   AgentAdvice,
   BodyMetric,
   BodyPageData,
+  CurrentPlanData,
   DailyCheckin,
   DietPageData,
   FoodLog,
@@ -28,6 +29,7 @@ import type {
   WorkoutLog
 } from "../types/domain";
 import { fail, ok, type ApiResponse } from "./apiTypes";
+import { appToday } from "./dateContext";
 
 type DailyCheckinInput = Omit<DailyCheckin, "checkin_id" | "created_at" | "updated_at">;
 type WorkoutLogInput = Omit<WorkoutLog, "workout_log_id" | "created_at" | "updated_at">;
@@ -100,11 +102,22 @@ function refreshTodayFromLogs() {
   };
 }
 
+function getCurrentPlanData(): CurrentPlanData {
+  const coverageStatus =
+    currentPlan.status === "active" && currentPlan.start_date <= appToday && appToday <= currentPlan.end_date
+      ? "active_today"
+      : "expired";
+  return {
+    plan: coverageStatus === "active_today" ? currentPlan : null,
+    coverage_status: coverageStatus
+  };
+}
+
 export const api = {
-  async getCurrentPlan(user_id = DEMO_USER_ID): Promise<ApiResponse<Plan>> {
+  async getCurrentPlan(user_id = DEMO_USER_ID): Promise<ApiResponse<CurrentPlanData>> {
     const user = ensureDemoUser(user_id);
     if (user.error) return user;
-    return ok(currentPlan);
+    return ok(getCurrentPlanData());
   },
 
   async generatePlan(input: { user_id: string; goal?: Plan["goal"] }): Promise<ApiResponse<Plan>> {
@@ -171,14 +184,14 @@ export const api = {
     const user = ensureDemoUser(user_id);
     if (user.error) return user;
 
-    const plannedSets = demoPlan.workout_plan.days.reduce(
+    const plannedSets = currentPlan.workout_plan.days.reduce(
       (sum, day) => sum + day.exercises.reduce((inner, exercise) => inner + exercise.sets, 0),
       0
     );
 
     return ok({
-      plan: demoPlan,
-      selected_day: demoPlan.workout_plan.days[0],
+      plan: currentPlan,
+      selected_day: currentPlan.workout_plan.days[0],
       logs: workoutLogs,
       completion_rate: todayData.status_summary.weekly_workouts_completed / todayData.status_summary.weekly_workouts_planned,
       weekly_volume_sets: plannedSets
@@ -190,10 +203,10 @@ export const api = {
     if (user.error) return user;
 
     return ok({
-      plan: demoPlan,
-      selected_day: demoPlan.meal_plan.days[0],
+      plan: currentPlan,
+      selected_day: currentPlan.meal_plan.days[0],
       logs: mealLogs,
-      targets: demoPlan.meal_plan.daily_targets
+      targets: currentPlan.meal_plan.daily_targets
     });
   },
 
@@ -353,7 +366,7 @@ export const api = {
     const user = ensureDemoUser(input.user_id);
     if (user.error) return user;
 
-    const day = demoPlan.meal_plan.days.find((item) => item.date === input.date);
+    const day = currentPlan.meal_plan.days.find((item) => item.date === input.date);
     const meal = day?.meals.find((item) => item.meal_id === input.meal_id);
     if (!meal) {
       return fail("NOT_FOUND", "Planned meal not found.", input);

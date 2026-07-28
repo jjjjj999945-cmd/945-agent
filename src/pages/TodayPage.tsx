@@ -3,7 +3,7 @@ import { ConfirmDialog } from "../components/business/ConfirmDialog";
 import { MetricCard } from "../components/business/MetricCard";
 import { PageLoadState } from "../components/business/PageLoadState";
 import { ProgressBar } from "../components/business/ProgressBar";
-import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
+import { DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
 import { saveRecordDraft } from "../services/recordDraft";
@@ -105,11 +105,29 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
     [meals]
   );
 
+  async function getActivePlanId() {
+    const planResponse = await api.getCurrentPlan(DEMO_USER_ID);
+    if (planResponse.error) {
+      setNotice(planResponse.error.message);
+      return null;
+    }
+    if (!planResponse.data.plan) {
+      setNotice("当前计划没有覆盖今天。");
+      return null;
+    }
+    return planResponse.data.plan.plan_id;
+  }
+
   async function confirmMeal(meal: PlannedMeal) {
     setSaving(true);
+    const planId = await getActivePlanId();
+    if (!planId) {
+      setSaving(false);
+      return;
+    }
     const response = await api.confirmPlannedMeal({
       user_id: DEMO_USER_ID,
-      plan_id: demoPlan.plan_id,
+      plan_id: planId,
       date: TODAY_DATE,
       meal_id: meal.meal_id
     });
@@ -173,10 +191,15 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   async function confirmRecordDraft() {
     if (!recordDraft) return;
     setSaving(true);
+    const planId = await getActivePlanId();
+    if (!planId) {
+      setSaving(false);
+      return;
+    }
     const response = await saveRecordDraft(recordDraft, {
       user_id: DEMO_USER_ID,
       date: TODAY_DATE,
-      plan_id: demoPlan.plan_id
+      plan_id: planId
     });
     setSaving(false);
     if (response.error) {
