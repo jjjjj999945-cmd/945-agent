@@ -80,6 +80,8 @@ class RepositoryBackedStore:
         profile = deepcopy(INITIAL_PROFILE).model_copy(update={
             "profile_id": f"profile-{user.user_id}",
             "user_id": user.user_id,
+            "safety_confirmed": False,
+            "safety_confirmed_at": None,
             "updated_at": user.updated_at,
         })
         self.repository.upsert_model("user_profiles", profile, id_field=COLLECTION_IDS["user_profiles"])
@@ -121,6 +123,8 @@ class RepositoryBackedStore:
             dietary_preferences=input_data.dietary_preferences,
             allergies=input_data.allergies,
             constraints=input_data.constraints,
+            safety_confirmed=input_data.safety_confirmed,
+            safety_confirmed_at=now if input_data.safety_confirmed else None,
             updated_at=now
         )
         self.repository.upsert_model("users", user, id_field=COLLECTION_IDS["users"])
@@ -131,7 +135,11 @@ class RepositoryBackedStore:
         profile = self.get_profile(user_id)
         if profile is None:
             return None
-        updated = profile.model_copy(update={**input_data.model_dump(exclude_unset=True), "updated_at": timestamp()})
+        now = timestamp()
+        updates = input_data.model_dump(exclude_unset=True)
+        if "safety_confirmed" in updates:
+            updates["safety_confirmed_at"] = now if updates["safety_confirmed"] else None
+        updated = profile.model_copy(update={**updates, "updated_at": now})
         self.repository.upsert_model("user_profiles", updated, id_field=COLLECTION_IDS["user_profiles"])
         return updated
 

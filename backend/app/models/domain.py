@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 
 
 Locale = Literal["zh-CN", "en-US"]
@@ -47,7 +47,36 @@ class UserProfile(ApiModel):
     dietary_preferences: list[str]
     allergies: list[str]
     constraints: list[str]
+    safety_confirmed: bool = False
+    safety_confirmed_at: str | None = None
     updated_at: str
+
+    @computed_field
+    @property
+    def missing_fields(self) -> list[str]:
+        required_values = {
+            "age": self.age,
+            "height_cm": self.height_cm,
+            "weight_kg": self.weight_kg,
+            "goal": self.goal,
+            "experience_level": self.experience_level,
+            "training_days_per_week": self.training_days_per_week,
+            "training_duration_minutes": self.training_duration_minutes,
+            "allergies": self.allergies,
+        }
+        missing = [name for name, value in required_values.items() if value is None]
+        if not self.equipment:
+            missing.append("equipment")
+        if not self.dietary_preferences:
+            missing.append("dietary_preferences")
+        if not self.safety_confirmed:
+            missing.append("safety_confirmed")
+        return missing
+
+    @computed_field
+    @property
+    def profile_completion(self) -> Literal["complete", "incomplete"]:
+        return "complete" if not self.missing_fields else "incomplete"
 
 
 class ProfileCreateInput(ApiModel):
@@ -67,6 +96,7 @@ class ProfileCreateInput(ApiModel):
     constraints: list[str]
     locale: Locale
     unit_system: UnitSystem
+    safety_confirmed: bool = False
 
 
 class ProfilePatchInput(ApiModel):
@@ -82,6 +112,7 @@ class ProfilePatchInput(ApiModel):
     dietary_preferences: list[str] | None = None
     allergies: list[str] | None = None
     constraints: list[str] | None = None
+    safety_confirmed: bool | None = None
 
 
 class SettingsData(ApiModel):

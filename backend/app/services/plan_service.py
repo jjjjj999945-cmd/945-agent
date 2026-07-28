@@ -10,6 +10,11 @@ from backend.app.services.demo_store import _active_repository_store, get_curren
 from backend.app.services.plan_lifecycle import current_plan_state
 
 
+class ProfileIncompleteError(Exception):
+    def __init__(self, missing_fields: list[str]):
+        self.missing_fields = missing_fields
+
+
 def get_current_plan(user_id: str = DEMO_USER_ID) -> Plan | None:
     store = _active_repository_store()
     if store:
@@ -195,6 +200,8 @@ def generate_plan(input_data: PlanGenerateInput) -> Plan | None:
     profile = get_profile(input_data.user_id)
     if profile is None:
         return None
+    if profile.profile_completion == "incomplete":
+        raise ProfileIncompleteError(profile.missing_fields)
     # A newly registered user has a profile but no accepted plan yet. Start from
     # the deterministic template and still persist the result as a user-owned draft.
     if current is None:

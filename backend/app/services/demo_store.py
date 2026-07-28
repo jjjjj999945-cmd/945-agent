@@ -137,6 +137,8 @@ def save_profile(input_data: ProfileCreateInput) -> UserProfile | None:
         dietary_preferences=input_data.dietary_preferences,
         allergies=input_data.allergies,
         constraints=input_data.constraints,
+        safety_confirmed=input_data.safety_confirmed,
+        safety_confirmed_at=now if input_data.safety_confirmed else None,
         updated_at=now
     )
     return current_profile
@@ -151,8 +153,11 @@ def update_profile(user_id: str, input_data: ProfilePatchInput) -> UserProfile |
     if not is_demo_user(user_id):
         return None
 
+    now = timestamp()
     updates = input_data.model_dump(exclude_unset=True)
-    current_profile = current_profile.model_copy(update={**updates, "updated_at": timestamp()})
+    if "safety_confirmed" in updates:
+        updates["safety_confirmed_at"] = now if updates["safety_confirmed"] else None
+    current_profile = current_profile.model_copy(update={**updates, "updated_at": now})
     return current_profile
 
 
@@ -191,6 +196,8 @@ def update_settings(input_data: SettingsPatchInput) -> SettingsData | None:
 
     if input_data.profile is not None:
         updates = input_data.profile.model_dump(exclude_unset=True)
+        if "safety_confirmed" in updates:
+            updates["safety_confirmed_at"] = now if updates["safety_confirmed"] else None
         current_profile = current_profile.model_copy(update={**updates, "updated_at": now})
 
     return get_settings(input_data.user_id)

@@ -19,6 +19,8 @@ INITIAL_PROFILE = UserProfile(
     dietary_preferences=["high_protein"],
     allergies=[],
     constraints=["busy_weekdays"],
+    safety_confirmed=True,
+    safety_confirmed_at=NOW,
     updated_at=NOW
 )
 

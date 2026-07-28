@@ -55,3 +55,14 @@ def test_current_plan_endpoint_returns_none_state_instead_of_404_when_user_has_n
 
     assert response.status_code == 200
     assert response.json()["data"] == {"plan": None, "coverage_status": "none"}
+
+
+def test_generate_plan_rejects_incomplete_profile():
+    client.patch("/api/profile/demo-user-945", json={"safety_confirmed": False})
+
+    response = client.post("/api/plans/generate", json={"user_id": "demo-user-945"})
+
+    assert response.status_code == 409
+    error = response.json()["error"]
+    assert error["code"] == "PROFILE_INCOMPLETE"
+    assert "safety_confirmed" in error["details"]["missing_fields"]

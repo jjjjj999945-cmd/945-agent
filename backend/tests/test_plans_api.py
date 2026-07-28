@@ -147,7 +147,7 @@ def test_generated_plan_respects_equipment_dietary_and_schedule_constraints():
     profile = client.patch(
         "/api/profile/demo-user-945",
         json={
-            "equipment": [],
+            "equipment": ["resistance_bands"],
             "dietary_preferences": ["vegetarian"],
             "allergies": ["dairy", "gluten", "seafood"],
             "constraints": ["busy_weekdays"],

@@ -82,6 +82,16 @@ def test_mongo_session_isolates_two_users(monkeypatch):
         assert client.post("/api/workout-logs", json=payload, headers=alice_headers).status_code == 200
         assert client.get(f"/api/workout-logs?user_id={first['user']['user_id']}", headers=bob_headers).status_code == 403
         assert client.get(f"/api/workout-logs?user_id={second['user']['user_id']}", headers=bob_headers).json()["data"] == []
+        incomplete_plan = client.post("/api/plans/generate", json={"user_id": first["user"]["user_id"]}, headers=alice_headers)
+        assert incomplete_plan.status_code == 409
+        assert incomplete_plan.json()["error"]["code"] == "PROFILE_INCOMPLETE"
+        confirmed = client.patch(
+            f"/api/profile/{first['user']['user_id']}",
+            json={"safety_confirmed": True},
+            headers=alice_headers,
+        )
+        assert confirmed.status_code == 200
+
         plan = client.post("/api/plans/generate", json={"user_id": first["user"]["user_id"]}, headers=alice_headers)
         assert plan.status_code == 200
         assert plan.json()["data"]["user_id"] == first["user"]["user_id"]

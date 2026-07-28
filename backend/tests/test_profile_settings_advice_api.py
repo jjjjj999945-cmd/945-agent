@@ -34,6 +34,34 @@ def test_get_and_patch_profile_for_demo_user():
     assert updated["updated_at"]
 
 
+def test_profile_requires_safety_confirmation_before_it_is_complete():
+    response = client.patch("/api/profile/demo-user-945", json={"safety_confirmed": False})
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["profile_completion"] == "incomplete"
+    assert "safety_confirmed" in data["missing_fields"]
+
+
+def test_profile_returns_complete_after_required_fields_and_safety_confirmation():
+    response = client.patch("/api/profile/demo-user-945", json={"safety_confirmed": True})
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["profile_completion"] == "complete"
+    assert data["safety_confirmed_at"] is not None
+
+
+def test_profile_clears_safety_confirmation_timestamp_when_confirmation_is_revoked():
+    confirmed = client.patch("/api/profile/demo-user-945", json={"safety_confirmed": True})
+    assert confirmed.json()["data"]["safety_confirmed_at"] is not None
+
+    revoked = client.patch("/api/profile/demo-user-945", json={"safety_confirmed": False})
+
+    assert revoked.status_code == 200
+    assert revoked.json()["data"]["safety_confirmed_at"] is None
+
+
 def test_post_profile_overwrites_demo_profile():
     response = client.post(
         "/api/profile",
