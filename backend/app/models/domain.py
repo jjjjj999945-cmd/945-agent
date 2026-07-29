@@ -372,6 +372,22 @@ class AgentMessage(ApiModel):
     created_at: str
 
 
+class AgentRun(ApiModel):
+    agent_run_id: str
+    user_id: str
+    status: Literal["completed", "failed"]
+    started_at: str
+    completed_at: str
+    duration_ms: float
+    provider: str | None = None
+    model: str | None = None
+    intent: str | None = None
+    draft_type: str | None = None
+    degraded: bool = False
+    degraded_reason: str | None = None
+    error_code: str | None = None
+
+
 class UserMemorySummary(ApiModel):
     summary_id: str
     user_id: str

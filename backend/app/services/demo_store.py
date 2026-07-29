@@ -7,6 +7,7 @@ from backend.app.models.domain import (
     AdviceStatus,
     AgentAdvice,
     AgentMessage,
+    AgentRun,
     BodyMetric,
     BodyMetricInput,
     ConfirmPlannedMealInput,
@@ -41,6 +42,7 @@ meal_logs: list[MealLog] = []
 body_metrics: list[BodyMetric] = []
 daily_checkins: list[DailyCheckin] = []
 agent_messages: list[AgentMessage] = []
+agent_runs: list[AgentRun] = []
 user_memory_summaries: list[UserMemorySummary] = []
 _repository_store_override: RepositoryBackedStore | None = None
 _repository_store: RepositoryBackedStore | None = None
@@ -77,6 +79,7 @@ def reset_demo_store() -> None:
     body_metrics.clear()
     daily_checkins.clear()
     agent_messages.clear()
+    agent_runs.clear()
     user_memory_summaries.clear()
 
 
@@ -264,6 +267,23 @@ def list_agent_messages(user_id: str) -> list[AgentMessage] | None:
         return None
 
     return [message for message in agent_messages if message.user_id == user_id]
+
+
+def save_agent_run(run: AgentRun) -> AgentRun:
+    store = _active_repository_store()
+    if store:
+        return store.save_agent_run(run)
+    agent_runs.append(run)
+    return run
+
+
+def list_agent_runs(user_id: str) -> list[AgentRun] | None:
+    store = _active_repository_store()
+    if store:
+        return store.list_agent_runs(user_id)
+    if not is_demo_user(user_id):
+        return None
+    return [run for run in agent_runs if run.user_id == user_id]
 
 
 def get_current_plan(user_id: str) -> Plan | None:

@@ -40,6 +40,10 @@ def test_demo_store_delegates_to_repository_store_in_mongo_mode(monkeypatch):
         assert demo_store.list_workout_logs(DEMO_USER_ID)[0].workout_log_id == saved.workout_log_id
         assert reply.record_draft.type == "workout_log"
         assert [message.role for message in demo_store.list_agent_messages(DEMO_USER_ID)] == ["user", "agent"]
+        runs = demo_store.list_agent_runs(DEMO_USER_ID)
+        assert len(runs) == 1
+        assert runs[0].status == "completed"
+        assert runs[0].draft_type == "workout_log"
     finally:
         demo_store.set_repository_store_for_tests(None)
         monkeypatch.delenv("945_STORAGE_BACKEND", raising=False)
