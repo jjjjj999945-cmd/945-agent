@@ -1,8 +1,10 @@
+from datetime import UTC, datetime, timedelta
 from time import perf_counter
 from uuid import uuid4
 
 from backend.app.agents.graph import run_agent_graph
-from backend.app.llm.errors import LLMError
+from backend.app.core.config import get_settings
+from backend.app.llm.errors import AgentUsageLimitError, LLMError
 from backend.app.llm.factory import LLMProviderRouter
 from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRetryInput, AgentRun
 from backend.app.services.demo_seed import timestamp
@@ -15,6 +17,27 @@ from backend.app.services.demo_store import (
 )
 
 
+def _parse_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _enforce_agent_run_limit(user_id: str) -> None:
+    max_runs = get_settings().agent_max_runs_per_hour
+    if max_runs <= 0:
+        return
+    threshold = datetime.now(UTC) - timedelta(hours=1)
+    recent_runs = [
+        run
+        for run in list_agent_runs(user_id) or []
+        if _parse_timestamp(run.started_at) >= threshold
+    ]
+    if len(recent_runs) >= max_runs:
+        raise AgentUsageLimitError(
+            "The hourly Agent usage limit has been reached.",
+            http_attempts=0,
+        )
+
+
 async def create_agent_reply(
     input_data: AgentChatInput,
     *,
@@ -24,6 +47,7 @@ async def create_agent_reply(
     if not is_demo_user(input_data.user_id):
         return None
 
+    _enforce_agent_run_limit(input_data.user_id)
     existing = list_agent_messages(input_data.user_id) or []
     request_id = uuid4().hex
     started_at = timestamp()

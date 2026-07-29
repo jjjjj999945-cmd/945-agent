@@ -160,7 +160,10 @@ POST /api/agent/runs/{agent_run_id}/retry
 ```powershell
 $env:945_APP_ENV="development"
 $env:945_LLM_PROVIDER="deterministic"
+$env:945_AGENT_MAX_RUNS_PER_HOUR="30"
 ```
+
+`945_AGENT_MAX_RUNS_PER_HOUR` 是每个用户的进程内每小时 Agent 调用上限；设为 `0` 可关闭。超过上限时接口返回 `429 AGENT_USAGE_LIMIT`，不会调用 Provider 或写入业务记录。
 
 开发环境启用真实 OpenAI：
 

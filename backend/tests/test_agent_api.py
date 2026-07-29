@@ -132,6 +132,23 @@ def test_agent_chat_high_risk_input_returns_safety_reply_without_draft():
     assert "专业人士" in data["content"]
 
 
+def test_agent_chat_enforces_per_user_hourly_run_limit(monkeypatch):
+    monkeypatch.setenv("945_AGENT_MAX_RUNS_PER_HOUR", "1")
+    _clear_llm_caches()
+    payload = {
+        "user_id": "demo-user-945",
+        "locale": "en-US",
+        "message": "How should I warm up before a squat session?",
+    }
+
+    assert client.post("/api/agent/chat", json=payload).status_code == 200
+    response = client.post("/api/agent/chat", json=payload)
+
+    assert response.status_code == 429
+    assert response.json()["error"]["code"] == "AGENT_USAGE_LIMIT"
+    assert len(demo_store.list_agent_runs("demo-user-945")) == 1
+
+
 def test_get_agent_messages_returns_user_and_agent_messages():
     client.post(
         "/api/agent/chat",
