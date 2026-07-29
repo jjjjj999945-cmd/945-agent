@@ -27,6 +27,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
   const [input, setInput] = useState("");
   const [draft, setDraft] = useState<RecordDraft | null>(null);
   const [notice, setNotice] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
 
   useEffect(() => {
@@ -49,21 +50,28 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
   }
 
   async function send() {
-    if (!input.trim()) return;
-    const response = await api.sendAgentMessage({
-      user_id: DEMO_USER_ID,
-      locale,
-      message: input,
-      context: { current_page: "agent", date: appToday }
-    });
-    if (response.error) {
-      setNotice(response.error.message);
-      return;
+    if (!input.trim() || isSending) return;
+    setNotice("");
+    setIsSending(true);
+    try {
+      const response = await api.sendAgentMessage({
+        user_id: DEMO_USER_ID,
+        locale,
+        message: input,
+        context: { current_page: "agent", date: appToday }
+      });
+      if (response.error) {
+        setNotice(response.error.message);
+        return;
+      }
+      setDraft(response.data.record_draft ?? null);
+      setInput("");
+      await loadMessages();
+      setMessages((current) => current.some((message) => message.message_id === response.data.message_id) ? current : [...current, response.data]);
+      await loadTodayContext();
+    } finally {
+      setIsSending(false);
     }
-    setDraft(response.data.record_draft ?? null);
-    setInput("");
-    await loadMessages();
-    await loadTodayContext();
   }
 
   async function confirmDraft() {
@@ -148,13 +156,13 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
             onChange={(event) => setInput(event.target.value)}
             placeholder={t("agent.inputPlaceholder")}
           />
-          <button onClick={() => void send()} type="button">{t("actions.send")}</button>
+          <button disabled={isSending} onClick={() => void send()} type="button">{t("actions.send")}</button>
         </div>
       </article>
       <aside className="agent-status-panel">
-        <article className="business-panel compact">
-          <div className="section-heading"><span>{isChinese ? "教练状态" : "Agent Status"}</span><strong>{isChinese ? "在线" : "Active"}</strong></div>
-          <small>{isChinese ? "上下文：当前计划、训练记录、饮食记录、每日打卡与建议。" : "Context: active plan, workout records, meal records, check-ins, and advice."}</small>
+        <article aria-live="polite" className="business-panel compact" role="status">
+          <div className="section-heading"><span>{isChinese ? "教练状态" : "Agent Status"}</span><strong>{isSending ? (isChinese ? "分析中" : "Analyzing") : (isChinese ? "在线" : "Active")}</strong></div>
+          <small>{isSending ? (isChinese ? "正在读取当前上下文并生成建议" : "Reading your current context and preparing a suggestion.") : (isChinese ? "上下文：当前计划、训练记录、饮食记录、每日打卡与建议。" : "Context: active plan, workout records, meal records, check-ins, and advice.")}</small>
         </article>
         <article className="business-panel plan-draft-card">
           <div className="section-heading"><span>{isChinese ? "今日训练" : "Today's workout"}</span><strong>{today?.today_workout ? `${today.today_workout.duration_minutes} ${t("metrics.durationMinutes")}` : "-"}</strong></div>
