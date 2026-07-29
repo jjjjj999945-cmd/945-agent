@@ -47,7 +47,8 @@ async def create_agent_reply(
                 started_at=started_at,
                 completed_at=timestamp(),
                 duration_ms=round((perf_counter() - started_clock) * 1000, 2),
-                error_code=exc.code,
+            error_code=exc.code,
+            http_attempts=exc.http_attempts,
                 retry_input=AgentRetryInput(
                     message=input_data.message,
                     locale=input_data.locale,
@@ -90,6 +91,10 @@ async def create_agent_reply(
             draft_type=(graph_result.record_draft.type if graph_result.record_draft else None),
             degraded=graph_result.degraded,
             degraded_reason=graph_result.degraded_reason,
+            input_tokens=graph_result.usage.input_tokens,
+            output_tokens=graph_result.usage.output_tokens,
+            logical_generations=graph_result.usage.logical_generations,
+            http_attempts=graph_result.usage.http_attempts,
             retry_of_agent_run_id=retry_of_agent_run_id,
         )
     )

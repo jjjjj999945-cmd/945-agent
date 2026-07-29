@@ -396,6 +396,10 @@ class AgentRun(ApiModel):
     degraded: bool = False
     degraded_reason: str | None = None
     error_code: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    logical_generations: int = 0
+    http_attempts: int = 0
     retry_input: AgentRetryInput | None = None
     retry_of_agent_run_id: str | None = None
 
@@ -406,6 +410,10 @@ class AgentRunMetrics(ApiModel):
     failed_runs: int
     success_rate: float
     average_duration_ms: float
+    total_input_tokens: int
+    total_output_tokens: int
+    total_logical_generations: int
+    total_http_attempts: int
     failures_by_code: dict[str, int]
 
 

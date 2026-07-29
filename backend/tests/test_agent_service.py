@@ -53,6 +53,10 @@ def test_agent_service_saves_a_completed_run_without_model_reasoning():
     assert runs[0].provider == "deterministic"
     assert runs[0].draft_type is None
     assert runs[0].error_code is None
+    assert runs[0].input_tokens == 0
+    assert runs[0].output_tokens == 0
+    assert runs[0].logical_generations == 1
+    assert runs[0].http_attempts == 0
 
 
 def test_retrying_a_failed_run_creates_a_new_completed_run_without_writing_records():

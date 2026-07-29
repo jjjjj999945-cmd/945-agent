@@ -22,5 +22,9 @@ def summarize_agent_runs(runs: list[AgentRun]) -> AgentRunMetrics:
         )
         if total_runs
         else 0.0,
+        total_input_tokens=sum(run.input_tokens for run in runs),
+        total_output_tokens=sum(run.output_tokens for run in runs),
+        total_logical_generations=sum(run.logical_generations for run in runs),
+        total_http_attempts=sum(run.http_attempts for run in runs),
         failures_by_code=dict(failures_by_code),
     )

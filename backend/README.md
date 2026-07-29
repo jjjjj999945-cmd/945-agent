@@ -106,7 +106,7 @@ POST /api/agent/runs/{agent_run_id}/retry
 
 `GET /api/agent/runs?user_id=...` 只返回可观察性字段，不返回失败运行中的重试输入。
 
-`GET /api/agent/metrics?user_id=...` 返回成功率、平均耗时和按错误码聚合的失败次数，可用于真实模型接入后的质量与成本观察。
+`GET /api/agent/metrics?user_id=...` 返回成功率、平均耗时、累计 token、生成次数、HTTP 尝试次数和按错误码聚合的失败次数，可用于真实模型接入后的质量与成本观察。
 
 当一次 Agent 调用因 Provider 错误失败时，客户端可以显式调用 `POST /api/agent/runs/{agent_run_id}/retry`，请求体为 `{ "user_id": "..." }`。服务只会重新执行该失败请求，并创建一条新的运行记录；不会自动确认草稿，也不会写入训练、饮食或计划数据。
 
