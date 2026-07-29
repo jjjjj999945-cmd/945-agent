@@ -203,6 +203,14 @@ $env:945_MONGODB_DATABASE="945"
 python -m pytest backend/tests -q
 ```
 
+## Agent 评测基线
+
+```powershell
+python -m backend.evals.run_agent_eval
+```
+
+该命令固定运行训练记录、饮食记录、计划调整、知识问答和高风险输入场景，输出每条场景的意图与草稿类型以及总通过率。它使用 deterministic Provider，只生成或校验 `RecordDraft`，不调用训练、饮食或计划的结构化写入接口，也不会消耗真实模型额度。
+
 真实 OpenAI 冒烟测试默认跳过，避免误触发费用。只有明确配置后才运行：
 
 ```powershell
