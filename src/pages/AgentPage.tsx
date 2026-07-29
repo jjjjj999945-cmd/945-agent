@@ -172,6 +172,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
           <div className="section-heading"><span>{isChinese ? "今日训练" : "Today's workout"}</span><strong>{today?.today_workout ? `${today.today_workout.duration_minutes} ${t("metrics.durationMinutes")}` : "-"}</strong></div>
           <h2>{today?.today_workout?.name ?? (isChinese ? "今天没有训练安排" : "No workout scheduled")}</h2>
           {today?.today_workout?.exercises.map((exercise) => <div className="exercise-row" key={exercise.exercise_id}><span>{exercise.name}</span><strong>{exercise.sets} × {exercise.reps}</strong></div>)}
+          {!needsPlan ? <div className="button-row"><button onClick={() => window.location.assign("/today")} type="button">{isChinese ? "查看今日执行" : "Open today's execution"}</button></div> : null}
         </article>
         <article className="business-panel compact">
           <h2>{isChinese ? "今日执行状态" : "Today status"}</h2>

@@ -87,3 +87,10 @@ test("refreshes the shared plan state after confirming an agent plan adjustment"
 
   await expect(page.getByText("当前没有可执行的训练与饮食计划")).toBeVisible();
 });
+
+test("takes an active-plan user from the coach workspace to today's execution page", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "查看今日执行" }).click();
+  await expect(page).toHaveURL("/today");
+});
