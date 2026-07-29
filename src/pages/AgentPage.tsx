@@ -11,7 +11,7 @@ import type { AgentMessage, Locale, RecordDraft, TodayResponseData } from "../ty
 
 export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Locale; pendingDraft?: RecordDraft | null; onDraftHandled?: () => void }) {
   const t = createTranslator(locale);
-  const { coverageStatus, currentPlan, isLoading, profile } = usePlanContext();
+  const { coverageStatus, currentPlan, isLoading, profile, refreshPlanState } = usePlanContext();
   const isChinese = locale === "zh-CN";
   const needsPlan = !isLoading && (!profile || coverageStatus !== "active_today");
   const planEntryCopy = profile
@@ -91,6 +91,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
     }
     setDraft(null);
     onDraftHandled?.();
+    if (draft.type === "plan_adjustment") await refreshPlanState();
     setNotice(t("status.agentDraftConfirmed"));
     await loadTodayContext();
   }
