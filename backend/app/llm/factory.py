@@ -1,5 +1,6 @@
 import logging
 from functools import lru_cache
+from time import perf_counter
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -31,10 +32,12 @@ class LLMProviderRouter:
         self.app_env = app_env
 
     async def generate(self, request: AgentModelRequest) -> AgentModelResponse:
+        started_at = perf_counter()
         try:
             result = await self.primary.generate(request)
         except LLMError as exc:
             result = await self.recover(request, exc)
+        latency_ms = round((perf_counter() - started_at) * 1000, 2)
         logger.info(
             "llm_provider_call",
             extra={
@@ -47,6 +50,8 @@ class LLMProviderRouter:
                 "logical_generations": result.usage.logical_generations,
                 "http_attempts": result.usage.http_attempts,
                 "degraded": result.degraded,
+                "degraded_reason": result.degraded_reason,
+                "latency_ms": latency_ms,
             },
         )
         return result

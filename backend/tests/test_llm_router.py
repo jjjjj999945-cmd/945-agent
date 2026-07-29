@@ -59,6 +59,25 @@ def test_development_router_falls_back_and_marks_response():
     assert result.usage.http_attempts == 2
 
 
+def test_router_logs_latency_and_degraded_reason(caplog):
+    primary = StubProvider(
+        "openai",
+        error=LLMTimeoutError("timeout", request_id="req-router", http_attempts=2),
+    )
+    fallback = StubProvider("deterministic", result=_fallback_result())
+    router = LLMProviderRouter(primary=primary, fallback=fallback, app_env="development")
+
+    with caplog.at_level("INFO", logger="backend.app.llm.factory"):
+        asyncio.run(router.generate(_request()))
+
+    call = next(record for record in caplog.records if record.message == "llm_provider_call")
+    assert call.request_id == "req-router"
+    assert call.provider == "deterministic"
+    assert call.degraded is True
+    assert call.degraded_reason == "LLM_TIMEOUT"
+    assert call.latency_ms >= 0
+
+
 def test_production_router_returns_the_original_stable_error():
     error = LLMTimeoutError("timeout", http_attempts=2)
     router = LLMProviderRouter(

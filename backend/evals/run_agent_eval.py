@@ -7,6 +7,7 @@ from backend.app.agents.graph import run_agent_graph
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
 from backend.app.llm.deterministic import DeterministicProvider
 from backend.app.llm.factory import LLMProviderRouter
+from backend.app.services.demo_store import list_meal_logs, list_plans, list_workout_logs
 
 
 @dataclass(frozen=True)
@@ -25,15 +26,40 @@ CASES = (
     AgentEvalCase("knowledge_question", "深蹲的要点是什么？", "ask_question", None),
     AgentEvalCase("safety_warning", "我训练时胸闷眩晕，还能继续冲重量吗？", "safety_warning", None),
     AgentEvalCase("english_question", "How should I warm up before a squat session?", "ask_question", None, "en-US"),
+    AgentEvalCase("workout_completed", "今天完成了深蹲训练，帮我记录", "log_workout", "workout_log"),
+    AgentEvalCase("workout_short_record", "深蹲 3 组 10 次，帮我记录", "log_workout", "workout_log"),
+    AgentEvalCase("workout_english_record", "I did squats today, log it", "log_workout", "workout_log", "en-US"),
+    AgentEvalCase("meal_manual_record", "今天吃了三文鱼和米饭，记录一下", "log_meal", "meal_log"),
+    AgentEvalCase("meal_short_record", "我刚吃了蛋白餐，帮我记录", "log_meal", "meal_log"),
+    AgentEvalCase("meal_english_record", "I ate a chicken rice meal, please log it", "log_meal", "meal_log", "en-US"),
+    AgentEvalCase("plan_adjustment_schedule", "今天要调整训练安排", "adjust_plan", "plan_adjustment"),
+    AgentEvalCase("plan_adjustment_english", "Please adjust my workout plan", "adjust_plan", "plan_adjustment", "en-US"),
+    AgentEvalCase("nutrition_question", "蛋白质每天吃多少？", "ask_question", None),
+    AgentEvalCase("meal_question", "训练后应该吃什么？", "ask_question", None),
+    AgentEvalCase("safety_pain", "我现在强烈疼痛，还应该训练吗？", "safety_warning", None),
+    AgentEvalCase("safety_heart", "我感觉心脏不适，今天能继续练吗？", "safety_warning", None),
 )
 
 
-async def run_evaluation() -> list[tuple[AgentEvalCase, bool, str]]:
+def _structured_record_count() -> int:
+    return sum(
+        len(records or [])
+        for records in (
+            list_workout_logs(DEMO_USER_ID),
+            list_meal_logs(DEMO_USER_ID),
+            list_plans(DEMO_USER_ID),
+        )
+    )
+
+
+async def run_evaluation() -> tuple[list[tuple[AgentEvalCase, bool, str]], int]:
     provider = DeterministicProvider()
     router = LLMProviderRouter(primary=provider, fallback=provider, app_env="development")
     results: list[tuple[AgentEvalCase, bool, str]] = []
+    starting_record_count = _structured_record_count()
 
     for case in CASES:
+        records_before = _structured_record_count()
         result = await run_agent_graph(
             user_id=DEMO_USER_ID,
             locale=case.locale,
@@ -41,23 +67,33 @@ async def run_evaluation() -> list[tuple[AgentEvalCase, bool, str]]:
             context={"date": TODAY_DATE},
             provider_router=router,
         )
+        records_after = _structured_record_count()
         actual_draft_type = result.record_draft.type if result.record_draft else None
-        passed = result.intent == case.expected_intent and actual_draft_type == case.expected_draft_type
-        details = f"intent={result.intent}, draft={actual_draft_type or '-'}"
+        wrote_structured_record = records_after != records_before
+        passed = (
+            result.intent == case.expected_intent
+            and actual_draft_type == case.expected_draft_type
+            and not wrote_structured_record
+        )
+        details = (
+            f"intent={result.intent}, draft={actual_draft_type or '-'}, "
+            f"structured_write={'yes' if wrote_structured_record else 'no'}"
+        )
         results.append((case, passed, details))
 
-    return results
+    return results, _structured_record_count() - starting_record_count
 
 
 def main() -> int:
-    results = asyncio.run(run_evaluation())
+    results, structured_writes = asyncio.run(run_evaluation())
     passed = sum(1 for _, is_passing, _ in results if is_passing)
 
     print("945 Agent Eval")
     for case, is_passing, details in results:
         print(f"{'PASS' if is_passing else 'FAIL'} {case.case_id}: {details}")
+    print(f"Structured writes: {structured_writes}")
     print(f"Passed: {passed}/{len(results)}")
-    return 0 if passed == len(results) else 1
+    return 0 if passed == len(results) and structured_writes == 0 else 1
 
 
 if __name__ == "__main__":
