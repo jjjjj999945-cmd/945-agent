@@ -10,8 +10,14 @@ import type { AgentMessage, Locale, RecordDraft, TodayResponseData } from "../ty
 
 export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Locale; pendingDraft?: RecordDraft | null; onDraftHandled?: () => void }) {
   const t = createTranslator(locale);
-  const { currentPlan } = usePlanContext();
+  const { coverageStatus, currentPlan, isLoading, profile } = usePlanContext();
   const isChinese = locale === "zh-CN";
+  const needsPlan = !isLoading && (!profile || coverageStatus !== "active_today");
+  const planEntryCopy = profile
+    ? (coverageStatus === "expired"
+      ? (isChinese ? "上一份计划已经结束。创建并启用新计划后，945 会按你的最新目标继续安排训练与饮食。" : "Your previous plan has ended. Create and activate a new plan so 945 can continue arranging your training and nutrition.")
+      : (isChinese ? "创建并启用计划后，945 才能根据你的目标安排训练、饮食与每日建议。" : "Create and activate a plan so 945 can arrange training, nutrition, and daily advice around your goal."))
+    : (isChinese ? "先完善基础资料，945 才能为你生成合适的训练与饮食计划。" : "Complete your basic profile first so 945 can generate an appropriate training and nutrition plan.");
   const roleLabels: Record<AgentMessage["role"], string> = {
     agent: isChinese ? "智能教练" : "Agent",
     user: isChinese ? "你" : "You"
@@ -113,6 +119,14 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       </header>
 
       {notice ? <div className="business-notice">{notice}</div> : null}
+      {needsPlan ? (
+        <section className="business-panel compact">
+          <div className="section-heading"><span>{isChinese ? "计划状态" : "Plan status"}</span><strong>{isChinese ? "等待创建" : "Setup required"}</strong></div>
+          <h2>{isChinese ? "当前没有可执行的训练与饮食计划" : "No active training and nutrition plan"}</h2>
+          <p>{planEntryCopy}</p>
+          <div className="button-row"><button onClick={() => window.location.assign("/onboarding")} type="button">{isChinese ? "开始创建计划" : "Create a plan"}</button></div>
+        </section>
+      ) : null}
 
       <section className="agent-chat-layout">
       <article className="business-panel chat-window">
