@@ -1,0 +1,26 @@
+from collections import Counter
+
+from backend.app.models.domain import AgentRun, AgentRunMetrics
+
+
+def summarize_agent_runs(runs: list[AgentRun]) -> AgentRunMetrics:
+    completed_runs = [run for run in runs if run.status == "completed"]
+    failed_runs = [run for run in runs if run.status == "failed"]
+    total_runs = len(runs)
+    failures_by_code = Counter(
+        run.error_code for run in failed_runs if run.error_code is not None
+    )
+
+    return AgentRunMetrics(
+        total_runs=total_runs,
+        completed_runs=len(completed_runs),
+        failed_runs=len(failed_runs),
+        success_rate=round(len(completed_runs) / total_runs, 4) if total_runs else 0.0,
+        average_duration_ms=round(
+            sum(run.duration_ms for run in runs) / total_runs,
+            2,
+        )
+        if total_runs
+        else 0.0,
+        failures_by_code=dict(failures_by_code),
+    )

@@ -170,6 +170,40 @@ def test_get_agent_runs_exposes_safe_observability_fields_only():
     assert "retry_input" not in run
 
 
+def test_get_agent_metrics_aggregates_success_failure_and_latency():
+    client.post(
+        "/api/agent/chat",
+        json={
+            "user_id": "demo-user-945",
+            "locale": "en-US",
+            "message": "How should I warm up before a squat session?",
+        },
+    )
+    with pytest.raises(LLMTimeoutError):
+        asyncio.run(
+            create_agent_reply(
+                AgentChatInput(
+                    user_id="demo-user-945",
+                    locale="en-US",
+                    message="How should I warm up before a squat session?",
+                ),
+                provider_router=FailingRouter(),
+            )
+        )
+
+    response = client.get("/api/agent/metrics", params={"user_id": "demo-user-945"})
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {
+        "total_runs": 2,
+        "completed_runs": 1,
+        "failed_runs": 1,
+        "success_rate": 0.5,
+        "average_duration_ms": pytest.approx(response.json()["data"]["average_duration_ms"]),
+        "failures_by_code": {"LLM_TIMEOUT": 1},
+    }
+
+
 def test_retry_agent_run_replays_only_a_failed_turn_and_returns_a_draft():
     input_data = AgentChatInput(
         user_id="demo-user-945",

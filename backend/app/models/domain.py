@@ -400,6 +400,15 @@ class AgentRun(ApiModel):
     retry_of_agent_run_id: str | None = None
 
 
+class AgentRunMetrics(ApiModel):
+    total_runs: int
+    completed_runs: int
+    failed_runs: int
+    success_rate: float
+    average_duration_ms: float
+    failures_by_code: dict[str, int]
+
+
 class UserMemorySummary(ApiModel):
     summary_id: str
     user_id: str

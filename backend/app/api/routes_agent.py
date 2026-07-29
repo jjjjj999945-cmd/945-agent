@@ -7,6 +7,7 @@ from backend.app.data.demo_data import DEMO_USER_ID
 from backend.app.llm.errors import LLMError
 from backend.app.models.domain import AgentChatInput, AgentRunRetryRequest
 from backend.app.services.agent_service import create_agent_reply, retry_agent_run
+from backend.app.services.agent_observability import summarize_agent_runs
 from backend.app.services.demo_store import list_agent_messages, list_agent_runs
 
 
@@ -65,6 +66,20 @@ def runs(user_id: str = DEMO_USER_ID, authorization: str | None = Header(default
             for run in sorted(saved_runs, key=lambda item: item.completed_at, reverse=True)
         ]
     )
+
+
+@router.get("/metrics")
+def metrics(user_id: str = DEMO_USER_ID, authorization: str | None = Header(default=None)) -> object:
+    denied = authorize_user(user_id, authorization)
+    if denied:
+        return denied
+    saved_runs = list_agent_runs(user_id)
+    if saved_runs is None:
+        return JSONResponse(
+            status_code=404,
+            content=error("NOT_FOUND", "Demo user not found.", {"user_id": user_id}),
+        )
+    return ok(summarize_agent_runs(saved_runs).model_dump())
 
 
 @router.post("/runs/{agent_run_id}/retry")
