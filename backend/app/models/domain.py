@@ -372,6 +372,16 @@ class AgentMessage(ApiModel):
     created_at: str
 
 
+class AgentRetryInput(ApiModel):
+    message: str
+    locale: Locale
+    context: dict[str, Any] | None = None
+
+
+class AgentRunRetryRequest(ApiModel):
+    user_id: str
+
+
 class AgentRun(ApiModel):
     agent_run_id: str
     user_id: str
@@ -386,6 +396,8 @@ class AgentRun(ApiModel):
     degraded: bool = False
     degraded_reason: str | None = None
     error_code: str | None = None
+    retry_input: AgentRetryInput | None = None
+    retry_of_agent_run_id: str | None = None
 
 
 class UserMemorySummary(ApiModel):

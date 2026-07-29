@@ -4,10 +4,11 @@ from uuid import uuid4
 from backend.app.agents.graph import run_agent_graph
 from backend.app.llm.errors import LLMError
 from backend.app.llm.factory import LLMProviderRouter
-from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRun
+from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRetryInput, AgentRun
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import (
     is_demo_user,
+    list_agent_runs,
     list_agent_messages,
     save_agent_run,
     save_agent_message,
@@ -18,6 +19,7 @@ async def create_agent_reply(
     input_data: AgentChatInput,
     *,
     provider_router: LLMProviderRouter | None = None,
+    retry_of_agent_run_id: str | None = None,
 ) -> AgentMessage | None:
     if not is_demo_user(input_data.user_id):
         return None
@@ -46,6 +48,12 @@ async def create_agent_reply(
                 completed_at=timestamp(),
                 duration_ms=round((perf_counter() - started_clock) * 1000, 2),
                 error_code=exc.code,
+                retry_input=AgentRetryInput(
+                    message=input_data.message,
+                    locale=input_data.locale,
+                    context=input_data.context,
+                ),
+                retry_of_agent_run_id=retry_of_agent_run_id,
             )
         )
         raise
@@ -82,6 +90,29 @@ async def create_agent_reply(
             draft_type=(graph_result.record_draft.type if graph_result.record_draft else None),
             degraded=graph_result.degraded,
             degraded_reason=graph_result.degraded_reason,
+            retry_of_agent_run_id=retry_of_agent_run_id,
         )
     )
     return agent_message
+
+
+async def retry_agent_run(
+    user_id: str,
+    agent_run_id: str,
+    *,
+    provider_router: LLMProviderRouter | None = None,
+) -> AgentMessage | None:
+    runs = list_agent_runs(user_id) or []
+    failed_run = next((run for run in runs if run.agent_run_id == agent_run_id), None)
+    if failed_run is None or failed_run.status != "failed" or failed_run.retry_input is None:
+        return None
+    return await create_agent_reply(
+        AgentChatInput(
+            user_id=user_id,
+            locale=failed_run.retry_input.locale,
+            message=failed_run.retry_input.message,
+            context=failed_run.retry_input.context,
+        ),
+        provider_router=provider_router,
+        retry_of_agent_run_id=agent_run_id,
+    )
