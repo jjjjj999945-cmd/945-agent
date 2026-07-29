@@ -150,6 +150,26 @@ def test_get_agent_messages_returns_user_and_agent_messages():
     assert messages[0]["content"] == "I did squats today."
 
 
+def test_get_agent_runs_exposes_safe_observability_fields_only():
+    client.post(
+        "/api/agent/chat",
+        json={
+            "user_id": "demo-user-945",
+            "locale": "en-US",
+            "message": "How should I warm up before a squat session?",
+        },
+    )
+
+    response = client.get("/api/agent/runs", params={"user_id": "demo-user-945"})
+
+    assert response.status_code == 200
+    run = response.json()["data"][0]
+    assert run["status"] == "completed"
+    assert run["provider"] == "deterministic"
+    assert run["intent"] == "ask_question"
+    assert "retry_input" not in run
+
+
 def test_retry_agent_run_replays_only_a_failed_turn_and_returns_a_draft():
     input_data = AgentChatInput(
         user_id="demo-user-945",

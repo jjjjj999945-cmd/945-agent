@@ -95,12 +95,15 @@ PATCH /api/advice/{advice_id}/status
 
 POST /api/agent/chat
 GET /api/agent/messages?user_id=demo-user-945
+GET /api/agent/runs?user_id=demo-user-945
 POST /api/agent/runs/{agent_run_id}/retry
 ```
 
 ## Agent 失败重试
 
 每次 Agent 调用都会记录运行元数据，包括运行 ID、状态、耗时、Provider、模型、意图、草稿类型和错误码，不保存模型推理内容。
+
+`GET /api/agent/runs?user_id=...` 只返回可观察性字段，不返回失败运行中的重试输入。
 
 当一次 Agent 调用因 Provider 错误失败时，客户端可以显式调用 `POST /api/agent/runs/{agent_run_id}/retry`，请求体为 `{ "user_id": "..." }`。服务只会重新执行该失败请求，并创建一条新的运行记录；不会自动确认草稿，也不会写入训练、饮食或计划数据。
 
