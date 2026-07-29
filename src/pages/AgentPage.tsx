@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/business/ConfirmDialog";
+import { OnboardingPage } from "./OnboardingPage";
 import { DEMO_USER_ID } from "../data/demoData";
 import { appToday } from "../services/dateContext";
 import { usePlanContext } from "../contexts/PlanContext";
@@ -29,6 +30,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
   const [notice, setNotice] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
 
   useEffect(() => {
     void loadMessages();
@@ -132,9 +134,10 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
           <div className="section-heading"><span>{isChinese ? "计划状态" : "Plan status"}</span><strong>{isChinese ? "等待创建" : "Setup required"}</strong></div>
           <h2>{isChinese ? "当前没有可执行的训练与饮食计划" : "No active training and nutrition plan"}</h2>
           <p>{planEntryCopy}</p>
-          <div className="button-row"><button onClick={() => window.location.assign("/onboarding")} type="button">{isChinese ? "开始创建计划" : "Create a plan"}</button></div>
+          <div className="button-row"><button onClick={() => setShowProfileSetup(true)} type="button">{isChinese ? "开始创建计划" : "Create a plan"}</button></div>
         </section>
       ) : null}
+      {needsPlan && showProfileSetup ? <OnboardingPage embedded locale={locale} onNavigate={() => setShowProfileSetup(false)} /> : null}
 
       <section className="agent-chat-layout">
       <article className="business-panel chat-window">

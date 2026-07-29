@@ -21,7 +21,8 @@ test("keeps an expired-plan user in the coach workspace with a plan creation ent
   await expect(page.getByRole("button", { name: "\u5f00\u59cb\u521b\u5efa\u8ba1\u5212" })).toBeVisible();
 
   await page.getByRole("button", { name: "\u5f00\u59cb\u521b\u5efa\u8ba1\u5212" }).click();
-  await expect(page).toHaveURL(/\/onboarding$/);
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("heading", { name: "\u8eab\u4f53\u4e0e\u76ee\u6807" })).toBeVisible();
 });
 
 test("refreshes shared plan state after onboarding activates a plan", async ({ page }) => {
@@ -48,12 +49,25 @@ test("refreshes shared plan state after onboarding activates a plan", async ({ p
 
   serveExpiredPlan = false;
   await page.getByRole("button", { name: "\u5f00\u59cb\u521b\u5efa\u8ba1\u5212" }).click();
-  await expect(page).toHaveURL(/\/onboarding$/);
-
-  await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL("/");
-  await expect(page.getByRole("heading", { name: "945 \u667a\u80fd\u6559\u7ec3" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "\u8eab\u4f53\u4e0e\u76ee\u6807" })).toBeVisible();
+
+  const activationResponse = page.waitForResponse((response) =>
+    response.url().includes("/api/plans/") && response.url().endsWith("/accept") && response.request().method() === "POST"
+  );
+  await page.locator('button[type="submit"]').click();
+  expect((await activationResponse).status()).toBe(200);
+  await expect(page).toHaveURL("/");
+  await expect.poll(() => refreshedPlanRequests).toBeGreaterThan(0);
+  await expect(page.getByText("\u5f53\u524d\u6ca1\u6709\u53ef\u6267\u884c\u7684\u8bad\u7ec3\u4e0e\u996e\u98df\u8ba1\u5212")).toHaveCount(0);
   expect(refreshedPlanRequests).toBeGreaterThan(0);
+});
+
+test("keeps the today page focused on execution instead of duplicating the coach chat", async ({ page }) => {
+  await page.goto("/today");
+
+  await expect(page.locator(".agent-mini-input")).toHaveCount(0);
+  await expect(page.locator(".agent-card")).toHaveCount(0);
 });
 
 test("mock workout and diet data reject uncovered plans", () => {

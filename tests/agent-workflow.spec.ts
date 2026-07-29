@@ -29,3 +29,18 @@ test("shows an observable coach status while an agent request is running", async
   await expect(page.getByText("我已整理好你的训练建议。")).toBeVisible();
   await expect(page.getByRole("status")).toContainText("在线");
 });
+
+test("opens the profile setup form inside the coach workspace", async ({ page }) => {
+  await page.route("**/api/plans/current?*", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ data: { plan: null, coverage_status: "expired" }, error: null })
+    })
+  );
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "开始创建计划" }).click();
+
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("heading", { name: "身体与目标" })).toBeVisible();
+});

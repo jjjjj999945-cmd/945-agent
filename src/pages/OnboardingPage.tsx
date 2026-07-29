@@ -5,7 +5,7 @@ import { usePlanContext } from "../contexts/PlanContext";
 import { api } from "../services/apiClient";
 import type { ExperienceLevel, Goal, Locale } from "../types/domain";
 
-type OnboardingPageProps = { locale: Locale; onNavigate: (path: string) => void };
+type OnboardingPageProps = { embedded?: boolean; locale: Locale; onNavigate: (path: string) => void };
 
 const goalOptions: Array<{ value: Goal; zh: string; en: string }> = [
   { value: "fat_loss", zh: "减脂", en: "Fat loss" },
@@ -20,7 +20,7 @@ function toggle(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
-export function OnboardingPage({ locale, onNavigate }: OnboardingPageProps) {
+export function OnboardingPage({ embedded = false, locale, onNavigate }: OnboardingPageProps) {
   const { refreshPlanState } = usePlanContext();
   const t = createTranslator(locale);
   const zh = locale === "zh-CN";
@@ -77,9 +77,7 @@ export function OnboardingPage({ locale, onNavigate }: OnboardingPageProps) {
     onNavigate("/");
   }
 
-  return <div className="business-page">
-    <header className="page-header"><p>945</p><h1>{zh ? "创建你的训练档案" : "Build your fitness profile"}</h1><span>{zh ? "填写这些信息后，945 会创建你的第一份 7 天训练和饮食计划。" : "Use these details to create your first 7-day workout and nutrition plan."}</span></header>
-    <form className="onboarding-form" onSubmit={submit}>
+  const form = <form className="onboarding-form" onSubmit={submit}>
       <section className="business-panel"><h2>{zh ? "身体与目标" : "Body and goal"}</h2><div className="onboarding-fields">
         <label>{t("labels.age")}<input aria-label={t("labels.age")} min="14" max="100" required type="number" value={age} onChange={(event) => setAge(Number(event.target.value))} /></label>
         <label>{t("labels.heightCm")}<input aria-label={t("labels.heightCm")} min="100" max="250" required type="number" value={heightCm} onChange={(event) => setHeightCm(Number(event.target.value))} /></label>
@@ -97,6 +95,12 @@ export function OnboardingPage({ locale, onNavigate }: OnboardingPageProps) {
       </section>
       {error && <p className="form-error">{error}</p>}
       <div className="button-row"><button disabled={saving} type="submit">{saving ? (zh ? "正在创建计划..." : "Creating plan...") : (zh ? "创建并启用我的计划" : "Create and activate my plan")}</button></div>
-    </form>
+    </form>;
+
+  if (embedded) return form;
+
+  return <div className="business-page">
+    <header className="page-header"><p>945</p><h1>{zh ? "创建你的训练档案" : "Build your fitness profile"}</h1><span>{zh ? "填写这些信息后，945 会创建你的第一份 7 天训练和饮食计划。" : "Use these details to create your first 7-day workout and nutrition plan."}</span></header>
+    {form}
   </div>;
 }
