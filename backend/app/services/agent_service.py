@@ -22,18 +22,44 @@ def _parse_timestamp(value: str) -> datetime:
 
 
 def _enforce_agent_run_limit(user_id: str) -> None:
-    max_runs = get_settings().agent_max_runs_per_hour
-    if max_runs <= 0:
+    settings = get_settings()
+    runs = list_agent_runs(user_id) or []
+
+    max_runs = settings.agent_max_runs_per_hour
+    if max_runs > 0:
+        threshold = datetime.now(UTC) - timedelta(hours=1)
+        recent_runs = [run for run in runs if _parse_timestamp(run.started_at) >= threshold]
+        if len(recent_runs) >= max_runs:
+            raise AgentUsageLimitError(
+                "The hourly Agent usage limit has been reached.",
+                http_attempts=0,
+            )
+
+    max_tokens = settings.agent_max_tokens_per_day
+    day_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    if max_tokens > 0:
+        tokens_used = sum(
+            run.input_tokens + run.output_tokens
+            for run in runs
+            if _parse_timestamp(run.started_at) >= day_start
+        )
+        if tokens_used >= max_tokens:
+            raise AgentUsageLimitError(
+                "The daily Agent token usage limit has been reached.",
+                http_attempts=0,
+            )
+
+    max_generations = settings.agent_max_logical_generations_per_day
+    if max_generations <= 0:
         return
-    threshold = datetime.now(UTC) - timedelta(hours=1)
-    recent_runs = [
-        run
-        for run in list_agent_runs(user_id) or []
-        if _parse_timestamp(run.started_at) >= threshold
-    ]
-    if len(recent_runs) >= max_runs:
+    generations_used = sum(
+        run.logical_generations
+        for run in runs
+        if _parse_timestamp(run.started_at) >= day_start
+    )
+    if generations_used >= max_generations:
         raise AgentUsageLimitError(
-            "The hourly Agent usage limit has been reached.",
+            "The daily Agent generation usage limit has been reached.",
             http_attempts=0,
         )
 

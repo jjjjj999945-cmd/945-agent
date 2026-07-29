@@ -7,9 +7,10 @@ from backend.app.core.config import get_settings
 from backend.app.llm.factory import get_llm_provider_router
 from backend.app.llm.errors import LLMTimeoutError
 from backend.app.main import app
-from backend.app.models.domain import AgentChatInput
+from backend.app.models.domain import AgentChatInput, AgentRun
 from backend.app.services import demo_store
 from backend.app.services.agent_service import create_agent_reply
+from backend.app.services.demo_seed import timestamp
 
 
 client = TestClient(app)
@@ -147,6 +148,94 @@ def test_agent_chat_enforces_per_user_hourly_run_limit(monkeypatch):
     assert response.status_code == 429
     assert response.json()["error"]["code"] == "AGENT_USAGE_LIMIT"
     assert len(demo_store.list_agent_runs("demo-user-945")) == 1
+
+
+def test_agent_chat_enforces_daily_token_limit(monkeypatch):
+    monkeypatch.setenv("945_AGENT_MAX_TOKENS_PER_DAY", "1")
+    _clear_llm_caches()
+    now = timestamp()
+    demo_store.save_agent_run(
+        AgentRun(
+            agent_run_id="run-token-limit",
+            user_id="demo-user-945",
+            status="completed",
+            started_at=now,
+            completed_at=now,
+            duration_ms=1,
+            input_tokens=1,
+        )
+    )
+
+    response = client.post(
+        "/api/agent/chat",
+        json={
+            "user_id": "demo-user-945",
+            "locale": "en-US",
+            "message": "How should I warm up before a squat session?",
+        },
+    )
+
+    assert response.status_code == 429
+    assert response.json()["error"]["code"] == "AGENT_USAGE_LIMIT"
+
+
+def test_agent_chat_enforces_daily_logical_generation_limit(monkeypatch):
+    monkeypatch.setenv("945_AGENT_MAX_LOGICAL_GENERATIONS_PER_DAY", "1")
+    _clear_llm_caches()
+    now = timestamp()
+    demo_store.save_agent_run(
+        AgentRun(
+            agent_run_id="run-generation-limit",
+            user_id="demo-user-945",
+            status="completed",
+            started_at=now,
+            completed_at=now,
+            duration_ms=1,
+            logical_generations=1,
+        )
+    )
+
+    response = client.post(
+        "/api/agent/chat",
+        json={
+            "user_id": "demo-user-945",
+            "locale": "en-US",
+            "message": "How should I warm up before a squat session?",
+        },
+    )
+
+    assert response.status_code == 429
+    assert response.json()["error"]["code"] == "AGENT_USAGE_LIMIT"
+
+
+def test_agent_chat_keeps_generation_limit_when_token_limit_is_disabled(monkeypatch):
+    monkeypatch.setenv("945_AGENT_MAX_TOKENS_PER_DAY", "0")
+    monkeypatch.setenv("945_AGENT_MAX_LOGICAL_GENERATIONS_PER_DAY", "1")
+    _clear_llm_caches()
+    now = timestamp()
+    demo_store.save_agent_run(
+        AgentRun(
+            agent_run_id="run-generation-limit-token-disabled",
+            user_id="demo-user-945",
+            status="completed",
+            started_at=now,
+            completed_at=now,
+            duration_ms=1,
+            logical_generations=1,
+        )
+    )
+
+    response = client.post(
+        "/api/agent/chat",
+        json={
+            "user_id": "demo-user-945",
+            "locale": "en-US",
+            "message": "How should I warm up before a squat session?",
+        },
+    )
+
+    assert response.status_code == 429
+    assert response.json()["error"]["code"] == "AGENT_USAGE_LIMIT"
 
 
 def test_get_agent_messages_returns_user_and_agent_messages():

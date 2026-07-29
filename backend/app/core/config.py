@@ -22,6 +22,8 @@ class Settings(BaseModel):
     openai_model: str | None = None
     llm_timeout_seconds: float = 20.0
     agent_max_runs_per_hour: int = 30
+    agent_max_tokens_per_day: int = 200000
+    agent_max_logical_generations_per_day: int = 100
     auth_secret: SecretStr = SecretStr("945-development-secret-change-before-production")
     auth_token_ttl_seconds: int = 604800
     auth_required: bool = False
@@ -41,6 +43,10 @@ def get_settings() -> Settings:
         openai_model=os.getenv("945_OPENAI_MODEL") or None,
         llm_timeout_seconds=os.getenv("945_LLM_TIMEOUT_SECONDS", "20"),
         agent_max_runs_per_hour=int(os.getenv("945_AGENT_MAX_RUNS_PER_HOUR", "30")),
+        agent_max_tokens_per_day=int(os.getenv("945_AGENT_MAX_TOKENS_PER_DAY", "200000")),
+        agent_max_logical_generations_per_day=int(
+            os.getenv("945_AGENT_MAX_LOGICAL_GENERATIONS_PER_DAY", "100")
+        ),
         auth_secret=os.getenv("945_AUTH_SECRET", "945-development-secret-change-before-production"),
         auth_token_ttl_seconds=int(os.getenv("945_AUTH_TOKEN_TTL_SECONDS", "604800")),
         auth_required=os.getenv("945_AUTH_REQUIRED", "true" if os.getenv("945_APP_ENV") == "production" else "false").lower() == "true",

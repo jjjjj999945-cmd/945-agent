@@ -161,9 +161,15 @@ POST /api/agent/runs/{agent_run_id}/retry
 $env:945_APP_ENV="development"
 $env:945_LLM_PROVIDER="deterministic"
 $env:945_AGENT_MAX_RUNS_PER_HOUR="30"
+$env:945_AGENT_MAX_TOKENS_PER_DAY="200000"
+$env:945_AGENT_MAX_LOGICAL_GENERATIONS_PER_DAY="100"
 ```
 
 `945_AGENT_MAX_RUNS_PER_HOUR` 是每个用户的进程内每小时 Agent 调用上限；设为 `0` 可关闭。超过上限时接口返回 `429 AGENT_USAGE_LIMIT`，不会调用 Provider 或写入业务记录。
+
+`945_AGENT_MAX_TOKENS_PER_DAY` 是每个用户按 UTC 自然日累计的输入与输出 token 上限；设为 `0` 可关闭。达到上限时接口同样返回 `429 AGENT_USAGE_LIMIT`，并在调用 Provider 前拦截请求。
+
+`945_AGENT_MAX_LOGICAL_GENERATIONS_PER_DAY` 是每个用户按 UTC 自然日累计的逻辑生成次数上限；设为 `0` 可关闭。它独立于 token 统计，可防止低 token 请求高频消耗 Provider 调用配额。
 
 开发环境启用真实 OpenAI：
 
