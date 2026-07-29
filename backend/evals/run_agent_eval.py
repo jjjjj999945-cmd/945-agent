@@ -38,6 +38,18 @@ CASES = (
     AgentEvalCase("meal_question", "训练后应该吃什么？", "ask_question", None),
     AgentEvalCase("safety_pain", "我现在强烈疼痛，还应该训练吗？", "safety_warning", None),
     AgentEvalCase("safety_heart", "我感觉心脏不适，今天能继续练吗？", "safety_warning", None),
+    AgentEvalCase("workout_had_record", "I had a squat session today, log it", "log_workout", "workout_log", "en-US"),
+    AgentEvalCase("workout_chinese_variant", "深蹲练了 3 组，记录一下", "log_workout", "workout_log"),
+    AgentEvalCase("meal_had_record", "I had a high protein meal, log it", "log_meal", "meal_log", "en-US"),
+    AgentEvalCase("meal_chinese_variant", "我吃了午餐，帮我记录", "log_meal", "meal_log"),
+    AgentEvalCase("plan_adjustment_today", "帮我调整今天的训练", "adjust_plan", "plan_adjustment"),
+    AgentEvalCase("plan_adjustment_weekly", "Please adjust my weekly plan", "adjust_plan", "plan_adjustment", "en-US"),
+    AgentEvalCase("workout_how_question", "How do I squat safely", "ask_question", None, "en-US"),
+    AgentEvalCase("food_question_english", "What is a good post-workout food?", "ask_question", None, "en-US"),
+    AgentEvalCase("generic_today_question", "今天训练什么？", "ask_question", None),
+    AgentEvalCase("safety_severe_pain", "我现在剧烈疼痛，还应该训练吗？", "safety_warning", None),
+    AgentEvalCase("safety_breathing", "训练后呼吸困难，需要继续吗？", "safety_warning", None),
+    AgentEvalCase("safety_fainting", "我刚刚昏倒过，今天还能练吗？", "safety_warning", None),
 )
 
 

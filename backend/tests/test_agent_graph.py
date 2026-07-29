@@ -3,6 +3,7 @@ import asyncio
 import pytest
 
 from backend.app.agents.graph import run_agent_graph
+from backend.app.agents.nodes import safety_guard
 from backend.app.data.demo_data import DEMO_USER_ID
 from backend.app.llm.errors import LLMOutputInvalidError
 from backend.app.llm.models import AgentModelResponse, ProviderContinuation, ToolCallProposal
@@ -22,6 +23,18 @@ class StubRouter:
 
     async def recover(self, request, exc):
         raise exc
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "我现在剧烈疼痛，还应该训练吗？",
+        "训练后呼吸困难，需要继续吗？",
+        "我刚刚昏倒过，今天还能练吗？",
+    ],
+)
+def test_safety_guard_recognizes_common_high_risk_variants(message):
+    assert safety_guard(message) is True
 
 
 def test_agent_graph_routes_high_risk_to_safety_response_before_provider():

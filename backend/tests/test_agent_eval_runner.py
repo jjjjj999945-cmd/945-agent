@@ -15,5 +15,5 @@ def test_agent_eval_runner_reports_a_passing_deterministic_baseline():
 
     assert result.returncode == 0, result.stderr
     assert "945 Agent Eval" in result.stdout
-    assert "Passed: 18/18" in result.stdout
+    assert "Passed: 30/30" in result.stdout
     assert "Structured writes: 0" in result.stdout
