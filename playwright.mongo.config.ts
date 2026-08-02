@@ -18,7 +18,7 @@ export default defineConfig({
     {
       command: "npm run dev:http",
       url: "http://127.0.0.1:5177/app",
-      env: { "VITE_945_AUTH_ENABLED": "false", "VITE_945_REFERENCE_DATE": "2026-07-11" },
+      env: { "VITE_945_API_MODE": "http", "VITE_945_AUTH_ENABLED": "false", "VITE_945_REFERENCE_DATE": "2026-07-11" },
       reuseExistingServer: false,
       timeout: 60_000
     }
