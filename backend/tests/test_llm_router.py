@@ -131,3 +131,33 @@ def test_openai_client_factory_disables_sdk_retries(monkeypatch):
         "timeout": 13.0,
         "max_retries": 0,
     }
+
+
+def test_deepseek_client_factory_uses_chat_completions_base_url(monkeypatch):
+    captured = {}
+
+    class FakeAsyncOpenAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr("backend.app.llm.factory.AsyncOpenAI", FakeAsyncOpenAI)
+
+    router = build_llm_provider_router(
+        Settings(
+            app_env="production",
+            llm_provider="deepseek",
+            deepseek_api_key="deepseek-test",
+            deepseek_model="deepseek-v4-flash",
+            deepseek_max_tokens=480,
+            llm_timeout_seconds=13,
+        )
+    )
+
+    assert router.primary.name == "deepseek"
+    assert router.primary.max_tokens == 480
+    assert captured == {
+        "api_key": "deepseek-test",
+        "base_url": "https://api.deepseek.com",
+        "timeout": 13.0,
+        "max_retries": 0,
+    }

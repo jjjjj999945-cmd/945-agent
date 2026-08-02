@@ -47,7 +47,7 @@ def test_get_current_plan_rejects_unknown_user():
         "data": None,
         "error": {
             "code": "NOT_FOUND",
-            "message": "Demo user not found.",
+            "message": "No active plan found. Generate and accept a plan first.",
             "details": {
                 "user_id": "missing-user"
             }

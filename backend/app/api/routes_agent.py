@@ -62,10 +62,29 @@ def runs(user_id: str = DEMO_USER_ID, authorization: str | None = Header(default
         )
     return ok(
         [
-            run.model_dump(exclude={"retry_input"})
+            run.model_dump(exclude={"retry_input", "trace_steps"})
             for run in sorted(saved_runs, key=lambda item: item.completed_at, reverse=True)
         ]
     )
+
+
+@router.get("/runs/{agent_run_id}/trace")
+def run_trace(
+    agent_run_id: str,
+    user_id: str = DEMO_USER_ID,
+    authorization: str | None = Header(default=None),
+) -> object:
+    denied = authorize_user(user_id, authorization)
+    if denied:
+        return denied
+    saved_runs = list_agent_runs(user_id)
+    run = next((item for item in saved_runs or [] if item.agent_run_id == agent_run_id), None)
+    if run is None:
+        return JSONResponse(
+            status_code=404,
+            content=error("NOT_FOUND", "Agent run not found.", {"agent_run_id": agent_run_id}),
+        )
+    return ok([step.model_dump() for step in run.trace_steps])
 
 
 @router.get("/metrics")

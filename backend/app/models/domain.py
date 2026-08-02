@@ -382,6 +382,20 @@ class AgentRunRetryRequest(ApiModel):
     user_id: str
 
 
+class AgentTraceStep(ApiModel):
+    name: Literal[
+        "safety_guard",
+        "context_builder",
+        "rag_retriever",
+        "memory_context",
+        "model_generation",
+        "tool_execution",
+        "draft_validator",
+    ]
+    status: Literal["completed", "skipped", "failed"]
+    metadata: dict[str, str | int | float | bool]
+
+
 class AgentRun(ApiModel):
     agent_run_id: str
     user_id: str
@@ -402,6 +416,7 @@ class AgentRun(ApiModel):
     http_attempts: int = 0
     retry_input: AgentRetryInput | None = None
     retry_of_agent_run_id: str | None = None
+    trace_steps: list[AgentTraceStep] = []
 
 
 class AgentRunMetrics(ApiModel):

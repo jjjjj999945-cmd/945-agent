@@ -3,7 +3,7 @@ import { PageLoadState } from "../components/business/PageLoadState";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
-import { TODAY_DATE } from "../data/demoData";
+import { appToday } from "../services/dateContext";
 import type { AdvicePageData, AgentAdvice, Locale, RecordDraft } from "../types/domain";
 
 export function AdvicePage({ locale, onNavigate, onAgentDraft }: { locale: Locale; onNavigate: (path: string) => void; onAgentDraft: (draft: RecordDraft) => void }) {
@@ -43,7 +43,7 @@ export function AdvicePage({ locale, onNavigate, onAgentDraft }: { locale: Local
 
   async function refreshFeedback() {
     const requestVersion = ++adviceRequestVersion.current;
-    const response = await api.generateAdvice({ user_id: DEMO_USER_ID, date: TODAY_DATE });
+    const response = await api.generateAdvice({ user_id: DEMO_USER_ID, date: appToday });
     if (response.error) {
       setNotice(response.error.message);
       return;
@@ -61,7 +61,7 @@ export function AdvicePage({ locale, onNavigate, onAgentDraft }: { locale: Local
     onAgentDraft({
       type: "plan_adjustment",
       requires_confirmation: true,
-      payload: { adjustment_type: "reduce_intensity", reason: advice.reason, target_date: TODAY_DATE }
+      payload: { adjustment_type: "reduce_intensity", reason: advice.reason, target_date: appToday }
     });
     onNavigate("/agent");
   }
@@ -75,6 +75,26 @@ export function AdvicePage({ locale, onNavigate, onAgentDraft }: { locale: Local
     plan_adjustment: isChinese ? "计划调整" : "Plan Adjustment",
     safety_warning: isChinese ? "安全提醒" : "Safety Warning"
   };
+
+  if (!primaryAdvice) {
+    return (
+      <div className="business-page advice-analysis-page">
+        <header className="page-header">
+          <p>945</p>
+          <h1>{isChinese ? "智能调整分析" : "AI Adjustment Analysis"}</h1>
+          <span>{t("page.advice.description")}</span>
+        </header>
+        {notice ? <div className="business-notice">{notice}</div> : null}
+        <section className="business-panel compact">
+          <h2>{isChinese ? "暂时没有建议" : "No advice yet"}</h2>
+          <p>{isChinese ? "完成首次打卡或刷新执行反馈后，945 会在这里生成可确认的调整建议。" : "Complete a check-in or refresh execution feedback to generate a confirmation-required adjustment here."}</p>
+          <button onClick={() => void refreshFeedback()} type="button">
+            {isChinese ? "刷新执行反馈" : "Refresh execution feedback"}
+          </button>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="business-page advice-analysis-page">

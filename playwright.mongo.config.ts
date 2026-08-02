@@ -17,7 +17,8 @@ export default defineConfig({
         "945_MONGODB_URI": "mongodb://127.0.0.1:27017",
         "945_MONGODB_DATABASE": "945_mongo_qa",
         "945_LLM_PROVIDER": "deterministic",
-        "945_APP_ENV": "development"
+        "945_APP_ENV": "development",
+        "945_REFERENCE_DATE": "2026-07-11"
       },
       reuseExistingServer: false,
       timeout: 60_000
@@ -25,7 +26,7 @@ export default defineConfig({
     {
       command: "npm run dev:http",
       url: "http://127.0.0.1:5177/app",
-      env: { "VITE_945_AUTH_ENABLED": "false" },
+      env: { "VITE_945_AUTH_ENABLED": "false", "VITE_945_REFERENCE_DATE": "2026-07-11" },
       reuseExistingServer: false,
       timeout: 60_000
     }

@@ -8,6 +8,13 @@ const USER_KEY = "945.auth.user_id";
 export type AuthSession = { access_token: string; token_type: "bearer"; user: User };
 
 export function getAccessToken() { return window.localStorage.getItem(TOKEN_KEY); }
+export function getCurrentUserId(fallbackUserId: string) {
+  if (import.meta.env.VITE_945_AUTH_ENABLED === "false") return fallbackUserId;
+  return window.localStorage.getItem(USER_KEY) ?? fallbackUserId;
+}
+export function saveCurrentUserId(userId: string) {
+  window.localStorage.setItem(USER_KEY, userId);
+}
 export function hasSession() { return Boolean(getAccessToken()); }
 export function saveSession(session: AuthSession) {
   window.localStorage.setItem(TOKEN_KEY, session.access_token);

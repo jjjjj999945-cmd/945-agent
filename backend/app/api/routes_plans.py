@@ -18,7 +18,7 @@ def current_plan(user_id: str = DEMO_USER_ID, authorization: str | None = Header
     if response is None:
         return JSONResponse(
             status_code=404,
-            content=error("NOT_FOUND", "Demo user not found.", {"user_id": user_id})
+            content=error("NOT_FOUND", "No active plan found. Generate and accept a plan first.", {"user_id": user_id})
         )
     return ok(response.model_dump())
 

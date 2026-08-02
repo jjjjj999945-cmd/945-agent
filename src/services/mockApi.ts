@@ -11,6 +11,7 @@ import {
 import type {
   AdvicePageData,
   AgentMessage,
+  AgentRun,
   AgentAdvice,
   BodyMetric,
   BodyPageData,
@@ -485,5 +486,19 @@ export const api = {
     const user = ensureDemoUser(user_id);
     if (user.error) return user;
     return ok(agentMessages);
+  },
+
+  async getAgentRuns(user_id = DEMO_USER_ID): Promise<ApiResponse<AgentRun[]>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+    return ok([]);
+  },
+
+  async retryAgentRun(input: { user_id: string; agent_run_id: string }): Promise<ApiResponse<AgentMessage>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    return fail("NOT_FOUND", "Failed Agent run not found or cannot be retried.", {
+      agent_run_id: input.agent_run_id
+    });
   }
 };

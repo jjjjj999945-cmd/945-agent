@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 test.describe("PRD-driven frontend foundation", () => {
   test("renders primary product routes and keeps prototype references accessible", async ({ page }) => {
     const routes = [
-      ["/", "早上好，Alex。"],
+      ["/", "945 智能教练"],
+      ["/today", "早上好，Alex。"],
       ["/workout", "训练计划中心"],
       ["/diet", "饮食"],
       ["/body", "身体数据"],
@@ -60,9 +61,9 @@ test.describe("PRD-driven frontend foundation", () => {
   });
 
   test("gives visible feedback for previously static product actions", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/today");
     await page.getByRole("button", { name: "完成", exact: true }).click();
-    await expect(page.getByText(/训练状态已更新/)).toBeVisible();
+    await expect(page.getByText("训练记录已保存")).toBeVisible();
     await page.getByRole("button", { name: "查看原因" }).click();
     await expect(page.getByText("建议原因已展开在卡片内")).toBeVisible();
     await page.getByRole("button", { name: "调整今日计划" }).click();
@@ -83,7 +84,7 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.getByRole("button", { name: "创建并启用我的计划" }).click();
 
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { name: "早上好，Alex。" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "945 智能教练" })).toBeVisible();
   });
 
   test("creates a plan adjustment draft from structured desktop controls", async ({ page }) => {

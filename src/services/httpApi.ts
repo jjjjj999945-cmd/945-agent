@@ -1,13 +1,14 @@
 import {
   DEMO_USER_ID,
-  TODAY_DATE,
   demoBodyMetrics,
   demoProfile
 } from "../data/demoData";
+import { appToday } from "./dateContext";
 import type {
   AdvicePageData,
   AgentAdvice,
   AgentMessage,
+  AgentRun,
   BodyMetric,
   BodyPageData,
   CurrentPlanData,
@@ -24,7 +25,7 @@ import type {
   WorkoutLog
 } from "../types/domain";
 import { fail, type ApiResponse } from "./apiTypes";
-import { getAccessToken } from "./authSession";
+import { getAccessToken, getCurrentUserId } from "./authSession";
 
 type DailyCheckinInput = Omit<DailyCheckin, "checkin_id" | "created_at" | "updated_at">;
 type WorkoutLogInput = Omit<WorkoutLog, "workout_log_id" | "created_at" | "updated_at">;
@@ -36,6 +37,7 @@ type ManualMealLogInput = Omit<
 };
 
 const API_BASE_URL = import.meta.env.VITE_945_API_BASE_URL ?? "http://127.0.0.1:8000";
+const AUTH_ENABLED = import.meta.env.VITE_945_AUTH_ENABLED !== "false";
 
 function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
   if (!value || typeof value !== "object") return false;
@@ -57,13 +59,16 @@ function hasValidationDetail(value: unknown): value is { detail: unknown[] } {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse<T>> {
+  const currentUserId = AUTH_ENABLED ? getCurrentUserId(DEMO_USER_ID) : DEMO_USER_ID;
+  const requestPath = replaceDemoUserId(path, currentUserId);
+  const requestInit = replaceDemoUserIdInBody(init, currentUserId);
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
+    const response = await fetch(`${API_BASE_URL}${requestPath}`, {
+      ...requestInit,
       headers: {
         "Content-Type": "application/json",
-        ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
-        ...init?.headers
+        ...(AUTH_ENABLED && getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+        ...requestInit?.headers
       }
     });
     let body: unknown;
@@ -72,7 +77,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse
     } catch {
       return fail("HTTP_ERROR", "945 backend returned an invalid response.", {
         status: response.status,
-        path
+        path: requestPath
       });
     }
 
@@ -85,13 +90,35 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse
     }
     return fail("HTTP_ERROR", "945 backend returned an invalid response.", {
       status: response.status,
-      path
+      path: requestPath
     });
   } catch (error) {
     return fail("NETWORK_ERROR", "Unable to reach 945 backend.", {
       base_url: API_BASE_URL,
       message: error instanceof Error ? error.message : String(error)
     });
+  }
+}
+
+// Product pages keep the demo ID as their local-mode default. In HTTP mode it
+// must resolve to the signed-in account, otherwise the backend rejects the
+// request as a cross-user data access attempt.
+function replaceDemoUserId(path: string, currentUserId: string) {
+  const url = new URL(path, "http://945.local");
+  if (url.searchParams.get("user_id") === DEMO_USER_ID) {
+    url.searchParams.set("user_id", currentUserId);
+  }
+  return `${url.pathname}${url.search}`;
+}
+
+function replaceDemoUserIdInBody(init: RequestInit | undefined, currentUserId: string): RequestInit | undefined {
+  if (typeof init?.body !== "string") return init;
+  try {
+    const body = JSON.parse(init.body) as Record<string, unknown>;
+    if (body.user_id !== DEMO_USER_ID) return init;
+    return { ...init, body: JSON.stringify({ ...body, user_id: currentUserId }) };
+  } catch {
+    return init;
   }
 }
 
@@ -177,7 +204,7 @@ export const httpApi = {
     return request<TodayResponseData>(
       withQuery("/api/today", {
         user_id: input.user_id ?? DEMO_USER_ID,
-        date: input.date ?? TODAY_DATE
+        date: input.date ?? appToday
       })
     );
   },
@@ -186,7 +213,7 @@ export const httpApi = {
     const [planResponse, logsResponse, todayResponse] = await Promise.all([
       getCurrentPlan(user_id),
       getWorkoutLogs(user_id),
-      this.getToday({ user_id, date: TODAY_DATE })
+      this.getToday({ user_id, date: appToday })
     ]);
     if (planResponse.error) return fail<WorkoutPageData>(planResponse.error.code, planResponse.error.message, planResponse.error.details);
     if (logsResponse.error) return fail<WorkoutPageData>(logsResponse.error.code, logsResponse.error.message, logsResponse.error.details);
@@ -347,5 +374,15 @@ export const httpApi = {
 
   async getAgentMessages(user_id = DEMO_USER_ID): Promise<ApiResponse<AgentMessage[]>> {
     return request<AgentMessage[]>(withQuery("/api/agent/messages", { user_id }));
+  },
+
+  async getAgentRuns(user_id = DEMO_USER_ID): Promise<ApiResponse<AgentRun[]>> {
+    return request<AgentRun[]>(withQuery("/api/agent/runs", { user_id }));
+  },
+
+  async retryAgentRun(input: { user_id: string; agent_run_id: string }): Promise<ApiResponse<AgentMessage>> {
+    return post<AgentMessage>(`/api/agent/runs/${input.agent_run_id}/retry`, {
+      user_id: input.user_id
+    });
   }
 };

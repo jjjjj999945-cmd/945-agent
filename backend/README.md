@@ -96,6 +96,7 @@ PATCH /api/advice/{advice_id}/status
 POST /api/agent/chat
 GET /api/agent/messages?user_id=demo-user-945
 GET /api/agent/runs?user_id=demo-user-945
+GET /api/agent/runs/{agent_run_id}/trace?user_id=demo-user-945
 GET /api/agent/metrics?user_id=demo-user-945
 POST /api/agent/runs/{agent_run_id}/retry
 ```
@@ -105,6 +106,8 @@ POST /api/agent/runs/{agent_run_id}/retry
 每次 Agent 调用都会记录运行元数据，包括运行 ID、状态、耗时、Provider、模型、意图、草稿类型和错误码，不保存模型推理内容。
 
 `GET /api/agent/runs?user_id=...` 只返回可观察性字段，不返回失败运行中的重试输入。
+
+`GET /api/agent/runs/{agent_run_id}/trace?user_id=...` 返回该次运行的安全流程事件，例如安全检查、上下文读取、知识检索、模型生成、工具执行与草稿校验。事件只包含节点状态、错误码和数量类元数据，不包含用户输入、模型推理过程或思维链。
 
 `GET /api/agent/metrics?user_id=...` 返回成功率、平均耗时、累计 token、生成次数、HTTP 尝试次数和按错误码聚合的失败次数，可用于真实模型接入后的质量与成本观察。
 
@@ -145,7 +148,8 @@ POST /api/agent/runs/{agent_run_id}/retry
 - `backend/app/services/repository_store.py` 已把结构化集合映射到 repository-backed store。
 - `backend/app/agents/tool_registry.py` 提供 Agent 白名单工具注册、严格参数校验和显式分派；关键写入仍只生成草稿。
 - `backend/app/rag/retriever.py` 提供本地关键词 RAG 检索，不保存主业务事实。
-- `backend/app/agents/graph.py` 提供异步 Agent graph，用于安全检查、上下文构建、RAG 检索、Provider 调用、单轮工具执行和草稿校验。
+- `backend/app/agents/graph.py` 使用 LangGraph `StateGraph` 编排安全检查、上下文构建、RAG 检索、Provider 调用、单轮工具执行和草稿校验，并使用 `MemorySaver` 保存进程内 checkpoint。
+- 当前 checkpoint 仅支持同一后端进程存活期间的回放和调试；跨进程重启恢复需要后续接入 MongoDB 或 Postgres saver，当前不将其视为已完成的生产级恢复能力。
 - `backend/app/llm/factory.py` 提供 Provider Router：开发环境 OpenAI 失败会降级到 deterministic，生产环境会返回稳定错误。
 - `backend/app/llm/openai_provider.py` 已接入 OpenAI Responses API，显式 `store=False`、`parallel_tool_calls=False`，并关闭 SDK 内部重试。
 - `backend/app/services/memory_service.py` 可以从结构化记录生成每周长期记忆摘要。
@@ -181,6 +185,26 @@ $env:945_OPENAI_MODEL="你的 OpenAI 模型 ID"
 $env:945_LLM_TIMEOUT_SECONDS="20"
 ```
 
+启用 DeepSeek（默认使用 `deepseek-v4-flash`，关闭 thinking mode，并限制每次最多输出 600 tokens）：
+
+```powershell
+$env:945_APP_ENV="production"
+$env:945_LLM_PROVIDER="deepseek"
+$env:DEEPSEEK_API_KEY="你的 DeepSeek API Key"
+$env:945_DEEPSEEK_MODEL="deepseek-v4-flash"
+$env:945_DEEPSEEK_MAX_TOKENS="600"
+$env:945_LLM_TIMEOUT_SECONDS="20"
+```
+
+首次仅做一条低成本真实调用验证：
+
+```powershell
+$env:945_RUN_DEEPSEEK_SMOKE_TESTS="1"
+python -m pytest backend/tests/test_deepseek_smoke.py -q
+```
+
+该测试只发送一个训练知识问题，不携带工具定义，不会生成草稿或写入训练、饮食、计划数据。不要将 `DEEPSEEK_API_KEY` 写入仓库、`.env.http`、测试快照或前端 `VITE_*` 变量。
+
 生产环境启用 OpenAI 时必须配置 `OPENAI_API_KEY` 和 `945_OPENAI_MODEL`。缺少配置或 Provider 调用失败时，生产环境不会自动降级保存消息，而是返回稳定错误响应。
 
 稳定错误码：
@@ -194,6 +218,20 @@ LLM_OUTPUT_INVALID
 ```
 
 开发环境自动降级只体现在后端运行元数据中，对前端成功响应形状保持兼容。无论 deterministic 还是 OpenAI，模型都不能直接写入训练、饮食或计划数据；记录类操作只返回 `RecordDraft`，用户确认后再调用结构化 API。
+
+## LangSmith 可观测性
+
+945 已保留可选的 LangSmith 追踪接入，用于查看 Agent 图节点耗时、Provider 调用与失败链路。默认关闭；没有 LangSmith Key 不影响本地 demo、MongoDB 或 deterministic Provider。
+
+启用时在启动后端的终端设置：
+
+```powershell
+$env:945_LANGSMITH_TRACING="true"
+$env:LANGSMITH_API_KEY="你的 LangSmith API Key"
+$env:LANGSMITH_PROJECT="945"
+```
+
+服务端会强制设置 `LANGSMITH_HIDE_INPUTS=true` 和 `LANGSMITH_HIDE_OUTPUTS=true`。发送到追踪系统的运行 metadata 仅包含匿名用户哈希、`request_id`、语言和 Provider；不会发送用户聊天正文、训练/饮食数据、profile、RAG 原文或模型推理过程。未设置 Key 时追踪保持关闭。
 
 ## MongoDB repository 配置
 
@@ -219,6 +257,28 @@ $env:945_MONGODB_DATABASE="945"
 & "D:\MongoDB\server\mongodb-win32-x86_64-windows-8.3.4\bin\mongod.exe" --dbpath D:\MongoDB\data --bind_ip 127.0.0.1 --port 27017 --logpath D:\MongoDB\log\mongod.log
 ```
 
+## LangGraph checkpoint 持久化
+
+默认 demo 模式继续使用进程内 `MemorySaver`，适合本地演示，不会跨后端重启保留 Agent 图状态。
+
+当设置 `945_STORAGE_BACKEND=mongo` 后，Agent 图会切换到 MongoDB checkpointer，并使用当前 `945_MONGODB_DATABASE` 中的两个专用集合：
+
+```text
+agent_checkpoints
+agent_checkpoint_writes
+```
+
+这两个集合保存 LangGraph 的节点状态和中间写入，用于服务重启后的运行状态读取、排障与后续的恢复能力；不会保存模型推理过程或对用户展示的思维链。训练、饮食和计划变更仍然只能通过用户确认后的结构化 API 写入。
+
+当前 `/api/agent/chat` 每次请求仍会生成新的 Agent run 和新的 `thread_id`，因此它已具备 durable checkpoint 基础，但尚未开放“暂停后从同一 run 继续”的客户端恢复操作。该能力需要后续产品流程和权限边界一起设计，不能仅凭保存 checkpoint 自动启用。
+
+本机验证 Mongo checkpoint：
+
+```powershell
+$env:945_RUN_MONGO_INTEGRATION_TESTS="1"
+python -m pytest backend/tests/test_agent_graph.py -q
+```
+
 ## 运行测试
 
 ```powershell
@@ -232,6 +292,14 @@ python -m backend.evals.run_agent_eval
 ```
 
 该命令固定运行训练记录、饮食记录、计划调整、知识问答和高风险输入场景，输出每条场景的意图与草稿类型以及总通过率。它使用 deterministic Provider，只生成或校验 `RecordDraft`，不调用训练、饮食或计划的结构化写入接口，也不会消耗真实模型额度。
+
+评测可输出机器可读 JSON 报告，适合作为本地或 CI 质量门：
+
+```powershell
+python -m backend.evals.run_agent_eval --json-output output/agent-eval.json
+```
+
+项目根目录也提供 `npm run qa:agent` 快捷命令。`.github/workflows/agent-eval.yml` 会在推送到 `master` 或创建 Pull Request 时运行后端测试和该评测，并上传 JSON 报告。评测失败、意图/草稿类型回归，或任一场景发生结构化写入时都会返回非零退出码。
 
 真实 OpenAI 冒烟测试默认跳过，避免误触发费用。只有明确配置后才运行：
 

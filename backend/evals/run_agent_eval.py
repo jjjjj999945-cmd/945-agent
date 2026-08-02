@@ -1,7 +1,10 @@
 """Run the deterministic 945 Agent baseline without writing user records."""
 
+import argparse
 import asyncio
 from dataclasses import dataclass
+import json
+from pathlib import Path
 
 from backend.app.agents.graph import run_agent_graph
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
@@ -96,16 +99,40 @@ async def run_evaluation() -> tuple[list[tuple[AgentEvalCase, bool, str]], int]:
     return results, _structured_record_count() - starting_record_count
 
 
-def main() -> int:
+def build_eval_report(
+    results: list[tuple[AgentEvalCase, bool, str]], structured_writes: int
+) -> dict[str, object]:
+    passed_cases = sum(1 for _, is_passing, _ in results if is_passing)
+    total_cases = len(results)
+    return {
+        "total_cases": total_cases,
+        "passed_cases": passed_cases,
+        "pass_rate": passed_cases / total_cases if total_cases else 0.0,
+        "structured_writes": structured_writes,
+        "passed": passed_cases == total_cases and structured_writes == 0,
+        "cases": [
+            {"case_id": case.case_id, "passed": is_passing, "details": details}
+            for case, is_passing, details in results
+        ],
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run the deterministic 945 Agent evaluation suite.")
+    parser.add_argument("--json-output", type=Path, help="Write the evaluation report to this JSON file.")
+    args = parser.parse_args(argv)
     results, structured_writes = asyncio.run(run_evaluation())
-    passed = sum(1 for _, is_passing, _ in results if is_passing)
+    report = build_eval_report(results, structured_writes)
 
     print("945 Agent Eval")
     for case, is_passing, details in results:
         print(f"{'PASS' if is_passing else 'FAIL'} {case.case_id}: {details}")
     print(f"Structured writes: {structured_writes}")
-    print(f"Passed: {passed}/{len(results)}")
-    return 0 if passed == len(results) and structured_writes == 0 else 1
+    print(f"Passed: {report['passed_cases']}/{report['total_cases']}")
+    if args.json_output is not None:
+        args.json_output.parent.mkdir(parents=True, exist_ok=True)
+        args.json_output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return 0 if report["passed"] else 1
 
 
 if __name__ == "__main__":

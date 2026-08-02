@@ -9,7 +9,9 @@ import type {
 import { appToday } from "../services/dateContext";
 
 // HTTP mode replaces this with the authenticated user's ID after a full session reload.
-export const DEMO_USER_ID = window.localStorage.getItem("945.auth.user_id") ?? "demo-user-945";
+export const DEMO_USER_ID = import.meta.env.VITE_945_AUTH_ENABLED === "false"
+  ? "demo-user-945"
+  : window.localStorage.getItem("945.auth.user_id") ?? "demo-user-945";
 const dateAfter = (days: number) => {
   const value = new Date(`${appToday}T12:00:00`);
   value.setDate(value.getDate() + days);

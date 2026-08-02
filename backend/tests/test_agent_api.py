@@ -98,6 +98,38 @@ def test_agent_chat_answers_food_question_without_creating_a_record_draft():
     assert response.json()["data"]["record_draft"] is None
 
 
+def test_agent_run_trace_exposes_safe_workflow_steps_only():
+    response = client.post(
+        "/api/agent/chat",
+        json={
+            "user_id": "demo-user-945",
+            "locale": "en-US",
+            "message": "How should I warm up before a squat session?",
+        },
+    )
+    assert response.status_code == 200
+    run_id = client.get("/api/agent/runs", params={"user_id": "demo-user-945"}).json()["data"][0]["agent_run_id"]
+
+    trace_response = client.get(
+        f"/api/agent/runs/{run_id}/trace",
+        params={"user_id": "demo-user-945"},
+    )
+
+    assert trace_response.status_code == 200
+    trace = trace_response.json()["data"]
+    assert [step["name"] for step in trace] == [
+        "safety_guard",
+        "context_builder",
+        "rag_retriever",
+        "memory_context",
+        "model_generation",
+        "tool_execution",
+        "draft_validator",
+    ]
+    assert all("message" not in step["metadata"] for step in trace)
+    assert all("chain_of_thought" not in step["metadata"] for step in trace)
+
+
 def test_agent_chat_returns_meal_record_draft():
     response = client.post(
         "/api/agent/chat",

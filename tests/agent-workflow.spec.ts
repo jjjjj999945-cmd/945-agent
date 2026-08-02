@@ -22,12 +22,14 @@ test("shows an observable coach status while an agent request is running", async
   await page.goto("/");
   const input = page.getByPlaceholder(/深蹲/);
   await input.fill("今天想调整训练强度");
-  await page.getByRole("button", { name: "发送" }).click();
+  const send = page.getByRole("button", { name: "发送" }).click();
+  const requestStatus = page.locator(".agent-status-panel").getByRole("status").filter({ hasText: "本次请求" });
 
-  await expect(page.getByRole("status")).toContainText("正在读取当前上下文并生成建议");
-  await expect(page.getByRole("status")).toContainText("分析中");
+  await expect(requestStatus).toContainText("正在读取当前上下文并生成建议");
+  await expect(requestStatus).toContainText("分析中");
+  await send;
   await expect(page.getByText("我已整理好你的训练建议。")).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("在线");
+  await expect(page.locator(".agent-status-panel").getByRole("status").filter({ hasText: "教练状态" })).toContainText("在线");
 });
 
 test("opens the profile setup form inside the coach workspace", async ({ page }) => {

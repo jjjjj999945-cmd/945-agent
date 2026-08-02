@@ -7,6 +7,19 @@ test.describe.serial("945 real HTTP integration", () => {
     test.skip(testInfo.project.name !== "chrome-desktop-http", "requires the HTTP Playwright project");
   });
 
+  test("uses the demo account when unauthenticated mode has a stale saved user", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("945.auth.user_id", "stale-user-id");
+    });
+
+    await page.goto("/agent");
+    await page.getByPlaceholder("\u4eca\u5929\u6df1\u8e72\u505a\u4e86 4 \u7ec4\uff0c\u6bcf\u7ec4 8 \u6b21\uff0c80kg\uff0c\u611f\u89c9\u5f88\u7d2f\u3002").fill("\u4f60\u597d");
+    await page.getByRole("button", { name: "\u53d1\u9001" }).click();
+
+    await expect(page.getByText("Demo user not found.")).toBeHidden();
+    await expect(page.getByText("\u6211\u5df2\u8bfb\u53d6\u4f60\u7684\u95ee\u9898\u3002\u5f53\u524d demo \u4f1a\u4f18\u5148\u57fa\u4e8e\u4eca\u65e5\u8ba1\u5212\u3001\u8bb0\u5f55\u548c\u5efa\u8bae\u56de\u7b54\u3002")).toBeVisible();
+  });
+
   test("loads the Today page through FastAPI", async ({ page, request }) => {
     const health = await request.get(`${API_BASE_URL}/health`);
     expect(health.ok()).toBeTruthy();
@@ -19,13 +32,48 @@ test.describe.serial("945 real HTTP integration", () => {
     const todayResponse = page.waitForResponse(
       (response) => response.url().includes("/api/today") && response.request().method() === "GET"
     );
-    await page.goto("/app");
+    await page.goto("/today");
     await expect(page.getByRole("heading", { name: "早上好，Alex。" })).toBeVisible();
     expect((await todayResponse).status()).toBe(200);
   });
 
+  test("guides the user to renew an expired plan when Today has no scheduled content", async ({ page }) => {
+    await page.route("**/api/today?*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            date: "2026-07-11",
+            user: { user_id: "demo-user-945", display_name: "Alex", goal: "body_recomposition" },
+            status_summary: {
+              weekly_workouts_completed: 0,
+              weekly_workouts_planned: 4,
+              calories_target: 2300,
+              calories_logged: 0,
+              protein_target_g: 160,
+              protein_logged_g: 0,
+              weight_7_day_delta_kg: 0,
+              recovery_status: "normal"
+            },
+            today_workout: null,
+            today_meals: [],
+            daily_checkin: null,
+            latest_advice: null
+          },
+          error: null
+        })
+      })
+    );
+
+    await page.goto("/today");
+    await expect(page.getByText("当前计划没有覆盖今天")).toBeVisible();
+    await page.getByRole("button", { name: "生成新计划" }).click();
+    await expect(page).toHaveURL(/\/plan$/);
+  });
+
   test("persists page mutations through FastAPI", async ({ page, request }) => {
-    await page.goto("/app");
+    await page.goto("/today");
 
     const mealLogsBefore = await (await request.get(`${API_BASE_URL}/api/meal-logs?user_id=demo-user-945`)).json();
     await page.getByRole("button", { name: "确认" }).first().click();
@@ -65,6 +113,21 @@ test.describe.serial("945 real HTTP integration", () => {
     await expect(page.getByText("训练记录已保存")).toBeVisible();
     const workoutLogsAfter = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
     expect(workoutLogsAfter.data).toHaveLength(workoutLogsBefore.data.length + 1);
+  });
+
+  test("persists a completed workout from the Today page", async ({ page, request }) => {
+    await page.goto("/today");
+    const before = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
+    const writeResponse = page.waitForResponse(
+      (response) => response.url() === `${API_BASE_URL}/api/workout-logs` && response.request().method() === "POST"
+    );
+
+    await page.getByRole("button", { name: "完成", exact: true }).click();
+
+    expect((await writeResponse).status()).toBe(200);
+    await expect(page.getByText("训练记录已保存")).toBeVisible();
+    const after = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
+    expect(after.data).toHaveLength(before.data.length + 1);
   });
 
   test("writes Agent workout and meal drafts only after confirmation", async ({ page, request }) => {
@@ -216,6 +279,54 @@ test.describe.serial("945 real HTTP integration", () => {
     await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeHidden();
   });
 
+  test("shows a failed Agent run and retries only when the user requests it", async ({ page }) => {
+    let hasRetried = false;
+    await page.route("**/api/agent/runs?*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: [
+            {
+              agent_run_id: "run-failed",
+              user_id: "demo-user-945",
+              status: hasRetried ? "completed" : "failed",
+              started_at: "2026-07-11T09:00:00Z",
+              completed_at: "2026-07-11T09:00:01Z",
+              duration_ms: 1000,
+              error_code: hasRetried ? null : "LLM_TIMEOUT"
+            }
+          ],
+          error: null
+        })
+      })
+    );
+    await page.route("**/api/agent/runs/run-failed/retry", async (route) => {
+      expect(route.request().method()).toBe("POST");
+      hasRetried = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            message_id: "retry-agent-message",
+            user_id: "demo-user-945",
+            role: "agent",
+            content: "重试完成。",
+            locale: "zh-CN",
+            created_at: "2026-07-11T09:00:02Z"
+          },
+          error: null
+        })
+      });
+    });
+
+    await page.goto("/agent");
+    await expect(page.getByText("上次请求未完成")).toBeVisible();
+    await page.getByRole("button", { name: "重试此请求" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "本次请求已完成" })).toBeVisible();
+  });
+
   test("rejects malformed and unsupported Agent workout drafts without writes", async ({ page, request }) => {
     const drafts = [
       { type: "workout_log", payload: { exercise_name: "深蹲", sets: 0, reps: 8 } },
@@ -290,7 +401,7 @@ test.describe.serial("945 real HTTP integration", () => {
         body: JSON.stringify({ detail: [{ loc: ["query", "date"], msg: "Invalid date", type: "value_error" }] })
       })
     );
-    await page.goto("/app");
+    await page.goto("/today");
     await expect(page.getByRole("status")).toContainText("Request validation failed.");
   });
 
@@ -298,7 +409,7 @@ test.describe.serial("945 real HTTP integration", () => {
     await page.route("**/api/today?*", (route) =>
       route.fulfill({ status: 422, contentType: "application/json", body: "null" })
     );
-    await page.goto("/app");
+    await page.goto("/today");
     await expect(page.getByRole("status")).toContainText("945 backend returned an invalid response.");
   });
 
@@ -306,13 +417,13 @@ test.describe.serial("945 real HTTP integration", () => {
     await page.route("**/api/today?*", (route) =>
       route.fulfill({ status: 502, contentType: "text/html", body: "Bad gateway" })
     );
-    await page.goto("/app");
+    await page.goto("/today");
     await expect(page.getByRole("status")).toContainText("945 backend returned an invalid response.");
   });
 
   test("shows network errors when the API request is aborted", async ({ page }) => {
     await page.route("**/api/today?*", (route) => route.abort("failed"));
-    await page.goto("/app");
+    await page.goto("/today");
     await expect(page.getByRole("status")).toContainText("Unable to reach 945 backend.");
   });
 });

@@ -6,7 +6,7 @@ from backend.app.agents.graph import run_agent_graph
 from backend.app.core.config import get_settings
 from backend.app.llm.errors import AgentUsageLimitError, LLMError
 from backend.app.llm.factory import LLMProviderRouter
-from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRetryInput, AgentRun
+from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRetryInput, AgentRun, AgentTraceStep
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import (
     is_demo_user,
@@ -105,6 +105,13 @@ async def create_agent_reply(
                     context=input_data.context,
                 ),
                 retry_of_agent_run_id=retry_of_agent_run_id,
+                trace_steps=[
+                    AgentTraceStep(
+                        name="model_generation",
+                        status="failed",
+                        metadata={"error_code": exc.code},
+                    )
+                ],
             )
         )
         raise
@@ -146,6 +153,7 @@ async def create_agent_reply(
             logical_generations=graph_result.usage.logical_generations,
             http_attempts=graph_result.usage.http_attempts,
             retry_of_agent_run_id=retry_of_agent_run_id,
+            trace_steps=graph_result.trace_steps,
         )
     )
     return agent_message

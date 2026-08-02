@@ -1,7 +1,9 @@
 import asyncio
 
+import backend.app.agents.graph as agent_graph_module
 from backend.app.core.config import get_settings
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
+from langgraph.checkpoint.memory import MemorySaver
 from backend.app.models.domain import AgentChatInput, WorkoutLogInput
 from backend.app.repositories.mongo import MongoRepository
 from backend.app.services import demo_store
@@ -13,6 +15,8 @@ from backend.tests.test_mongo_repository import FakeDatabase
 def test_demo_store_delegates_to_repository_store_in_mongo_mode(monkeypatch):
     monkeypatch.setenv("945_STORAGE_BACKEND", "mongo")
     get_settings.cache_clear()
+    agent_graph_module.get_agent_graph.cache_clear()
+    monkeypatch.setattr(agent_graph_module, "get_agent_checkpointer", lambda: MemorySaver())
     store = RepositoryBackedStore(MongoRepository(FakeDatabase()))
     store.seed_demo_data()
     demo_store.set_repository_store_for_tests(store)
@@ -46,5 +50,6 @@ def test_demo_store_delegates_to_repository_store_in_mongo_mode(monkeypatch):
         assert runs[0].draft_type == "workout_log"
     finally:
         demo_store.set_repository_store_for_tests(None)
+        agent_graph_module.get_agent_graph.cache_clear()
         monkeypatch.delenv("945_STORAGE_BACKEND", raising=False)
         get_settings.cache_clear()

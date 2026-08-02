@@ -14,7 +14,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { PlanProvider, usePlanContext } from "./contexts/PlanContext";
 import { getRouteByPath, isPrototypePath, type RouteId } from "./routes";
 import type { Locale, RecordDraft } from "./types/domain";
-import { authApi, clearSession, getCurrentUserId, hasSession } from "./services/authSession";
+import { authApi, clearSession, getCurrentUserId, hasSession, saveCurrentUserId } from "./services/authSession";
 
 export function App() {
   const [locale, setLocale] = useState<Locale>("zh-CN");
@@ -41,6 +41,8 @@ export function App() {
       if (result.error) {
         clearSession();
         setAuthenticated(false);
+      } else {
+        saveCurrentUserId(result.data.user_id);
       }
       setSessionReady(true);
     });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ConfirmDialog } from "../components/business/ConfirmDialog";
 import { OnboardingPage } from "./OnboardingPage";
 import { DEMO_USER_ID } from "../data/demoData";
@@ -7,7 +7,40 @@ import { usePlanContext } from "../contexts/PlanContext";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
 import { saveRecordDraft } from "../services/recordDraft";
-import type { AgentMessage, Locale, RecordDraft, TodayResponseData } from "../types/domain";
+import type { AgentMessage, AgentRun, Locale, RecordDraft, TodayResponseData } from "../types/domain";
+
+function renderInlineMessageText(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
+function renderMessageContent(content: string) {
+  const lines = content.split("\n");
+  const blocks: ReactNode[] = [];
+  let listItems: string[] = [];
+
+  const flushList = () => {
+    if (!listItems.length) return;
+    blocks.push(<ul key={`list-${blocks.length}`}>{listItems.map((item, index) => <li key={index}>{renderInlineMessageText(item)}</li>)}</ul>);
+    listItems = [];
+  };
+
+  for (const line of lines) {
+    const listMatch = line.match(/^\s*[-*]\s+(.+)$/);
+    if (listMatch) {
+      listItems.push(listMatch[1]);
+      continue;
+    }
+    flushList();
+    if (line.trim()) blocks.push(<p key={`paragraph-${blocks.length}`}>{renderInlineMessageText(line)}</p>);
+  }
+  flushList();
+  return blocks;
+}
 
 export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Locale; pendingDraft?: RecordDraft | null; onDraftHandled?: () => void }) {
   const t = createTranslator(locale);
@@ -19,22 +52,21 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       ? (isChinese ? "上一份计划已经结束。创建并启用新计划后，945 会按你的最新目标继续安排训练与饮食。" : "Your previous plan has ended. Create and activate a new plan so 945 can continue arranging your training and nutrition.")
       : (isChinese ? "创建并启用计划后，945 才能根据你的目标安排训练、饮食与每日建议。" : "Create and activate a plan so 945 can arrange training, nutrition, and daily advice around your goal."))
     : (isChinese ? "先完善基础资料，945 才能为你生成合适的训练与饮食计划。" : "Complete your basic profile first so 945 can generate an appropriate training and nutrition plan.");
-  const roleLabels: Record<AgentMessage["role"], string> = {
-    agent: isChinese ? "智能教练" : "Agent",
-    user: isChinese ? "你" : "You"
-  };
   const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [latestRun, setLatestRun] = useState<AgentRun | null>(null);
   const [today, setToday] = useState<TodayResponseData | null>(null);
   const [input, setInput] = useState("");
   const [draft, setDraft] = useState<RecordDraft | null>(null);
   const [notice, setNotice] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
 
   useEffect(() => {
     void loadMessages();
     void loadTodayContext();
+    void loadLatestRun();
   }, []);
 
   useEffect(() => {
@@ -51,6 +83,11 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
     if (!response.error) setToday(response.data);
   }
 
+  async function loadLatestRun() {
+    const response = await api.getAgentRuns(DEMO_USER_ID);
+    if (!response.error) setLatestRun(response.data[0] ?? null);
+  }
+
   async function send() {
     if (!input.trim() || isSending) return;
     setNotice("");
@@ -64,6 +101,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       });
       if (response.error) {
         setNotice(response.error.message);
+        await loadLatestRun();
         return;
       }
       setDraft(response.data.record_draft ?? null);
@@ -71,8 +109,31 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       await loadMessages();
       setMessages((current) => current.some((message) => message.message_id === response.data.message_id) ? current : [...current, response.data]);
       await loadTodayContext();
+      await loadLatestRun();
     } finally {
       setIsSending(false);
+    }
+  }
+
+  async function retryLatestRun() {
+    if (!latestRun || latestRun.status !== "failed" || isRetrying) return;
+    setNotice("");
+    setIsRetrying(true);
+    try {
+      const response = await api.retryAgentRun({
+        user_id: DEMO_USER_ID,
+        agent_run_id: latestRun.agent_run_id
+      });
+      if (response.error) {
+        setNotice(response.error.message);
+        return;
+      }
+      setDraft(response.data.record_draft ?? null);
+      await loadMessages();
+      await loadTodayContext();
+      await loadLatestRun();
+    } finally {
+      setIsRetrying(false);
     }
   }
 
@@ -143,14 +204,9 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       <section className="agent-chat-layout">
       <article className="business-panel chat-window">
         <div className="agent-thread">
-          <div className="agent-bubble agent">
-            <strong>{isChinese ? "945 智能教练" : "945 Agent"}</strong>
-            <span>{today?.latest_advice?.content ?? (isChinese ? "我会根据你的计划、记录和每日打卡生成可确认的建议。" : "I use your plan, records, and daily check-ins to produce confirmation-required suggestions.")}</span>
-          </div>
           {messages.map((message) => (
-            <div className={`agent-bubble ${message.role}`} key={message.message_id}>
-              <strong>{roleLabels[message.role]}</strong>
-              <span>{message.content}</span>
+            <div className={`agent-message ${message.role}`} key={message.message_id}>
+              <div className="agent-message-content">{renderMessageContent(message.content)}</div>
             </div>
           ))}
         </div>
@@ -167,6 +223,31 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
         <article aria-live="polite" className="business-panel compact" role="status">
           <div className="section-heading"><span>{isChinese ? "教练状态" : "Agent Status"}</span><strong>{isSending ? (isChinese ? "分析中" : "Analyzing") : (isChinese ? "在线" : "Active")}</strong></div>
           <small>{isSending ? (isChinese ? "正在读取当前上下文并生成建议" : "Reading your current context and preparing a suggestion.") : (isChinese ? "上下文：当前计划、训练记录、饮食记录、每日打卡与建议。" : "Context: active plan, workout records, meal records, check-ins, and advice.")}</small>
+        </article>
+        <article aria-live="polite" className="business-panel compact" role="status">
+          <div className="section-heading">
+            <span>{isChinese ? "本次请求" : "Latest request"}</span>
+            <strong>
+              {isSending || isRetrying
+                ? (isChinese ? "分析中" : "Analyzing")
+                : latestRun?.status === "failed"
+                  ? (isChinese ? "需要重试" : "Needs retry")
+                  : latestRun?.status === "completed"
+                    ? (isChinese ? "已完成" : "Completed")
+                    : (isChinese ? "等待请求" : "Waiting")}
+            </strong>
+          </div>
+          {isSending || isRetrying ? <small>{isChinese ? "正在读取当前上下文并生成建议" : "Reading your context and preparing a suggestion."}</small> : null}
+          {!isSending && !isRetrying && latestRun?.status === "failed" ? <small>{isChinese ? `上次请求未完成${latestRun.error_code ? `：${latestRun.error_code}` : ""}` : `The last request did not finish${latestRun.error_code ? `: ${latestRun.error_code}` : ""}.`}</small> : null}
+          {!isSending && !isRetrying && latestRun?.status === "completed" ? <small>{isChinese ? "本次请求已完成" : "This request completed."}</small> : null}
+          {!isSending && !isRetrying && !latestRun ? <small>{isChinese ? "发送消息后，945 会在这里反馈处理结果。" : "945 will show the request result here after you send a message."}</small> : null}
+          {latestRun?.status === "failed" ? (
+            <div className="button-row">
+              <button disabled={isRetrying} onClick={() => void retryLatestRun()} type="button">
+                {isRetrying ? (isChinese ? "重试中" : "Retrying") : (isChinese ? "重试此请求" : "Retry request")}
+              </button>
+            </div>
+          ) : null}
         </article>
         <article className="business-panel plan-draft-card">
           <div className="section-heading"><span>{isChinese ? "今日训练" : "Today's workout"}</span><strong>{today?.today_workout ? `${today.today_workout.duration_minutes} ${t("metrics.durationMinutes")}` : "-"}</strong></div>
