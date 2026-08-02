@@ -10,16 +10,8 @@ export default defineConfig({
   projects: [{ name: "chrome-desktop-http", use: { ...devices["Desktop Chrome"], channel: "chrome" } }],
   webServer: [
     {
-      command: "python backend/scripts/reset_mongo_database.py && python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000",
+      command: "python backend/scripts/run_mongo_qa_server.py",
       url: "http://127.0.0.1:8000/health",
-      env: {
-        "945_STORAGE_BACKEND": "mongo",
-        "945_MONGODB_URI": "mongodb://127.0.0.1:27017",
-        "945_MONGODB_DATABASE": "945_mongo_qa",
-        "945_LLM_PROVIDER": "deterministic",
-        "945_APP_ENV": "development",
-        "945_REFERENCE_DATE": "2026-07-11"
-      },
       reuseExistingServer: false,
       timeout: 60_000
     },
