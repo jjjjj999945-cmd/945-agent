@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 
-def test_agent_eval_runner_reports_a_passing_deterministic_baseline():
+def test_agent_eval_runner_reports_a_fifty_case_deterministic_baseline():
     root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
         [sys.executable, "-m", "backend.evals.run_agent_eval"],
@@ -15,5 +15,5 @@ def test_agent_eval_runner_reports_a_passing_deterministic_baseline():
 
     assert result.returncode == 0, result.stderr
     assert "945 Agent Eval" in result.stdout
-    assert "Passed: 30/30" in result.stdout
+    assert "Passed: 50/50" in result.stdout
     assert "Structured writes: 0" in result.stdout
