@@ -4,14 +4,17 @@ import argparse
 import asyncio
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 from time import perf_counter
+from typing import Literal
 
 from backend.app.agents.graph import run_agent_graph
+from backend.app.core.config import Settings
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
 from backend.app.llm.deterministic import DeterministicProvider
 from backend.app.llm.errors import LLMError
-from backend.app.llm.factory import LLMProviderRouter
+from backend.app.llm.factory import LLMProviderRouter, build_llm_provider_router
 from backend.app.llm.models import ProviderUsage
 from backend.app.services.demo_store import list_meal_logs, list_plans, list_workout_logs
 
@@ -33,6 +36,10 @@ class EvalCaseResult:
     failure_category: str | None
     duration_ms: float
     usage: ProviderUsage
+
+
+class EvalConfigurationError(RuntimeError):
+    pass
 
 
 DETERMINISTIC_CASES = (
@@ -89,6 +96,31 @@ DETERMINISTIC_CASES = (
 )
 
 
+DEEPSEEK_SAMPLE_CASES = (
+    AgentEvalCase("deepseek_workout_record", "今天深蹲做了4组，每组8次，80kg，帮我记录", "log_workout", "workout_log"),
+    AgentEvalCase("deepseek_meal_record", "午餐吃了鸡胸肉和米饭，帮我记录", "log_meal", "meal_log"),
+    AgentEvalCase("deepseek_plan_adjustment", "今天状态很累，帮我调整训练计划", "adjust_plan", "plan_adjustment"),
+    AgentEvalCase("deepseek_training_question", "深蹲热身应该怎么做？", "ask_question", None),
+    AgentEvalCase("deepseek_nutrition_question", "训练后吃什么更利于恢复？", "ask_question", None),
+    AgentEvalCase("deepseek_safety_warning", "训练时胸闷眩晕，还能继续冲重量吗？", "safety_warning", None),
+    AgentEvalCase("deepseek_english_question", "How should I warm up before a squat session?", "ask_question", None, "en-US"),
+    AgentEvalCase("deepseek_boundary_question", "I only have mild soreness today. Should I rest?", "ask_question", None, "en-US"),
+)
+
+
+def build_evaluation_router(provider_name: Literal["deterministic", "deepseek"]) -> LLMProviderRouter:
+    if provider_name == "deterministic":
+        provider = DeterministicProvider()
+        return LLMProviderRouter(primary=provider, fallback=provider, app_env="development")
+
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise EvalConfigurationError("DEEPSEEK_API_KEY is required for --provider deepseek.")
+    return build_llm_provider_router(
+        Settings(app_env="production", llm_provider="deepseek", deepseek_api_key=api_key)
+    )
+
+
 def _structured_record_count() -> int:
     return sum(
         len(records or [])
@@ -100,13 +132,15 @@ def _structured_record_count() -> int:
     )
 
 
-async def run_evaluation() -> tuple[list[EvalCaseResult], int]:
-    provider = DeterministicProvider()
-    router = LLMProviderRouter(primary=provider, fallback=provider, app_env="development")
+async def run_evaluation(
+    cases: tuple[AgentEvalCase, ...] = DETERMINISTIC_CASES,
+    router: LLMProviderRouter | None = None,
+) -> tuple[list[EvalCaseResult], int]:
+    router = router or build_evaluation_router("deterministic")
     results: list[EvalCaseResult] = []
     starting_record_count = _structured_record_count()
 
-    for case in DETERMINISTIC_CASES:
+    for case in cases:
         records_before = _structured_record_count()
         started_at = perf_counter()
         try:
@@ -208,14 +242,25 @@ def build_eval_report(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the deterministic 945 Agent evaluation suite.")
     parser.add_argument("--json-output", type=Path, help="Write the evaluation report to this JSON file.")
+    parser.add_argument("--provider", choices=("deterministic", "deepseek"), default="deterministic")
     args = parser.parse_args(argv)
-    results, structured_writes = asyncio.run(run_evaluation())
+    provider_name = args.provider
+    try:
+        router = build_evaluation_router(provider_name)
+    except EvalConfigurationError as exc:
+        print(str(exc), file=os.sys.stderr)
+        return 2
+
+    cases = DEEPSEEK_SAMPLE_CASES if provider_name == "deepseek" else DETERMINISTIC_CASES
+    suite = "deepseek_sample" if provider_name == "deepseek" else "deterministic"
+    minimum_pass_rate = 0.875 if provider_name == "deepseek" else 1.0
+    results, structured_writes = asyncio.run(run_evaluation(cases, router))
     report = build_eval_report(
         results,
         structured_writes,
-        provider="deterministic",
-        suite="deterministic",
-        minimum_pass_rate=1.0,
+        provider=provider_name,
+        suite=suite,
+        minimum_pass_rate=minimum_pass_rate,
     )
 
     print("945 Agent Eval")
