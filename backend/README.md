@@ -293,6 +293,25 @@ python -m backend.evals.run_agent_eval
 
 该命令固定运行训练记录、饮食记录、计划调整、知识问答和高风险输入场景，输出每条场景的意图与草稿类型以及总通过率。它使用 deterministic Provider，只生成或校验 `RecordDraft`，不调用训练、饮食或计划的结构化写入接口，也不会消耗真实模型额度。
 
+### Agent Eval 质量门
+
+默认评测固定使用 deterministic Provider，适合本地和 CI，零模型费用：
+
+```powershell
+python -m backend.evals.run_agent_eval --json-output output/agent-eval.json
+```
+
+CI 只运行上面的确定性命令，绝不会自动运行 DeepSeek。报告会记录通过率、token、耗时和 HTTP 尝试次数；它不估算人民币或美元成本。
+
+DeepSeek 小样本评测必须由开发者在本地显式执行，会产生 Provider 费用：
+
+```powershell
+$env:DEEPSEEK_API_KEY="your-deepseek-api-key"
+python -m backend.evals.run_agent_eval --provider deepseek --json-output output/deepseek-eval.json
+```
+
+两种评测都只验证 Agent 输出和确认边界，不会直接写入训练、饮食或计划等结构化记录。
+
 评测可输出机器可读 JSON 报告，适合作为本地或 CI 质量门：
 
 ```powershell

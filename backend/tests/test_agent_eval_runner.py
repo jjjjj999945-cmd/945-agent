@@ -4,6 +4,14 @@ import os
 from pathlib import Path
 
 
+def test_ci_runs_only_the_deterministic_agent_eval_gate():
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github" / "workflows" / "agent-eval.yml").read_text(encoding="utf-8")
+
+    assert "python -m backend.evals.run_agent_eval --json-output output/agent-eval.json" in workflow
+    assert "--provider deepseek" not in workflow
+
+
 def test_agent_eval_runner_reports_a_fifty_case_deterministic_baseline():
     root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
