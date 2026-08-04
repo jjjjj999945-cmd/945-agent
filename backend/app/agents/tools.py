@@ -1,3 +1,5 @@
+import re
+
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
 from backend.app.models.domain import AdviceStatus, AgentAdvice, MealLog, RecordDraft, TodayResponseData, UserProfile, WorkoutLog
 from backend.app.services.demo_store import (
@@ -61,11 +63,14 @@ def create_workout_log_draft(message: str) -> RecordDraft | None:
     normalized = message.lower()
     if "深蹲" not in normalized and "squat" not in normalized:
         return None
+    sets_match = re.search(r"(\d+)\s*(?:组|sets?)", normalized)
+    reps_match = re.search(r"(\d+)\s*(?:次|reps?)", normalized)
+    weight_match = re.search(r"(\d+(?:\.\d+)?)\s*kg", normalized)
     return build_workout_log_draft(
         exercise_name="深蹲" if "深蹲" in normalized else "Squat",
-        sets=4,
-        reps=8,
-        weight_kg=80,
+        sets=int(sets_match.group(1)) if sets_match else 4,
+        reps=int(reps_match.group(1)) if reps_match else 8,
+        weight_kg=float(weight_match.group(1)) if weight_match else None,
         effort_note=message,
     )
 
@@ -88,19 +93,57 @@ def create_meal_log_draft(message: str, locale: str = "zh-CN") -> RecordDraft | 
     )
 
 
-def build_plan_adjustment_draft(adjustment_type: str, reason: str) -> RecordDraft:
+def build_plan_adjustment_draft(
+    adjustment_type: str,
+    reason: str,
+    target_date: str | None = None,
+    target_exercise_id: str | None = None,
+    target_meal_id: str | None = None,
+    replacement_name: str | None = None,
+) -> RecordDraft:
+    payload = {"adjustment_type": adjustment_type, "reason": reason}
+    for key, value in {
+        "target_date": target_date,
+        "target_exercise_id": target_exercise_id,
+        "target_meal_id": target_meal_id,
+        "replacement_name": replacement_name,
+    }.items():
+        if value is not None:
+            payload[key] = value
     return RecordDraft(
         type="plan_adjustment",
         requires_confirmation=True,
-        payload={"adjustment_type": adjustment_type, "reason": reason},
+        payload=payload,
     )
 
 
-def create_plan_adjustment_draft(message: str) -> RecordDraft | None:
+def create_plan_adjustment_draft(
+    message: str,
+    target_date: str | None = None,
+    *,
+    reason: str | None = None,
+) -> RecordDraft | None:
     normalized = message.lower()
-    if "调整" not in normalized and "adjust" not in normalized:
+    adjustment_terms = ("调整", "adjust", "跳过", "skip", "换餐", "替换餐", "swap meal", "换动作", "替换动作", "swap exercise")
+    if not any(term in normalized for term in adjustment_terms):
         return None
-    return build_plan_adjustment_draft("reduce_intensity", message)
+    if "跳过" in normalized or "skip" in normalized:
+        adjustment_type = "skip_workout"
+    elif "换餐" in normalized or "替换餐" in normalized or "swap meal" in normalized:
+        adjustment_type = "swap_meal"
+    elif "换动作" in normalized or "替换动作" in normalized or "swap exercise" in normalized:
+        adjustment_type = "swap_exercise"
+    elif "增加强度" in normalized or "increase intensity" in normalized:
+        adjustment_type = "increase_intensity"
+    elif "调整成" in normalized or "改成" in normalized or "为主" in normalized or "change schedule" in normalized:
+        adjustment_type = "change_schedule"
+    else:
+        adjustment_type = "reduce_intensity"
+    return build_plan_adjustment_draft(
+        adjustment_type,
+        reason or message,
+        target_date=target_date or TODAY_DATE,
+    )
 
 
 def accept_advice(user_id: str, advice_id: str, accepted_status: AdviceStatus = "accepted") -> AgentAdvice | None:

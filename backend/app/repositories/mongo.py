@@ -9,7 +9,7 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
 def model_to_mongo_document(model: BaseModel, id_field: str) -> dict[str, Any]:
-    document = model.model_dump()
+    document = model.model_dump(exclude_computed_fields=True)
     document["_id"] = document[id_field]
     return document
 

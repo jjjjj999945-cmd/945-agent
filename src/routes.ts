@@ -21,12 +21,12 @@ export type AppRoute = {
 };
 
 export const primaryRoutes: AppRoute[] = [
-  { id: "today", path: "/", navKey: "nav.today", titleKey: "page.today.title", descriptionKey: "page.today.description", primary: true },
+  { id: "agent", path: "/", navKey: "nav.agent", titleKey: "page.agent.title", descriptionKey: "page.agent.description", primary: true },
+  { id: "today", path: "/today", navKey: "nav.today", titleKey: "page.today.title", descriptionKey: "page.today.description", primary: true },
   { id: "workout", path: "/workout", navKey: "nav.workout", titleKey: "page.workout.title", descriptionKey: "page.workout.description", primary: true },
   { id: "diet", path: "/diet", navKey: "nav.diet", titleKey: "page.diet.title", descriptionKey: "page.diet.description", primary: true },
   { id: "body", path: "/body", navKey: "nav.body", titleKey: "page.body.title", descriptionKey: "page.body.description", primary: true },
   { id: "advice", path: "/advice", navKey: "nav.advice", titleKey: "page.advice.title", descriptionKey: "page.advice.description", primary: true },
-  { id: "agent", path: "/agent", navKey: "nav.agent", titleKey: "page.agent.title", descriptionKey: "page.agent.description", primary: true },
   { id: "settings", path: "/settings", navKey: "nav.settings", titleKey: "page.settings.title", descriptionKey: "page.settings.description", primary: true }
 ];
 
@@ -38,7 +38,8 @@ export const secondaryRoutes: AppRoute[] = [
 export const appRoutes = [...primaryRoutes, ...secondaryRoutes];
 
 export function getRouteByPath(pathname: string) {
-  const normalized = pathname === "" ? "/" : pathname.replace(/\/+$/, "") || "/";
+  const rawPath = pathname === "" ? "/" : pathname.replace(/\/+$/, "") || "/";
+  const normalized = rawPath === "/agent" ? "/" : rawPath;
   return appRoutes.find((route) => route.path === normalized) ?? primaryRoutes[0];
 }
 

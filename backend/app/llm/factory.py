@@ -1,11 +1,13 @@
 import logging
 from functools import lru_cache
+from time import perf_counter
 from typing import Any
 
 from openai import AsyncOpenAI
 
 from backend.app.core.config import Settings, get_settings
 from backend.app.llm.deterministic import DeterministicProvider
+from backend.app.llm.deepseek_provider import DeepSeekProvider
 from backend.app.llm.errors import LLMConfigError, LLMError
 from backend.app.llm.models import AgentModelRequest, AgentModelResponse
 from backend.app.llm.openai_provider import OpenAIProvider
@@ -15,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class UnavailableProvider:
-    name = "openai"
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, name: str, message: str) -> None:
+        self.name = name
         self.message = message
 
     async def generate(self, request: AgentModelRequest) -> AgentModelResponse:
@@ -31,10 +33,12 @@ class LLMProviderRouter:
         self.app_env = app_env
 
     async def generate(self, request: AgentModelRequest) -> AgentModelResponse:
+        started_at = perf_counter()
         try:
             result = await self.primary.generate(request)
         except LLMError as exc:
             result = await self.recover(request, exc)
+        latency_ms = round((perf_counter() - started_at) * 1000, 2)
         logger.info(
             "llm_provider_call",
             extra={
@@ -47,6 +51,8 @@ class LLMProviderRouter:
                 "logical_generations": result.usage.logical_generations,
                 "http_attempts": result.usage.http_attempts,
                 "degraded": result.degraded,
+                "degraded_reason": result.degraded_reason,
+                "latency_ms": latency_ms,
             },
         )
         return result
@@ -82,21 +88,37 @@ def build_llm_provider_router(
     settings: Settings | None = None,
     *,
     openai_client: Any | None = None,
+    deepseek_client: Any | None = None,
 ) -> LLMProviderRouter:
     settings = settings or get_settings()
     fallback = DeterministicProvider()
     if settings.llm_provider == "deterministic":
         return LLMProviderRouter(primary=fallback, fallback=fallback, app_env=settings.app_env)
 
-    if settings.openai_api_key is None or not settings.openai_model:
-        primary = UnavailableProvider("OpenAI API key and model must be configured.")
+    if settings.llm_provider == "openai":
+        if settings.openai_api_key is None or not settings.openai_model:
+            primary = UnavailableProvider("openai", "OpenAI API key and model must be configured.")
+        else:
+            client = openai_client or AsyncOpenAI(
+                api_key=settings.openai_api_key.get_secret_value(),
+                timeout=settings.llm_timeout_seconds,
+                max_retries=0,
+            )
+            primary = OpenAIProvider(client=client, model=settings.openai_model)
+    elif settings.deepseek_api_key is None:
+        primary = UnavailableProvider("deepseek", "DeepSeek API key must be configured.")
     else:
-        client = openai_client or AsyncOpenAI(
-            api_key=settings.openai_api_key.get_secret_value(),
+        client = deepseek_client or AsyncOpenAI(
+            api_key=settings.deepseek_api_key.get_secret_value(),
+            base_url="https://api.deepseek.com",
             timeout=settings.llm_timeout_seconds,
             max_retries=0,
         )
-        primary = OpenAIProvider(client=client, model=settings.openai_model)
+        primary = DeepSeekProvider(
+            client=client,
+            model=settings.deepseek_model,
+            max_tokens=settings.deepseek_max_tokens,
+        )
     return LLMProviderRouter(primary=primary, fallback=fallback, app_env=settings.app_env)
 
 

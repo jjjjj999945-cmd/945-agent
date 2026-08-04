@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
+import { PageLoadState } from "../components/business/PageLoadState";
+import { DEMO_USER_ID } from "../data/demoData";
+import { appToday } from "../services/dateContext";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
 import type { BodyPageData, Locale } from "../types/domain";
@@ -27,7 +29,7 @@ export function BodyPage({ locale }: { locale: Locale }) {
   async function saveWeight() {
     const response = await api.saveBodyMetric({
       user_id: DEMO_USER_ID,
-      date: TODAY_DATE,
+      date: appToday,
       weight_kg: Number(weight),
       bmi: 24.6
     });
@@ -39,7 +41,7 @@ export function BodyPage({ locale }: { locale: Locale }) {
     await loadBody();
   }
 
-  if (!data) return <div className="business-placeholder">{t("status.loading")}</div>;
+  if (!data) return <PageLoadState message={notice || t("status.loading")} />;
 
   return (
     <div className="business-page">

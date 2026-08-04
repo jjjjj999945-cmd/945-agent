@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
+import { PageLoadState } from "../components/business/PageLoadState";
+import { DEMO_USER_ID } from "../data/demoData";
+import { appToday } from "../services/dateContext";
+import { usePlanContext } from "../contexts/PlanContext";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
 import type { Locale, WorkoutPageData } from "../types/domain";
 
 export function WorkoutPage({ locale }: { locale: Locale }) {
   const t = createTranslator(locale);
+  const { currentPlan } = usePlanContext();
   const isChinese = locale === "zh-CN";
   const [data, setData] = useState<WorkoutPageData | null>(null);
   const [notice, setNotice] = useState("");
@@ -40,10 +44,15 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
     const day = data?.selected_day;
     if (!day) return;
 
+    if (!currentPlan) {
+      setNotice("当前计划没有覆盖今天。");
+      return;
+    }
+
     const response = await api.saveWorkoutLog({
       user_id: DEMO_USER_ID,
-      plan_id: demoPlan.plan_id,
-      date: TODAY_DATE,
+      plan_id: currentPlan.plan_id,
+      date: appToday,
       status: "completed",
       duration_minutes: day.duration_minutes,
       exercises: day.exercises.map((exercise) => ({
@@ -64,7 +73,7 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
     await loadWorkout();
   }
 
-  if (!data) return <div className="business-placeholder">{t("status.loading")}</div>;
+  if (!data) return <PageLoadState message={notice || t("status.loading")} />;
   const selectedDay = data.selected_day;
   const weeklyPlan = data.plan.workout_plan.days;
   const completedCount = Math.round(data.completion_rate * weeklyPlan.length);

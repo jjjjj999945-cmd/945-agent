@@ -59,6 +59,25 @@ def test_development_router_falls_back_and_marks_response():
     assert result.usage.http_attempts == 2
 
 
+def test_router_logs_latency_and_degraded_reason(caplog):
+    primary = StubProvider(
+        "openai",
+        error=LLMTimeoutError("timeout", request_id="req-router", http_attempts=2),
+    )
+    fallback = StubProvider("deterministic", result=_fallback_result())
+    router = LLMProviderRouter(primary=primary, fallback=fallback, app_env="development")
+
+    with caplog.at_level("INFO", logger="backend.app.llm.factory"):
+        asyncio.run(router.generate(_request()))
+
+    call = next(record for record in caplog.records if record.message == "llm_provider_call")
+    assert call.request_id == "req-router"
+    assert call.provider == "deterministic"
+    assert call.degraded is True
+    assert call.degraded_reason == "LLM_TIMEOUT"
+    assert call.latency_ms >= 0
+
+
 def test_production_router_returns_the_original_stable_error():
     error = LLMTimeoutError("timeout", http_attempts=2)
     router = LLMProviderRouter(
@@ -109,6 +128,36 @@ def test_openai_client_factory_disables_sdk_retries(monkeypatch):
     assert router.primary.name == "openai"
     assert captured == {
         "api_key": "sk-test",
+        "timeout": 13.0,
+        "max_retries": 0,
+    }
+
+
+def test_deepseek_client_factory_uses_chat_completions_base_url(monkeypatch):
+    captured = {}
+
+    class FakeAsyncOpenAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr("backend.app.llm.factory.AsyncOpenAI", FakeAsyncOpenAI)
+
+    router = build_llm_provider_router(
+        Settings(
+            app_env="production",
+            llm_provider="deepseek",
+            deepseek_api_key="deepseek-test",
+            deepseek_model="deepseek-v4-flash",
+            deepseek_max_tokens=480,
+            llm_timeout_seconds=13,
+        )
+    )
+
+    assert router.primary.name == "deepseek"
+    assert router.primary.max_tokens == 480
+    assert captured == {
+        "api_key": "deepseek-test",
+        "base_url": "https://api.deepseek.com",
         "timeout": 13.0,
         "max_retries": 0,
     }

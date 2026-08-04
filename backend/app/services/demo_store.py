@@ -7,6 +7,7 @@ from backend.app.models.domain import (
     AdviceStatus,
     AgentAdvice,
     AgentMessage,
+    AgentRun,
     BodyMetric,
     BodyMetricInput,
     ConfirmPlannedMealInput,
@@ -15,6 +16,7 @@ from backend.app.models.domain import (
     FoodLog,
     ManualMealLogInput,
     MealLog,
+    Plan,
     ProfileCreateInput,
     ProfilePatchInput,
     SettingsData,
@@ -33,12 +35,14 @@ from backend.app.services.repository_store import RepositoryBackedStore
 
 current_user: User = deepcopy(DEMO_USER)
 current_profile: UserProfile = deepcopy(INITIAL_PROFILE)
+plans = [deepcopy(DEMO_PLAN)]
 advice_items: list[AgentAdvice] = [deepcopy(DEMO_ADVICE), deepcopy(INITIAL_WEEKLY_ADVICE)]
 workout_logs: list[WorkoutLog] = []
 meal_logs: list[MealLog] = []
 body_metrics: list[BodyMetric] = []
 daily_checkins: list[DailyCheckin] = []
 agent_messages: list[AgentMessage] = []
+agent_runs: list[AgentRun] = []
 user_memory_summaries: list[UserMemorySummary] = []
 _repository_store_override: RepositoryBackedStore | None = None
 _repository_store: RepositoryBackedStore | None = None
@@ -64,16 +68,18 @@ def _active_repository_store() -> RepositoryBackedStore | None:
 
 
 def reset_demo_store() -> None:
-    global current_user, current_profile, advice_items
+    global current_user, current_profile, advice_items, plans
 
     current_user = deepcopy(DEMO_USER)
     current_profile = deepcopy(INITIAL_PROFILE)
     advice_items = [deepcopy(DEMO_ADVICE), deepcopy(INITIAL_WEEKLY_ADVICE)]
+    plans = [deepcopy(DEMO_PLAN)]
     workout_logs.clear()
     meal_logs.clear()
     body_metrics.clear()
     daily_checkins.clear()
     agent_messages.clear()
+    agent_runs.clear()
     user_memory_summaries.clear()
 
 
@@ -134,6 +140,8 @@ def save_profile(input_data: ProfileCreateInput) -> UserProfile | None:
         dietary_preferences=input_data.dietary_preferences,
         allergies=input_data.allergies,
         constraints=input_data.constraints,
+        safety_confirmed=input_data.safety_confirmed,
+        safety_confirmed_at=now if input_data.safety_confirmed else None,
         updated_at=now
     )
     return current_profile
@@ -148,8 +156,11 @@ def update_profile(user_id: str, input_data: ProfilePatchInput) -> UserProfile |
     if not is_demo_user(user_id):
         return None
 
+    now = timestamp()
     updates = input_data.model_dump(exclude_unset=True)
-    current_profile = current_profile.model_copy(update={**updates, "updated_at": timestamp()})
+    if "safety_confirmed" in updates:
+        updates["safety_confirmed_at"] = now if updates["safety_confirmed"] else None
+    current_profile = current_profile.model_copy(update={**updates, "updated_at": now})
     return current_profile
 
 
@@ -188,6 +199,8 @@ def update_settings(input_data: SettingsPatchInput) -> SettingsData | None:
 
     if input_data.profile is not None:
         updates = input_data.profile.model_dump(exclude_unset=True)
+        if "safety_confirmed" in updates:
+            updates["safety_confirmed_at"] = now if updates["safety_confirmed"] else None
         current_profile = current_profile.model_copy(update={**updates, "updated_at": now})
 
     return get_settings(input_data.user_id)
@@ -200,10 +213,11 @@ def get_advice(user_id: str) -> AdvicePageData | None:
     if not is_demo_user(user_id):
         return None
 
+    items = sorted((item for item in advice_items if item.user_id == user_id), key=lambda item: item.created_at, reverse=True)
     return AdvicePageData(
-        daily=next((item for item in advice_items if item.type == "daily_advice"), None),
-        weekly=next((item for item in advice_items if item.type == "weekly_summary"), None),
-        adjustments=[item for item in advice_items if item.type == "plan_adjustment"]
+        daily=next((item for item in items if item.type == "daily_advice"), None),
+        weekly=next((item for item in items if item.type == "weekly_summary"), None),
+        adjustments=[item for item in items if item.type == "plan_adjustment"]
     )
 
 
@@ -223,6 +237,20 @@ def update_advice_status(user_id: str, advice_id: str, accepted_status: AdviceSt
     return updated
 
 
+def save_advice(advice: AgentAdvice) -> AgentAdvice | None:
+    store = _active_repository_store()
+    if store:
+        return store.save_advice(advice)
+    if not is_demo_user(advice.user_id):
+        return None
+    existing = next((item for item in advice_items if item.advice_id == advice.advice_id), None)
+    if existing:
+        advice_items[advice_items.index(existing)] = advice
+    else:
+        advice_items.append(advice)
+    return advice
+
+
 def save_agent_message(message: AgentMessage) -> AgentMessage:
     store = _active_repository_store()
     if store:
@@ -239,6 +267,46 @@ def list_agent_messages(user_id: str) -> list[AgentMessage] | None:
         return None
 
     return [message for message in agent_messages if message.user_id == user_id]
+
+
+def save_agent_run(run: AgentRun) -> AgentRun:
+    store = _active_repository_store()
+    if store:
+        return store.save_agent_run(run)
+    agent_runs.append(run)
+    return run
+
+
+def list_agent_runs(user_id: str) -> list[AgentRun] | None:
+    store = _active_repository_store()
+    if store:
+        return store.list_agent_runs(user_id)
+    if not is_demo_user(user_id):
+        return None
+    return [run for run in agent_runs if run.user_id == user_id]
+
+
+def get_current_plan(user_id: str) -> Plan | None:
+    if not is_demo_user(user_id):
+        return None
+    return next((plan for plan in reversed(plans) if plan.status == "active"), None)
+
+
+def list_plans(user_id: str) -> list[Plan] | None:
+    if not is_demo_user(user_id):
+        return None
+    return [plan for plan in plans if plan.user_id == user_id]
+
+
+def save_plan(plan: Plan) -> Plan | None:
+    if not is_demo_user(plan.user_id):
+        return None
+    existing = next((item for item in plans if item.plan_id == plan.plan_id), None)
+    if existing is None:
+        plans.append(plan)
+    else:
+        plans[plans.index(existing)] = plan
+    return plan
 
 
 def save_user_memory_summary(summary: UserMemorySummary) -> UserMemorySummary:
@@ -307,7 +375,8 @@ def confirm_planned_meal(input_data: ConfirmPlannedMealInput) -> MealLog | None:
     if not is_demo_user(input_data.user_id):
         return None
 
-    day = next((item for item in DEMO_PLAN.meal_plan.days if item.date == input_data.date), None)
+    plan = get_current_plan(input_data.user_id)
+    day = next((item for item in plan.meal_plan.days if item.date == input_data.date), None) if plan else None
     meal = next((item for item in day.meals if item.meal_id == input_data.meal_id), None) if day else None
     if meal is None:
         return None
@@ -447,6 +516,13 @@ def build_today_response(user_id: str, date: str) -> TodayResponseData | None:
         return None
 
     today = create_today_response(date)
+    plan = get_current_plan(user_id)
+    if plan is not None:
+        today.user.goal = plan.goal
+        today.today_workout = next((day for day in plan.workout_plan.days if day.date == date), None)
+        today.today_meals = next((day.meals for day in plan.meal_plan.days if day.date == date), [])
+        today.status_summary.calories_target = plan.meal_plan.daily_targets.calories
+        today.status_summary.protein_target_g = plan.meal_plan.daily_targets.protein_g
     today_meal_logs = [log for log in meal_logs if log.user_id == user_id and log.date == date]
     calories_logged = sum(log.calories for log in today_meal_logs)
     protein_logged = sum(log.protein_g for log in today_meal_logs)

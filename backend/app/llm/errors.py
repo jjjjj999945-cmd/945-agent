@@ -34,6 +34,11 @@ class LLMRateLimitedError(LLMError):
     code = "LLM_RATE_LIMITED"
 
 
+class AgentUsageLimitError(LLMError):
+    code = "AGENT_USAGE_LIMIT"
+    status_code = 429
+
+
 class LLMProviderError(LLMError):
     code = "LLM_PROVIDER_ERROR"
 

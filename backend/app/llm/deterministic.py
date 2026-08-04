@@ -49,7 +49,7 @@ class DeterministicProvider:
             intent = _intent_for_draft(draft)
         else:
             intent = intent_router(request.message)
-            draft = draft_validator(tool_planner(intent, request.message, request.locale))
+            draft = draft_validator(tool_planner(intent, request.message, request.locale, str(request.context.get("date", "")) or None))
 
         return AgentModelResponse(
             intent=intent,

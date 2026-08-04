@@ -1,35 +1,120 @@
+from datetime import UTC, datetime, timedelta
+from time import perf_counter
 from uuid import uuid4
 
 from backend.app.agents.graph import run_agent_graph
+from backend.app.core.config import get_settings
+from backend.app.llm.errors import AgentUsageLimitError, LLMError
 from backend.app.llm.factory import LLMProviderRouter
-from backend.app.models.domain import AgentChatInput, AgentMessage
+from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRetryInput, AgentRun, AgentTraceStep
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import (
     is_demo_user,
+    list_agent_runs,
     list_agent_messages,
+    save_agent_run,
     save_agent_message,
 )
+
+
+def _parse_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _enforce_agent_run_limit(user_id: str) -> None:
+    settings = get_settings()
+    runs = list_agent_runs(user_id) or []
+
+    max_runs = settings.agent_max_runs_per_hour
+    if max_runs > 0:
+        threshold = datetime.now(UTC) - timedelta(hours=1)
+        recent_runs = [run for run in runs if _parse_timestamp(run.started_at) >= threshold]
+        if len(recent_runs) >= max_runs:
+            raise AgentUsageLimitError(
+                "The hourly Agent usage limit has been reached.",
+                http_attempts=0,
+            )
+
+    max_tokens = settings.agent_max_tokens_per_day
+    day_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    if max_tokens > 0:
+        tokens_used = sum(
+            run.input_tokens + run.output_tokens
+            for run in runs
+            if _parse_timestamp(run.started_at) >= day_start
+        )
+        if tokens_used >= max_tokens:
+            raise AgentUsageLimitError(
+                "The daily Agent token usage limit has been reached.",
+                http_attempts=0,
+            )
+
+    max_generations = settings.agent_max_logical_generations_per_day
+    if max_generations <= 0:
+        return
+    generations_used = sum(
+        run.logical_generations
+        for run in runs
+        if _parse_timestamp(run.started_at) >= day_start
+    )
+    if generations_used >= max_generations:
+        raise AgentUsageLimitError(
+            "The daily Agent generation usage limit has been reached.",
+            http_attempts=0,
+        )
 
 
 async def create_agent_reply(
     input_data: AgentChatInput,
     *,
     provider_router: LLMProviderRouter | None = None,
+    retry_of_agent_run_id: str | None = None,
 ) -> AgentMessage | None:
     if not is_demo_user(input_data.user_id):
         return None
 
+    _enforce_agent_run_limit(input_data.user_id)
     existing = list_agent_messages(input_data.user_id) or []
     request_id = uuid4().hex
-    graph_result = await run_agent_graph(
-        user_id=input_data.user_id,
-        locale=input_data.locale,
-        message=input_data.message,
-        context=input_data.context,
-        conversation=existing[-10:],
-        provider_router=provider_router,
-        request_id=request_id,
-    )
+    started_at = timestamp()
+    started_clock = perf_counter()
+    try:
+        graph_result = await run_agent_graph(
+            user_id=input_data.user_id,
+            locale=input_data.locale,
+            message=input_data.message,
+            context=input_data.context,
+            conversation=existing[-10:],
+            provider_router=provider_router,
+            request_id=request_id,
+        )
+    except LLMError as exc:
+        save_agent_run(
+            AgentRun(
+                agent_run_id=request_id,
+                user_id=input_data.user_id,
+                status="failed",
+                started_at=started_at,
+                completed_at=timestamp(),
+                duration_ms=round((perf_counter() - started_clock) * 1000, 2),
+            error_code=exc.code,
+            http_attempts=exc.http_attempts,
+                retry_input=AgentRetryInput(
+                    message=input_data.message,
+                    locale=input_data.locale,
+                    context=input_data.context,
+                ),
+                retry_of_agent_run_id=retry_of_agent_run_id,
+                trace_steps=[
+                    AgentTraceStep(
+                        name="model_generation",
+                        status="failed",
+                        metadata={"error_code": exc.code},
+                    )
+                ],
+            )
+        )
+        raise
     user_message = AgentMessage(
         message_id=f"msg-user-{uuid4().hex}",
         user_id=input_data.user_id,
@@ -49,4 +134,48 @@ async def create_agent_reply(
     )
     save_agent_message(user_message)
     save_agent_message(agent_message)
+    save_agent_run(
+        AgentRun(
+            agent_run_id=request_id,
+            user_id=input_data.user_id,
+            status="completed",
+            started_at=started_at,
+            completed_at=timestamp(),
+            duration_ms=round((perf_counter() - started_clock) * 1000, 2),
+            provider=graph_result.provider,
+            model=graph_result.model,
+            intent=graph_result.intent,
+            draft_type=(graph_result.record_draft.type if graph_result.record_draft else None),
+            degraded=graph_result.degraded,
+            degraded_reason=graph_result.degraded_reason,
+            input_tokens=graph_result.usage.input_tokens,
+            output_tokens=graph_result.usage.output_tokens,
+            logical_generations=graph_result.usage.logical_generations,
+            http_attempts=graph_result.usage.http_attempts,
+            retry_of_agent_run_id=retry_of_agent_run_id,
+            trace_steps=graph_result.trace_steps,
+        )
+    )
     return agent_message
+
+
+async def retry_agent_run(
+    user_id: str,
+    agent_run_id: str,
+    *,
+    provider_router: LLMProviderRouter | None = None,
+) -> AgentMessage | None:
+    runs = list_agent_runs(user_id) or []
+    failed_run = next((run for run in runs if run.agent_run_id == agent_run_id), None)
+    if failed_run is None or failed_run.status != "failed" or failed_run.retry_input is None:
+        return None
+    return await create_agent_reply(
+        AgentChatInput(
+            user_id=user_id,
+            locale=failed_run.retry_input.locale,
+            message=failed_run.retry_input.message,
+            context=failed_run.retry_input.context,
+        ),
+        provider_router=provider_router,
+        retry_of_agent_run_id=agent_run_id,
+    )

@@ -1,0 +1,68 @@
+name: Agent Evaluation
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  backend-agent-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r backend/requirements.txt
+      - run: python -m pytest backend/tests -q
+      - run: python -m backend.evals.run_agent_eval --json-output output/agent-eval.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-eval-report
+          path: output/agent-eval.json
+
+  frontend-http-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r backend/requirements.txt
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chrome
+      - run: npm run qa:http
+
+  mongo-http-integration:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:8.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r backend/requirements.txt
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - run: npm run qa:mongo

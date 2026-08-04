@@ -4,6 +4,7 @@ type ConfirmDialogProps = {
   children: React.ReactNode;
   confirmLabel: string;
   cancelLabel: string;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -14,6 +15,7 @@ export function ConfirmDialog({
   children,
   confirmLabel,
   cancelLabel,
+  confirmDisabled = false,
   onConfirm,
   onCancel
 }: ConfirmDialogProps) {
@@ -25,8 +27,10 @@ export function ConfirmDialog({
         <h2>{title}</h2>
         <div className="confirm-content">{children}</div>
         <div className="button-row">
-          <button onClick={onConfirm}>{confirmLabel}</button>
-          <button className="ghost" onClick={onCancel}>
+          <button disabled={confirmDisabled} onClick={onConfirm} type="button">
+            {confirmLabel}
+          </button>
+          <button className="ghost" onClick={onCancel} type="button">
             {cancelLabel}
           </button>
         </div>

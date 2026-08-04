@@ -44,9 +44,15 @@ class PlanAdjustmentArguments(ToolArguments):
         "increase_intensity",
         "change_schedule",
         "swap_exercise",
+        "skip_workout",
+        "swap_meal",
         "adjust_nutrition",
     ]
     reason: str = Field(min_length=1, max_length=500)
+    target_date: str | None = None
+    target_exercise_id: str | None = None
+    target_meal_id: str | None = None
+    replacement_name: str | None = Field(default=None, min_length=1, max_length=100)
 
 
 class AgentToolContext(BaseModel):
@@ -83,14 +89,18 @@ TOOL_DESCRIPTIONS = {
 
 
 def get_agent_tool_definitions() -> list[AgentToolDefinition]:
-    return [
-        AgentToolDefinition(
+    definitions = []
+    for name, model_type in TOOL_ARGUMENT_MODELS.items():
+        schema = model_type.model_json_schema()
+        # OpenAI strict function tools require every property to be listed as required;
+        # nullable fields carry the "not provided" meaning as null.
+        schema["required"] = list(schema["properties"])
+        definitions.append(AgentToolDefinition(
             name=name,
             description=TOOL_DESCRIPTIONS[name],
-            parameters=model_type.model_json_schema(),
-        )
-        for name, model_type in TOOL_ARGUMENT_MODELS.items()
-    ]
+            parameters=schema,
+        ))
+    return definitions
 
 
 def _serialize(value: Any) -> Any:
