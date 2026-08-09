@@ -2,7 +2,7 @@
 
 这是 945 的真实后端入口。当前阶段已完成本地 demo 用户下的 MVP 后端闭环：资料、设置、计划读取、今日聚合、训练记录、饮食记录、身体数据、每日打卡、建议状态和最小 Agent 草稿对话。
 
-当前后端默认仍然运行本地 demo store 和 deterministic LLM Provider，但已经具备 MongoDB repository 边界、Agent 白名单工具层、本地 RAG 检索、Provider Router、OpenAI Responses Provider 和每周长期记忆摘要。生产鉴权、云部署和向量数据库仍不在当前 MVP 范围内。
+当前后端默认仍然运行本地 demo store 和 deterministic LLM Provider，但已经具备 MongoDB repository 边界、Bearer 会话认证、Agent 白名单工具层、本地 RAG 检索、Provider Router、OpenAI Responses Provider 和每周长期记忆摘要。云部署和向量数据库仍不在当前 MVP 范围内。
 
 ## 当前包含
 
@@ -190,6 +190,24 @@ $env:945_MONGODB_DATABASE="945"
 ```
 
 当前已完成 MongoDB 文档转换、按集合 upsert、按条件查询、Pydantic model 还原、demo seed 和 repository-backed store 委托测试。默认 demo 模式仍不需要 MongoDB 进程。
+
+Mongo 模式启动后端：
+
+```powershell
+$env:945_STORAGE_BACKEND="mongo"
+$env:945_MONGODB_URI="mongodb://127.0.0.1:27017"
+$env:945_MONGODB_DATABASE="945"
+python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+## 注册用户与 Agent
+
+- `POST /api/auth/register` 只允许 Mongo 模式；在 `demo` 模式会返回 `503 STORAGE_CONFIG_ERROR`。
+- `demo` 模式只有 `demo-user-945` 这一个本地演示用户。Mongo 模式下，注册用户和业务数据会写入 MongoDB。
+- 登录后取得的 Bearer token 只能访问 token 所属用户的训练、饮食、计划、资料、打卡、建议、Agent 消息和 Agent 运行记录；跨用户请求返回 `403 FORBIDDEN`。
+- 生产环境默认要求 Bearer token。开发与 demo 兼容模式可显式设置 `945_AUTH_REQUIRED=false`。
+- Agent 运行记录只保存状态、耗时、Provider、模型、意图、草稿类型和错误码等可观察元数据，不保存模型推理过程。
+- `/api/agent/chat` 只返回建议和 `RecordDraft`。即使用户请求记录训练、饮食或计划，Agent 也不会自动写入；用户确认后才调用相应的结构化 API。
 
 ## 运行测试
 
