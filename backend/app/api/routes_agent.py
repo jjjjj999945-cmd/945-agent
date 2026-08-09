@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
 from backend.app.api.responses import error, ok
+from backend.app.api.auth import authorize_user
 from backend.app.data.demo_data import DEMO_USER_ID
 from backend.app.llm.errors import LLMError
 from backend.app.models.domain import AgentChatInput
@@ -13,7 +14,9 @@ router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 
 @router.post("/chat")
-async def chat(input_data: AgentChatInput) -> object:
+async def chat(input_data: AgentChatInput, authorization: str | None = Header(default=None)) -> object:
+    if denied := authorize_user(input_data.user_id, authorization):
+        return denied
     try:
         reply = await create_agent_reply(input_data)
     except LLMError as exc:
@@ -33,7 +36,9 @@ async def chat(input_data: AgentChatInput) -> object:
 
 
 @router.get("/messages")
-def messages(user_id: str = DEMO_USER_ID) -> object:
+def messages(user_id: str = DEMO_USER_ID, authorization: str | None = Header(default=None)) -> object:
+    if denied := authorize_user(user_id, authorization):
+        return denied
     saved_messages = list_agent_messages(user_id)
     if saved_messages is None:
         return JSONResponse(

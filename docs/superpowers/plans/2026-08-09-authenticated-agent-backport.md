@@ -163,6 +163,7 @@ git commit -m "feat: add mongo-backed auth sessions"
 - Modify: backend/app/api/routes_profile.py
 - Modify: backend/app/api/routes_settings.py
 - Modify: backend/app/api/routes_workout_logs.py
+- Modify: backend/app/services/repository_store.py
 - Modify: backend/tests/test_auth_api.py
 
 **Interfaces:**
@@ -206,7 +207,7 @@ def authorize_user(user_id: str, authorization: str | None = Header(default=None
     return None
 ~~~
 
-每个路由只加入 Header(default=None) 和 authorize_user 调用；不得同时调整业务响应、字段或前端契约。
+每个路由只加入 Header(default=None) 和 authorize_user 调用；不得同时调整业务响应、字段或前端契约。RepositoryBackedStore 的 demo-only 判断改为 Mongo 中用户是否存在，使已授权的注册用户能访问自己的资料、日志、计划、建议、打卡和 Agent 数据。
 
 - [ ] **Step 4: 运行所有业务 API 回归**
 
@@ -217,7 +218,7 @@ Expected: PASS。
 - [ ] **Step 5: 提交任务**
 
 ~~~powershell
-git add backend/app/api/auth.py backend/app/api/routes_advice.py backend/app/api/routes_agent.py backend/app/api/routes_body_metrics.py backend/app/api/routes_daily_checkins.py backend/app/api/routes_meal_logs.py backend/app/api/routes_plans.py backend/app/api/routes_profile.py backend/app/api/routes_settings.py backend/app/api/routes_workout_logs.py backend/tests/test_auth_api.py
+git add backend/app/api/auth.py backend/app/api/routes_advice.py backend/app/api/routes_agent.py backend/app/api/routes_body_metrics.py backend/app/api/routes_daily_checkins.py backend/app/api/routes_meal_logs.py backend/app/api/routes_plans.py backend/app/api/routes_profile.py backend/app/api/routes_settings.py backend/app/api/routes_workout_logs.py backend/app/services/repository_store.py backend/tests/test_auth_api.py
 git commit -m "feat: isolate business APIs by session user"
 ~~~
 
