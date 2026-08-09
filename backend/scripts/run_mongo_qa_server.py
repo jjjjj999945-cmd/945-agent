@@ -18,10 +18,10 @@ def main() -> None:
     environment = os.environ | MONGO_QA_ENVIRONMENT
     script_path = Path(__file__).with_name("reset_mongo_database.py")
     subprocess.run([sys.executable, str(script_path)], check=True, env=environment)
-    os.execvpe(
-        sys.executable,
+    subprocess.run(
         [sys.executable, "-m", "uvicorn", "backend.app.main:app", "--host", "127.0.0.1", "--port", "8000"],
-        environment,
+        check=True,
+        env=environment,
     )
 
 
