@@ -225,15 +225,17 @@ git commit -m "feat: isolate business APIs by session user"
 ### Task 4: Mongo 注册用户的 Agent 使用与草稿边界
 
 **Files:**
+- Modify: backend/app/models/domain.py
+- Modify: backend/app/services/repository_store.py
 - Modify: backend/app/services/demo_store.py
 - Modify: backend/app/services/agent_service.py
-- Modify: backend/tests/conftest.py
+- Modify: backend/app/api/routes_agent.py
 - Modify: backend/tests/test_agent_api.py
-- Modify: backend/tests/test_mongo_storage_mode.py
 
 **Interfaces:**
 - Produces: user_exists(user_id) -> bool，demo 模式只承认 demo-user-945，Mongo 模式通过 repository 查找用户。
-- Produces: 已注册用户的 Agent 消息和运行记录按用户持久化并由 Task 3 的路由授权保护。
+- Produces: AgentRun，记录运行 ID、用户 ID、状态、耗时、Provider、模型、意图、草稿类型和错误码。
+- Produces: GET /api/agent/runs?user_id=...，已注册用户的 Agent 消息和运行记录按用户持久化并由 Task 3 的路由授权保护。
 
 - [ ] **Step 1: 写入注册用户 Agent 隔离与无自动写入的失败测试**
 
@@ -248,16 +250,20 @@ def test_registered_agent_users_are_isolated_and_drafts_do_not_write(mongo_store
     assert response.status_code == 200
     assert response.json()["data"]["record_draft"]["requires_confirmation"] is True
     assert client.get(f"/api/agent/messages?user_id={alice['user']['user_id']}", headers=bob_headers).status_code == 403
+    assert client.get(f"/api/agent/runs?user_id={alice['user']['user_id']}", headers=bob_headers).status_code == 403
     assert client.get(f"/api/workout-logs?user_id={alice['user']['user_id']}", headers=alice_headers).json()["data"] == []
+    runs = client.get(f"/api/agent/runs?user_id={alice['user']['user_id']}", headers=alice_headers).json()["data"]
+    assert runs[0]["status"] == "completed"
+    assert runs[0]["draft_type"] == "workout_log"
 ~~~
 
 - [ ] **Step 2: 运行 Agent 隔离测试确认失败**
 
 Run: python -m pytest backend/tests/test_agent_api.py::test_registered_agent_users_are_isolated_and_drafts_do_not_write -q
 
-Expected: FAIL，注册用户被当作未知 Agent 用户或测试尝试连接真实 Mongo checkpoint。
+Expected: FAIL，注册用户没有可隔离的 Agent 运行记录或 GET /api/agent/runs 路由不存在。
 
-- [ ] **Step 3: 实现用户存在性校验和测试内存 checkpoint**
+- [ ] **Step 3: 实现用户存在性校验和运行元数据存储**
 
 ~~~python
 def user_exists(user_id: str) -> bool:
@@ -265,18 +271,18 @@ def user_exists(user_id: str) -> bool:
     return store.get_user(user_id) is not None if store else user_id == DEMO_USER_ID
 ~~~
 
-create_agent_reply() 用 user_exists() 取代 demo-only 校验。mongo_store fixture 在测试中清除 get_agent_graph 缓存，并将 graph module 的 get_agent_checkpointer 替换为 MemorySaver()；不得修改生产 checkpoint.py。
+create_agent_reply() 用 user_exists() 取代 demo-only 校验。无论 Agent 调用成功或抛出 LLMError，均保存对应的 AgentRun；本任务不引入当前基线不存在的 checkpoint、重试或前端展示。
 
 - [ ] **Step 4: 运行 Agent 与 Mongo 回归**
 
-Run: python -m pytest backend/tests/test_agent_api.py backend/tests/test_agent_service.py backend/tests/test_mongo_storage_mode.py -q
+Run: python -m pytest backend/tests/test_agent_api.py backend/tests/test_agent_service.py backend/tests/test_mongo_storage_mode.py backend/tests/test_agent_graph.py -q
 
-Expected: PASS，且没有真实 Mongo 连接尝试。
+Expected: PASS。
 
 - [ ] **Step 5: 提交任务**
 
 ~~~powershell
-git add backend/app/services/demo_store.py backend/app/services/agent_service.py backend/tests/conftest.py backend/tests/test_agent_api.py backend/tests/test_mongo_storage_mode.py
+git add backend/app/models/domain.py backend/app/services/repository_store.py backend/app/services/demo_store.py backend/app/services/agent_service.py backend/app/api/routes_agent.py backend/tests/test_agent_api.py
 git commit -m "feat: support registered mongo users in agent"
 ~~~
 

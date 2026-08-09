@@ -7,6 +7,7 @@ from backend.app.models.domain import (
     AdviceStatus,
     AgentAdvice,
     AgentMessage,
+    AgentRun,
     BodyMetric,
     BodyMetricInput,
     ConfirmPlannedMealInput,
@@ -41,6 +42,7 @@ COLLECTION_IDS = {
     "daily_checkins": "checkin_id",
     "agent_advice": "advice_id",
     "agent_messages": "message_id",
+    "agent_runs": "agent_run_id",
     "user_memory_summaries": "summary_id",
     "auth_credentials": "email",
 }
@@ -304,6 +306,15 @@ class RepositoryBackedStore:
         if self.get_user(user_id) is None:
             return None
         return self.repository.list_models("agent_messages", AgentMessage, {"user_id": user_id})
+
+    def save_agent_run(self, run: AgentRun) -> AgentRun:
+        self.repository.upsert_model("agent_runs", run, id_field=COLLECTION_IDS["agent_runs"])
+        return run
+
+    def list_agent_runs(self, user_id: str) -> list[AgentRun] | None:
+        if self.get_user(user_id) is None:
+            return None
+        return self.repository.list_models("agent_runs", AgentRun, {"user_id": user_id})
 
     def save_user_memory_summary(self, summary: UserMemorySummary) -> UserMemorySummary:
         self.repository.upsert_model(

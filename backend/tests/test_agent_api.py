@@ -13,6 +13,44 @@ def _clear_llm_caches():
     get_llm_provider_router.cache_clear()
 
 
+def _register_session(email: str) -> dict:
+    response = client.post(
+        "/api/auth/register",
+        json={"display_name": email.split("@")[0], "email": email, "password": "secure-pass-945"},
+    )
+    assert response.status_code == 200
+    return response.json()["data"]
+
+
+def test_mongo_registered_agent_users_are_isolated_and_drafts_do_not_write(mongo_store):
+    alice = _register_session("agent-alice@example.com")
+    bob = _register_session("agent-bob@example.com")
+    alice_id = alice["user"]["user_id"]
+    alice_headers = {"Authorization": f"Bearer {alice['access_token']}"}
+    bob_headers = {"Authorization": f"Bearer {bob['access_token']}"}
+
+    response = client.post(
+        "/api/agent/chat",
+        headers=alice_headers,
+        json={"user_id": alice_id, "locale": "en-US", "message": "Today I did squat 4 sets of 8 reps at 80kg."},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["record_draft"]["type"] == "workout_log"
+    assert response.json()["data"]["record_draft"]["requires_confirmation"] is True
+    assert client.get(f"/api/agent/messages?user_id={alice_id}", headers=bob_headers).status_code == 403
+    assert client.get(f"/api/agent/runs?user_id={alice_id}", headers=bob_headers).status_code == 403
+    assert client.get(f"/api/workout-logs?user_id={alice_id}", headers=alice_headers).json()["data"] == []
+
+    messages = client.get(f"/api/agent/messages?user_id={alice_id}", headers=alice_headers).json()["data"]
+    runs = client.get(f"/api/agent/runs?user_id={alice_id}", headers=alice_headers).json()["data"]
+    assert [message["role"] for message in messages] == ["user", "agent"]
+    assert len(runs) == 1
+    assert runs[0]["user_id"] == alice_id
+    assert runs[0]["status"] == "completed"
+    assert runs[0]["draft_type"] == "workout_log"
+
+
 def test_agent_chat_returns_workout_record_draft_without_saving_log():
     response = client.post(
         "/api/agent/chat",
@@ -145,6 +183,7 @@ def test_agent_chat_development_openai_mode_falls_back_without_key(monkeypatch):
 def test_agent_chat_production_openai_mode_returns_config_error_without_saving(monkeypatch):
     monkeypatch.setenv("945_APP_ENV", "production")
     monkeypatch.setenv("945_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("945_AUTH_REQUIRED", "false")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("945_OPENAI_MODEL", raising=False)
     _clear_llm_caches()

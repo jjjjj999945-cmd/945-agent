@@ -7,7 +7,7 @@ from backend.app.data.demo_data import DEMO_USER_ID
 from backend.app.llm.errors import LLMError
 from backend.app.models.domain import AgentChatInput
 from backend.app.services.agent_service import create_agent_reply
-from backend.app.services.demo_store import list_agent_messages
+from backend.app.services.demo_store import list_agent_messages, list_agent_runs
 
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -46,3 +46,16 @@ def messages(user_id: str = DEMO_USER_ID, authorization: str | None = Header(def
             content=error("NOT_FOUND", "Demo user not found.", {"user_id": user_id})
         )
     return ok([message.model_dump() for message in saved_messages])
+
+
+@router.get("/runs")
+def runs(user_id: str = DEMO_USER_ID, authorization: str | None = Header(default=None)) -> object:
+    if denied := authorize_user(user_id, authorization):
+        return denied
+    saved_runs = list_agent_runs(user_id)
+    if saved_runs is None:
+        return JSONResponse(
+            status_code=404,
+            content=error("NOT_FOUND", "Agent user not found.", {"user_id": user_id}),
+        )
+    return ok([run.model_dump() for run in sorted(saved_runs, key=lambda item: item.completed_at, reverse=True)])
