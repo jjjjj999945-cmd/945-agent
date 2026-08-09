@@ -31,6 +31,37 @@ class User(ApiModel):
     updated_at: str
 
 
+class AuthCredential(ApiModel):
+    email: str
+    user_id: str
+    password_hash: str
+    password_salt: str
+    created_at: str
+    session_version: int = 1
+
+
+class RegisterInput(ApiModel):
+    display_name: str
+    email: str
+    password: str
+
+
+class LoginInput(ApiModel):
+    email: str
+    password: str
+
+
+class PasswordChangeInput(ApiModel):
+    current_password: str
+    new_password: str
+
+
+class AuthSession(ApiModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    user: User
+
+
 class UserProfile(ApiModel):
     profile_id: str
     user_id: str

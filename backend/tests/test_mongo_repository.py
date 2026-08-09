@@ -1,6 +1,7 @@
 from backend.app.core.config import get_settings
-from backend.app.models.domain import WorkoutLog
+from backend.app.models.domain import AuthCredential, User, WorkoutLog
 from backend.app.repositories.mongo import MongoRepository, mongo_document_to_model, model_to_mongo_document
+from backend.app.services.repository_store import RepositoryBackedStore
 
 
 class FakeCollection:
@@ -38,6 +39,30 @@ class FakeDatabase(dict):
         if collection_name not in self:
             self[collection_name] = FakeCollection()
         return dict.__getitem__(self, collection_name)
+
+
+def test_mongo_store_persists_registered_user_and_credential(mongo_store):
+    store = mongo_store
+    user = User(
+        user_id="user-test",
+        display_name="Test User",
+        locale="zh-CN",
+        unit_system="metric",
+        created_at="2026-08-09T00:00:00.000Z",
+        updated_at="2026-08-09T00:00:00.000Z",
+    )
+    credential = AuthCredential(
+        email="test@example.com",
+        user_id=user.user_id,
+        password_hash="hash",
+        password_salt="salt",
+        created_at=user.created_at,
+    )
+
+    store.save_registered_user(user, credential)
+
+    assert store.get_user(user.user_id) == user
+    assert store.get_credential(credential.email) == credential
 
 
 def test_settings_default_to_demo_store():

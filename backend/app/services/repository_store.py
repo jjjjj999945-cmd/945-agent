@@ -3,6 +3,7 @@ from copy import deepcopy
 from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_USER_ID, NOW, create_today_response
 from backend.app.models.domain import (
     AdvicePageData,
+    AuthCredential,
     AdviceStatus,
     AgentAdvice,
     AgentMessage,
@@ -41,6 +42,7 @@ COLLECTION_IDS = {
     "agent_advice": "advice_id",
     "agent_messages": "message_id",
     "user_memory_summaries": "summary_id",
+    "auth_credentials": "email",
 }
 
 
@@ -62,12 +64,25 @@ class RepositoryBackedStore:
     def is_demo_user(self, user_id: str) -> bool:
         return self.get_current_user().user_id == user_id
 
+    def get_user(self, user_id: str) -> User | None:
+        return self.repository.get_model("users", User, {"user_id": user_id})
+
     def get_current_user(self) -> User:
-        user = self.repository.get_model("users", User, {"user_id": DEMO_USER_ID})
+        user = self.get_user(DEMO_USER_ID)
         if user is None:
             self.seed_demo_data()
-            user = self.repository.get_model("users", User, {"user_id": DEMO_USER_ID})
+            user = self.get_user(DEMO_USER_ID)
         return user
+
+    def save_registered_user(self, user: User, credential: AuthCredential) -> None:
+        self.repository.upsert_model("users", user, id_field=COLLECTION_IDS["users"])
+        self.repository.upsert_model("auth_credentials", credential, id_field=COLLECTION_IDS["auth_credentials"])
+
+    def get_credential(self, email: str) -> AuthCredential | None:
+        return self.repository.get_model("auth_credentials", AuthCredential, {"email": email})
+
+    def save_credential(self, credential: AuthCredential) -> None:
+        self.repository.upsert_model("auth_credentials", credential, id_field=COLLECTION_IDS["auth_credentials"])
 
     def get_profile(self, user_id: str) -> UserProfile | None:
         if user_id != DEMO_USER_ID:
