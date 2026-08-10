@@ -90,6 +90,30 @@ React / Vite 前端
 
 当前阶段的意义是先把前端页面、数据结构、接口形状和交互规则搭起来。后面接真实后端时，目标是不大改前端页面，只把 `mockApi` 替换成真实 API adapter。
 
+### 本地生产化容器运行
+
+仓库根目录提供 `docker-compose.yml`、`Dockerfile.backend`、`Dockerfile.frontend` 和 `.env.production.example`。启动前请打开 Docker Desktop，并复制示例环境文件：
+
+```powershell
+Copy-Item .env.production.example .env.production
+```
+
+在 `.env.production` 中替换高强度 `945_AUTH_SECRET` 和真实的 `DEEPSEEK_API_KEY`。该文件包含密钥，仅在本机保留，绝不能提交到 Git。需要 LangSmith 追踪时，再填入 `LANGSMITH_API_KEY` 并将 `945_LANGSMITH_TRACING=true`。然后执行：
+
+```powershell
+docker compose up --build -d
+```
+
+前端默认暴露在 `http://127.0.0.1:8080`，健康检查为 `http://127.0.0.1:8080/health`；同源 `/api` 请求经 Nginx 转发给 FastAPI。可用以下命令查看运行状态和日志：
+
+```powershell
+docker compose ps
+docker compose logs backend
+docker compose logs frontend
+```
+
+停止服务使用 `docker compose down`，数据会保留在 MongoDB 命名卷 `mongo_data` 中。不要使用 `docker compose down -v`，该命令会删除本机 MongoDB 数据。
+
 ## 4. 当前前端代码结构
 
 核心文件：

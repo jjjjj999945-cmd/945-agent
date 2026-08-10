@@ -191,6 +191,30 @@ $env:945_MONGODB_DATABASE="945"
 
 当前已完成 MongoDB 文档转换、按集合 upsert、按条件查询、Pydantic model 还原、demo seed 和 repository-backed store 委托测试。默认 demo 模式仍不需要 MongoDB 进程。
 
+## Docker 部署
+
+1. 启动 Docker Desktop，并将 `.env.production.example` 复制为 `.env.production`。
+2. 为 `945_AUTH_SECRET` 设置至少 32 字符的随机值，并填入真实的 `DEEPSEEK_API_KEY`；该文件仅在本机保存，不能提交到 Git。
+3. 需要 LangSmith 追踪时，填入 `LANGSMITH_API_KEY` 并将 `945_LANGSMITH_TRACING=true`。
+4. 在仓库根目录执行：
+
+```powershell
+docker compose up --build -d
+```
+
+客户端服务默认在 `http://127.0.0.1:8080`，健康检查为 `http://127.0.0.1:8080/health`。Nginx 会将 `/api/*` 和 `/health` 转发到 FastAPI。生产模式必须先登录取得 Bearer token，MongoDB 使用命名卷 `mongo_data` 持久化数据。
+
+查看运行状态、排查日志和停止服务：
+
+```powershell
+docker compose ps
+docker compose logs backend
+docker compose logs frontend
+docker compose down
+```
+
+普通 `docker compose down` 会保留 `mongo_data` 中的数据；`docker compose down -v` 会删除本机 MongoDB 数据，除非明确要清空数据，否则不要使用。
+
 ## 运行测试
 
 ```powershell
