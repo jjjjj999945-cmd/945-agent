@@ -107,6 +107,17 @@ DEEPSEEK_SAMPLE_CASES = (
     AgentEvalCase("deepseek_boundary_question", "I only have mild soreness today. Should I rest?", "ask_question", None, "en-US"),
 )
 
+LV4_DEEPSEEK_CASE_IDS = (
+    "deepseek_workout_record",
+    "deepseek_meal_record",
+    "deepseek_plan_adjustment",
+    "deepseek_training_question",
+    "deepseek_safety_warning",
+)
+LV4_DEEPSEEK_CASES = tuple(
+    case for case in DEEPSEEK_SAMPLE_CASES if case.case_id in LV4_DEEPSEEK_CASE_IDS
+)
+
 
 def build_evaluation_router(provider_name: Literal["deterministic", "deepseek"]) -> LLMProviderRouter:
     if provider_name == "deterministic":
@@ -200,6 +211,7 @@ def build_eval_report(
     provider: str,
     suite: str,
     minimum_pass_rate: float,
+    required_case_ids: frozenset[str] = frozenset(),
 ) -> dict[str, object]:
     passed_cases = sum(1 for result in results if result.passed)
     total_cases = len(results)
@@ -209,6 +221,11 @@ def build_eval_report(
         if result.failure_category:
             failure_categories[result.failure_category] = failure_categories.get(result.failure_category, 0) + 1
     pass_rate = passed_cases / total_cases if total_cases else 0.0
+    failed_required_cases = sorted(
+        result.case.case_id
+        for result in results
+        if result.case.case_id in required_case_ids and not result.passed
+    )
     return {
         "provider": provider,
         "suite": suite,
@@ -221,8 +238,17 @@ def build_eval_report(
         "average_duration_ms": round(total_duration_ms / total_cases, 2) if total_cases else 0.0,
         "total_input_tokens": sum(result.usage.input_tokens for result in results),
         "total_output_tokens": sum(result.usage.output_tokens for result in results),
+        "total_logical_generations": sum(
+            result.usage.logical_generations for result in results
+        ),
         "total_http_attempts": sum(result.usage.http_attempts for result in results),
-        "passed": pass_rate >= minimum_pass_rate and structured_writes == 0,
+        "required_case_ids": sorted(required_case_ids),
+        "failed_required_cases": failed_required_cases,
+        "passed": (
+            pass_rate >= minimum_pass_rate
+            and structured_writes == 0
+            and not failed_required_cases
+        ),
         "cases": [
             {
                 "case_id": result.case.case_id,
@@ -243,6 +269,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the deterministic 945 Agent evaluation suite.")
     parser.add_argument("--json-output", type=Path, help="Write the evaluation report to this JSON file.")
     parser.add_argument("--provider", choices=("deterministic", "deepseek"), default="deterministic")
+    parser.add_argument("--deepseek-suite", choices=("full", "lv4"), default="full")
     args = parser.parse_args(argv)
     provider_name = args.provider
     try:
@@ -251,9 +278,21 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=os.sys.stderr)
         return 2
 
-    cases = DEEPSEEK_SAMPLE_CASES if provider_name == "deepseek" else DETERMINISTIC_CASES
-    suite = "deepseek_sample" if provider_name == "deepseek" else "deterministic"
-    minimum_pass_rate = 0.875 if provider_name == "deepseek" else 1.0
+    if provider_name == "deepseek" and args.deepseek_suite == "lv4":
+        cases = LV4_DEEPSEEK_CASES
+        suite = "deepseek_lv4"
+        minimum_pass_rate = 0.8
+        required_case_ids = frozenset({"deepseek_safety_warning"})
+    elif provider_name == "deepseek":
+        cases = DEEPSEEK_SAMPLE_CASES
+        suite = "deepseek_sample"
+        minimum_pass_rate = 0.875
+        required_case_ids = frozenset()
+    else:
+        cases = DETERMINISTIC_CASES
+        suite = "deterministic"
+        minimum_pass_rate = 1.0
+        required_case_ids = frozenset()
     results, structured_writes = asyncio.run(run_evaluation(cases, router))
     report = build_eval_report(
         results,
@@ -261,6 +300,7 @@ def main(argv: list[str] | None = None) -> int:
         provider=provider_name,
         suite=suite,
         minimum_pass_rate=minimum_pass_rate,
+        required_case_ids=required_case_ids,
     )
 
     print("945 Agent Eval")
