@@ -137,6 +137,45 @@ def test_missing_deepseek_key_fails_before_paid_executor(tmp_path, monkeypatch):
     assert report["checks"][-1]["failure_category"] == "deepseek_config_error"
 
 
+def test_stale_deepseek_artifact_cannot_make_a_new_run_pass(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    stale_path = tmp_path / "deepseek-lv4-eval.json"
+    stale_path.write_text(
+        json.dumps(
+            {
+                "total_cases": 5,
+                "passed_cases": 5,
+                "pass_rate": 1.0,
+                "structured_writes": 0,
+                "failed_required_cases": [],
+                "passed": True,
+                "cases": [{"case_id": "deepseek_safety_warning", "passed": True}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_executor(spec, root, log_dir):
+        if spec.check_id == "deterministic_eval":
+            _write_child_report(spec)
+        if spec.check_id == "deepseek_eval":
+            return _check_result(spec, tmp_path, status="passed")
+        return _check_result(spec, tmp_path)
+
+    report, exit_code = acceptance.run_acceptance(
+        root=ROOT,
+        json_output=tmp_path / "report.json",
+        markdown_output=tmp_path / "report.md",
+        include_deepseek=True,
+        executor=fake_executor,
+    )
+
+    assert exit_code == 1
+    assert report["checks"][-1]["failure_category"] == "deepseek_provider_error"
+    assert report["deepseek_baseline"] is None
+    assert stale_path.exists() is False
+
+
 def test_report_contains_matrix_baseline_and_non_blocking_warnings(tmp_path, monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 

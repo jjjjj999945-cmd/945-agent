@@ -152,6 +152,12 @@ def execute_check(spec: CheckSpec, root: Path, log_dir: Path) -> CheckResult:
     )
 
 
+def _clear_previous_output(spec: CheckSpec, log_dir: Path) -> None:
+    (log_dir / f"{spec.check_id}.log").unlink(missing_ok=True)
+    if spec.artifact_path is not None:
+        spec.artifact_path.unlink(missing_ok=True)
+
+
 def _load_json(path: Path) -> dict[str, object] | None:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -520,6 +526,7 @@ def run_acceptance(
     deterministic_report: dict[str, object] | None = None
 
     for spec in offline_specs:
+        _clear_previous_output(spec, log_dir)
         result = executor(spec, root, log_dir)
         if spec.check_id == "deterministic_eval":
             deterministic_report = _load_json(spec.artifact_path) if spec.artifact_path else None
@@ -530,6 +537,7 @@ def run_acceptance(
     deepseek_executed = False
     deepseek_report: dict[str, object] | None = None
     if deepseek_spec is not None:
+        _clear_previous_output(deepseek_spec, log_dir)
         if not offline_passed:
             results.append(
                 CheckResult(
