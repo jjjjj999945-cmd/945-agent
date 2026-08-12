@@ -31,3 +31,10 @@ def test_compose_keeps_the_local_production_service_contract():
     assert "945_APP_ENV: production" in compose
     assert '945_AUTH_REQUIRED: "true"' in compose
     assert '"8080:80"' in compose
+
+
+def test_docker_build_context_excludes_local_and_generated_files():
+    ignored = set((ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines())
+
+    assert {".git", ".worktrees", ".venv", "node_modules", "dist", "output", "test-results"} <= ignored
+    assert ".env.production" in ignored
