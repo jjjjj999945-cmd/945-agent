@@ -434,4 +434,3 @@ git commit -m "fix: close lv4 acceptance regressions"
 - [ ] **Step 7: 对照规格逐项复核**
 
 核对 `docs/superpowers/specs/2026-08-12-lv4-acceptance-closure-design.md` 的“完成标准”，确认统一入口、两类报告、离线全绿、真实 5 条基线、Docker 200、README 更新、无 UI 改动和无密钥提交均有本轮证据。任何一项缺失都不得声称阶段完成。
-
