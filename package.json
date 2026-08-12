@@ -12,6 +12,8 @@
     "qa:mongo": "playwright test --config=playwright.mongo.config.ts",
     "qa:agent": "python -m backend.evals.run_agent_eval",
     "qa:deepseek": "python -m pytest backend/tests/test_deepseek_smoke.py -q",
+    "qa:lv4": "python -m backend.evals.run_lv4_acceptance",
+    "qa:lv4:deepseek": "python -m backend.evals.run_lv4_acceptance --include-deepseek --json-output output/lv4-acceptance-deepseek.json --markdown-output output/lv4-acceptance-deepseek.md",
     "qa:openai": "python -m pytest backend/tests/test_openai_smoke.py -q",
     "preview": "vite preview --host 0.0.0.0"
   },

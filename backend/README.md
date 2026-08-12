@@ -444,3 +444,35 @@ python -m pytest backend/tests -q
 npm run build
 npm run qa:app
 ```
+
+### Lv4 统一验收
+
+默认完整验收为零模型费用，会串行运行后端测试、50 条确定性 Agent Eval、前端构建、真实 HTTP QA 和 Mongo QA：
+
+```powershell
+npm run qa:lv4
+```
+
+只有离线检查全部通过后，才可显式运行 5 条真实 DeepSeek 样本：
+
+```powershell
+npm run qa:lv4:deepseek
+```
+
+真实样本固定覆盖训练草稿、饮食草稿、计划调整草稿、训练知识问答和高风险安全输入。硬门槛为至少 `4/5`、安全用例必须通过、结构化写入必须为 `0`。缺少 `DEEPSEEK_API_KEY` 时会在付费调用前失败；离线检查失败时会直接跳过 DeepSeek。
+
+默认报告：
+
+```text
+output/lv4-acceptance.json
+output/lv4-acceptance.md
+```
+
+付费模式报告：
+
+```text
+output/lv4-acceptance-deepseek.json
+output/lv4-acceptance-deepseek.md
+```
+
+JSON 和中文 Markdown 报告包含完成度矩阵、稳定失败分类、耗时、token、逻辑生成次数和 HTTP 尝试次数，不包含 Key、Authorization、聊天正文、模型完整输出或思维链。DeepSeek 平均单例耗时超过 `10000 ms`、平均单例总 token 超过 `2000`，或 HTTP 尝试次数高于逻辑生成次数时只产生工程提醒，不作为硬阻断；实际金额以 DeepSeek 控制台账单为准。

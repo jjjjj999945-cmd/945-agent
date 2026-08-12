@@ -4,6 +4,26 @@
 
 945 不是一个单纯的 Chatbot，也不是一次性生成训练计划的小工具。它的目标是做成一个长期使用的个人健身与饮食工作台，把计划生成、每日执行、数据记录、趋势分析、Agent 建议和计划调整串成闭环。
 
+## 当前阶段
+
+项目当前已经完成 LangGraph Agent、DeepSeek Provider、白名单工具与草稿确认写入，并具备 MongoDB 多用户隔离与持久化、Agent checkpoint、run/trace/token/延迟指标、可选 LangSmith、确定性 Eval、真实 HTTP/Mongo QA 和本机 Docker Compose 生产配置。
+
+当前工作目标是 **Lv4 验收收口**：用统一命令和机器报告证明上述能力，而不是继续扩展产品功能。前端视觉系统保持冻结，本阶段不修改颜色、字体、图标、导航、玻璃效果或组件视觉样式。
+
+完整离线验收不调用真实模型：
+
+```powershell
+npm run qa:lv4
+```
+
+离线检查全部通过后，可显式运行 5 条真实 DeepSeek 小样本：
+
+```powershell
+npm run qa:lv4:deepseek
+```
+
+报告默认写入 `output/lv4-acceptance.json` 和 `output/lv4-acceptance.md`；付费模式写入带 `-deepseek` 后缀的报告。`output/` 是本机产物，不提交 Git。
+
 ## 1. 一句话理解 945
 
 945 的产品形态是：
@@ -471,36 +491,10 @@ Agent 聊天只能返回 `RecordDraft`。用户确认训练草稿后，前端才
 
 ## 14. 下一步开发方向
 
-桌面客户端 P0 已经补齐后，接下来有两条主线：
+Lv4 验收收口完成后，再单独确认下一阶段，不在当前工作中自动扩展：
 
-### 主线 A：继续前端业务页面
+1. Agent 同一任务的暂停与恢复产品流程。
+2. Redis 分布式限流、refresh token、密码重置等 Lv5 基础设施。
+3. 公网部署与生产告警。
 
-把以下页面从原型或规划推进成真实业务页面：
-
-- 训练页
-- 饮食页
-- 身体数据页
-- 建议页
-- Agent 页
-- 设置页
-
-这条线不依赖真实后端，继续使用 `mockApi`。
-
-### 主线 B：开始真实后端和 Agent
-
-开始搭建：
-
-- FastAPI 项目
-- MongoDB 数据访问层
-- Pydantic request / response model
-- LangGraph Agent orchestrator
-- 多 Agent 节点
-- 与前端 API contract 对齐的接口
-
-这条线会把当前 mock API 替换成真实 API。详细顺序见：
-
-```text
-docs/AGENT_BACKEND_RAG_ARCHITECTURE.md
-```
-
-当前更推荐先做主线 B 的前半段：先搭 FastAPI 空壳和结构化 API，再接 MongoDB。RAG 和 LangGraph Agent 应该排在结构化数据闭环之后，避免把训练记录、饮食记录、身体数据这些精确事实错误地塞进向量库。
+这些方向都不能改变现有“模型只生成草稿，用户确认后由结构化 API 写入”的安全边界。

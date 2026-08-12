@@ -193,3 +193,14 @@ def test_offline_report_marks_deepseek_as_not_run(tmp_path):
     assert report["overall_status"] == "passed"
     assert report["deepseek_executed"] is False
     assert deepseek_capability["status"] == "not_run"
+
+
+def test_package_exposes_offline_and_explicit_paid_lv4_commands():
+    package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+
+    assert package["scripts"]["qa:lv4"] == "python -m backend.evals.run_lv4_acceptance"
+    assert package["scripts"]["qa:lv4:deepseek"] == (
+        "python -m backend.evals.run_lv4_acceptance --include-deepseek "
+        "--json-output output/lv4-acceptance-deepseek.json "
+        "--markdown-output output/lv4-acceptance-deepseek.md"
+    )
