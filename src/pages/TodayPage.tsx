@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/business/ConfirmDialog";
 import { MetricCard } from "../components/business/MetricCard";
+import { PageLoadState } from "../components/business/PageLoadState";
 import { ProgressBar } from "../components/business/ProgressBar";
 import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
+import { saveRecordDraft } from "../services/recordDraft";
 import type { DailyCheckin, Locale, PlannedMeal, RecordDraft, TodayResponseData } from "../types/domain";
 
 type TodayPageProps = {
@@ -168,10 +170,16 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
     setAgentMessage("");
   }
 
-  function confirmRecordDraft() {
+  async function confirmRecordDraft() {
     if (!recordDraft) return;
+    const response = await saveRecordDraft(recordDraft, { user_id: DEMO_USER_ID, date: TODAY_DATE });
+    if (response.error) {
+      setNotice(response.error.message);
+      return;
+    }
     setNotice(`${draftTypeLabels[recordDraft.type]} ${t("status.saved")}`);
     setRecordDraft(null);
+    await loadToday();
   }
 
   function updateWorkoutStatus(status: "completed" | "partial" | "skipped") {
@@ -195,7 +203,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   }
 
   if (!today || !summary) {
-    return <div className="business-placeholder">{t("status.loading")}</div>;
+    return <PageLoadState message={notice || t("status.loading")} />;
   }
 
   return (
@@ -446,7 +454,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
         cancelLabel={t("actions.cancel")}
         confirmLabel={t("actions.confirm")}
         onCancel={() => setRecordDraft(null)}
-        onConfirm={confirmRecordDraft}
+        onConfirm={() => void confirmRecordDraft()}
         open={Boolean(recordDraft)}
         title={t("agent.confirmDraftTitle")}
       >

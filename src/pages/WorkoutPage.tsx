@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageLoadState } from "../components/business/PageLoadState";
 import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
@@ -64,7 +65,7 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
     await loadWorkout();
   }
 
-  if (!data) return <div className="business-placeholder">{t("status.loading")}</div>;
+  if (!data) return <PageLoadState message={notice || t("status.loading")} />;
   const selectedDay = data.selected_day;
   const weeklyPlan = data.plan.workout_plan.days;
   const completedCount = Math.round(data.completion_rate * weeklyPlan.length);

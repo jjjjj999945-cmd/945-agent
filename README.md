@@ -387,6 +387,24 @@ npm run qa:app
 - Agent draft 确认
 - 语言切换
 
+### 真实 HTTP 联调
+
+默认开发模式使用浏览器内 mock 数据，不依赖后端。需要验证桌面客户端与 FastAPI 的真实请求链路时，使用独立 HTTP 模式：
+
+```powershell
+npm run dev:http
+```
+
+访问 `http://127.0.0.1:5177/app`。该模式读取 `.env.http`，请求本机 `http://127.0.0.1:8000` 后端。
+
+一键运行浏览器、FastAPI 和端到端测试：
+
+```powershell
+npm run qa:http
+```
+
+`qa:http` 使用 demo store 和 deterministic Agent，不需要 OpenAI API Key 或 MongoDB。真实 MongoDB 容器已启动时，后端可按 [backend/README.md](backend/README.md) 中的 `945_STORAGE_BACKEND=mongo` 配置切换到持久化模式。
+
 ## 12. 学习这个项目的建议顺序
 
 如果你想理解整个项目，建议按这个顺序读：

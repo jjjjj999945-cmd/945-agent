@@ -35,6 +35,16 @@ type ManualMealLogInput = Omit<
 
 const API_BASE_URL = import.meta.env.VITE_945_API_BASE_URL ?? "http://127.0.0.1:8000";
 
+function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as { data?: unknown; error?: unknown };
+  if (!("data" in candidate) || !("error" in candidate)) return false;
+  if (candidate.error === null) return candidate.data !== null;
+  if (candidate.data !== null || !candidate.error || typeof candidate.error !== "object") return false;
+  const errorValue = candidate.error as { code?: unknown; message?: unknown };
+  return typeof errorValue.code === "string" && typeof errorValue.message === "string";
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse<T>> {
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -44,8 +54,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse
         ...init?.headers
       }
     });
-    const body = (await response.json()) as ApiResponse<T>;
-    return body;
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      return fail("HTTP_ERROR", "945 backend returned an invalid response.", { status: response.status, path });
+    }
+
+    if (isApiResponse<T>(body)) return body;
+    if (response.status === 422) {
+      return fail("VALIDATION_ERROR", "Request validation failed.", {
+        status: response.status,
+        detail: (body as { detail?: unknown }).detail
+      });
+    }
+    return fail("HTTP_ERROR", "945 backend returned an invalid response.", { status: response.status, path });
   } catch (error) {
     return fail("NETWORK_ERROR", "Unable to reach 945 backend.", {
       base_url: API_BASE_URL,

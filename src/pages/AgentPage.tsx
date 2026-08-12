@@ -3,6 +3,7 @@ import { ConfirmDialog } from "../components/business/ConfirmDialog";
 import { DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
+import { saveRecordDraft } from "../services/recordDraft";
 import type { AgentMessage, Locale, RecordDraft } from "../types/domain";
 
 export function AgentPage({ locale }: { locale: Locale }) {
@@ -43,9 +44,16 @@ export function AgentPage({ locale }: { locale: Locale }) {
     await loadMessages();
   }
 
-  function confirmDraft() {
+  async function confirmDraft() {
+    if (!draft) return;
+    const response = await saveRecordDraft(draft, { user_id: DEMO_USER_ID, date: TODAY_DATE });
+    if (response.error) {
+      setNotice(response.error.message);
+      return;
+    }
     setDraft(null);
     setNotice(t("status.agentDraftConfirmed"));
+    await loadMessages();
   }
 
   function formatRecordDraft(recordDraft: RecordDraft | null) {
@@ -122,7 +130,7 @@ export function AgentPage({ locale }: { locale: Locale }) {
           <p>{isChinese ? "2 区专注 · 45 分钟" : "Zone 2 Focus · 45 min"}</p>
           <div className="exercise-row"><span>{isChinese ? "热身" : "Warm-up"}</span><strong>{isChinese ? "10 分钟 @ 100W" : "10 min @ 100W"}</strong></div>
           <div className="exercise-row"><span>{isChinese ? "主训练" : "Main Set"}</span><strong>{isChinese ? "30 分钟 @ 140W" : "30 min @ 140W"}</strong></div>
-          <button onClick={confirmDraft} type="button">{isChinese ? "同步到 Garmin" : "Push to Garmin"}</button>
+          <button onClick={() => void confirmDraft()} type="button">{isChinese ? "同步到 Garmin" : "Push to Garmin"}</button>
         </article>
         <article className="business-panel compact">
           <h2>{isChinese ? "实时状态" : "Live Context"}</h2>
@@ -136,7 +144,7 @@ export function AgentPage({ locale }: { locale: Locale }) {
         cancelLabel={t("actions.cancel")}
         confirmLabel={t("actions.confirm")}
         onCancel={() => setDraft(null)}
-        onConfirm={confirmDraft}
+        onConfirm={() => void confirmDraft()}
         open={Boolean(draft)}
         title={t("agent.confirmDraftTitle")}
       >

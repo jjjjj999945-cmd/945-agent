@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageLoadState } from "../components/business/PageLoadState";
 import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
@@ -55,7 +56,7 @@ export function DietPage({ locale }: { locale: Locale }) {
     await loadDiet();
   }
 
-  if (!data) return <div className="business-placeholder">{t("status.loading")}</div>;
+  if (!data) return <PageLoadState message={notice || t("status.loading")} />;
 
   return (
     <div className="business-page diet-tracker-page">
