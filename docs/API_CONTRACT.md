@@ -12,6 +12,9 @@
 - `GET /api/demo-user`
 - `GET /api/today`
 - `GET /api/plans/current`
+- `POST /api/plans/generate`
+- `POST /api/plans/{plan_id}/accept`
+- `POST /api/plans/{plan_id}/adjust`
 - `GET /api/profile/{user_id}`
 - `POST /api/profile`
 - `PATCH /api/profile/{user_id}`
@@ -30,7 +33,7 @@
 - `POST /api/agent/chat`
 - `GET /api/agent/messages`
 
-当前默认实现使用进程内 demo store 和 deterministic LLM Provider；已具备 MongoDB repository 边界、本地 RAG、异步 Agent 编排、Provider Router 和可选 OpenAI Responses Provider。后续生产化阶段会继续实现计划生成、计划接受、更多历史查询、向量库、鉴权和云部署。
+当前默认实现使用进程内 demo store 和 deterministic LLM Provider；前端默认使用 mock adapter，也可通过 `VITE_945_API_MODE=http` 调用这些 FastAPI 接口。`npm run qa:http` 固定使用 demo store 和 deterministic Provider，不需要 MongoDB 或 API Key。已具备 MongoDB repository 边界、本地 RAG、异步 Agent 编排、Provider Router 和可选 OpenAI Responses Provider。后续生产化阶段会继续实现计划生成、计划接受、更多历史查询、向量库、鉴权和云部署。
 
 ## 1. 目标
 
@@ -191,6 +194,8 @@ type AdviceType = "daily_advice" | "weekly_summary" | "plan_adjustment" | "safet
 
 生成训练计划和饮食计划。
 
+当前 MVP 返回 `status: "draft"` 的确定性 demo 计划，不会替换当前 active 计划；前端必须继续调用接受接口。
+
 请求：
 
 ```json
@@ -279,9 +284,13 @@ type AdviceType = "daily_advice" | "weekly_summary" | "plan_adjustment" | "safet
 
 将计划状态改为 `active`。
 
+当前 active 计划会归档，只有 draft 计划可以接受。
+
 ### POST `/api/plans/{plan_id}/adjust`
 
 用户确认后调整计划。
+
+当前 MVP 要求 `confirmed: true`，并创建新的 active 计划版本；未确认请求会返回 `422`，不会改写计划。
 
 请求：
 
@@ -550,6 +559,6 @@ Agent 对话。
 
 - `record_draft` 只是预览草稿，不会自动保存。
 - 训练草稿必须由用户确认后调用 `POST /api/workout-logs`。
-- 饮食草稿必须由用户确认后调用 `POST /api/meal-logs` 或 `POST /api/meal-logs/confirm-planned-meal`。
-- 计划调整草稿必须由用户确认后调用后续计划调整结构化 API；当前 MVP 还未实现直接改计划接口。
+- 饮食草稿必须由用户确认后调用 `POST /api/meal-logs`；计划餐确认使用 `POST /api/meal-logs/confirm-planned-meal`。
+- 计划调整草稿不会改写计划；当前 MVP 尚未实现计划调整结构化 API。
 - 高风险输入优先返回安全提醒，不调用 OpenAI Provider。

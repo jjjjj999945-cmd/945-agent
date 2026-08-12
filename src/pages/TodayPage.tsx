@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { ConfirmDialog } from "../components/business/ConfirmDialog";
 import { MetricCard } from "../components/business/MetricCard";
 import { PageLoadState } from "../components/business/PageLoadState";
 import { ProgressBar } from "../components/business/ProgressBar";
-import { demoPlan, DEMO_USER_ID, TODAY_DATE } from "../data/demoData";
+import { DEMO_USER_ID } from "../data/demoData";
+import { appToday } from "../services/dateContext";
+import { usePlanContext } from "../contexts/PlanContext";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
-import { saveRecordDraft } from "../services/recordDraft";
-import type { DailyCheckin, Locale, PlannedMeal, RecordDraft, TodayResponseData } from "../types/domain";
+import type { DailyCheckin, Locale, PlannedMeal, TodayResponseData } from "../types/domain";
 
 type TodayPageProps = {
   locale: Locale;
@@ -32,11 +32,9 @@ const initialCheckinForm: CheckinForm = {
 
 export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   const t = createTranslator(locale);
+  const { currentPlan } = usePlanContext();
   const [today, setToday] = useState<TodayResponseData | null>(null);
   const [checkin, setCheckin] = useState<CheckinForm>(initialCheckinForm);
-  const [agentMessage, setAgentMessage] = useState("");
-  const [agentReply, setAgentReply] = useState("");
-  const [recordDraft, setRecordDraft] = useState<RecordDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -45,7 +43,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   }, []);
 
   async function loadToday() {
-    const response = await api.getToday({ user_id: DEMO_USER_ID, date: TODAY_DATE });
+    const response = await api.getToday({ user_id: DEMO_USER_ID, date: appToday });
     if (response.error) {
       setNotice(response.error.message);
       return;
@@ -56,6 +54,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   const workout = today?.today_workout;
   const meals = today?.today_meals ?? [];
   const summary = today?.status_summary;
+  const planNeedsRenewal = !workout && meals.length === 0;
   const isChinese = locale === "zh-CN";
   const coachCopy = {
     eyebrow: isChinese ? "945 今日状态" : "945 Readiness",
@@ -75,18 +74,11 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
     workouts: isChinese ? "训练" : "Workouts",
     calories: isChinese ? "热量" : "Calories",
     recovery: isChinese ? "恢复" : "Recovery",
-    ask: isChinese ? "问智能教练：今天训练、饮食或恢复怎么调？" : "Ask Agent about training, diet, or recovery..."
   };
   const goalLabel = isChinese && today?.user.goal === "body_recomposition" ? "身体重组" : (today?.user.goal.replace(/_/g, " ") ?? "");
   const recoveryLabel = isChinese && summary?.recovery_status === "normal" ? "正常" : (summary?.recovery_status ?? "");
   const focusLabel = isChinese && workout?.focus === "chest_back_shoulders" ? "胸部、背部、肩部" : workout?.focus.replace(/_/g, " ");
   const riskLabel = isChinese && today?.latest_advice?.risk_level === "low" ? "低风险" : today?.latest_advice?.risk_level;
-  const draftTypeLabels: Record<RecordDraft["type"], string> = {
-    workout_log: isChinese ? "训练记录" : "workout log",
-    meal_log: isChinese ? "饮食记录" : "meal log",
-    daily_checkin: isChinese ? "每日打卡" : "daily check-in",
-    plan_adjustment: isChinese ? "计划调整" : "plan adjustment"
-  };
   const workoutStatusLabels: Record<"completed" | "partial" | "skipped", string> = {
     completed: isChinese ? "已完成" : "completed",
     partial: isChinese ? "部分完成" : "partial",
@@ -105,12 +97,25 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
     [meals]
   );
 
+  function getActivePlanId() {
+    if (!currentPlan) {
+      setNotice("当前计划没有覆盖今天。");
+      return null;
+    }
+    return currentPlan.plan_id;
+  }
+
   async function confirmMeal(meal: PlannedMeal) {
     setSaving(true);
+    const planId = getActivePlanId();
+    if (!planId) {
+      setSaving(false);
+      return;
+    }
     const response = await api.confirmPlannedMeal({
       user_id: DEMO_USER_ID,
-      plan_id: demoPlan.plan_id,
-      date: TODAY_DATE,
+      plan_id: planId,
+      date: appToday,
       meal_id: meal.meal_id
     });
     setSaving(false);
@@ -128,7 +133,7 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
     setSaving(true);
     const payload: Omit<DailyCheckin, "checkin_id" | "created_at" | "updated_at"> = {
       user_id: DEMO_USER_ID,
-      date: TODAY_DATE,
+      date: appToday,
       weight_kg: checkin.weight_kg ? Number(checkin.weight_kg) : undefined,
       sleep_hours: checkin.sleep_hours ? Number(checkin.sleep_hours) : undefined,
       fatigue_level: Number(checkin.fatigue_level) as DailyCheckin["fatigue_level"],
@@ -147,59 +152,37 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
     await loadToday();
   }
 
-  async function sendAgentMessage() {
-    if (!agentMessage.trim()) return;
-
-    const response = await api.sendAgentMessage({
+  async function updateWorkoutStatus(status: "completed" | "partial" | "skipped") {
+    if (!workout) return;
+    setSaving(true);
+    const planId = getActivePlanId();
+    if (!planId) {
+      setSaving(false);
+      return;
+    }
+    const response = await api.saveWorkoutLog({
       user_id: DEMO_USER_ID,
-      locale,
-      message: agentMessage,
-      context: {
-        current_page: "today",
-        date: TODAY_DATE
-      }
+      plan_id: planId,
+      date: appToday,
+      status: status === "partial" ? "partially_completed" : status,
+      duration_minutes: workout.duration_minutes,
+      exercises: workout.exercises.map((exercise) => ({
+        exercise_id: exercise.exercise_id,
+        name: exercise.name,
+        sets: Array.from({ length: exercise.sets }, () => ({
+          reps: Number.parseInt(exercise.reps, 10) || 0,
+          completed: status !== "skipped"
+        }))
+      })),
+      notes: `Updated from Today page: ${workoutStatusLabels[status]}`
     });
-
+    setSaving(false);
     if (response.error) {
       setNotice(response.error.message);
       return;
     }
-
-    setAgentReply(response.data.content);
-    setRecordDraft(response.data.record_draft ?? null);
-    setAgentMessage("");
-  }
-
-  async function confirmRecordDraft() {
-    if (!recordDraft) return;
-    const response = await saveRecordDraft(recordDraft, { user_id: DEMO_USER_ID, date: TODAY_DATE });
-    if (response.error) {
-      setNotice(response.error.message);
-      return;
-    }
-    setNotice(`${draftTypeLabels[recordDraft.type]} ${t("status.saved")}`);
-    setRecordDraft(null);
+    setNotice(t("status.workoutSaved"));
     await loadToday();
-  }
-
-  function updateWorkoutStatus(status: "completed" | "partial" | "skipped") {
-    setNotice(`${t("status.workoutStatusUpdated")}: ${workoutStatusLabels[status]}`);
-  }
-
-  function formatRecordDraft(draft: RecordDraft | null) {
-    if (!draft) return "";
-    if (!isChinese) return JSON.stringify(draft.payload, null, 2);
-    const payload = draft.payload;
-    const rows = [
-      ["草稿类型", draftTypeLabels[draft.type]],
-      ["动作名称", payload.exercise_name],
-      ["组数", payload.sets],
-      ["次数", payload.reps],
-      ["重量", payload.weight_kg ? `${payload.weight_kg} kg` : undefined],
-      ["餐食名称", payload.meal_name],
-      ["备注", payload.effort_note ?? payload.note]
-    ].filter(([, value]) => value !== undefined && value !== "");
-    return rows.map(([label, value]) => `${label}: ${value}`).join("\n");
   }
 
   if (!today || !summary) {
@@ -247,6 +230,14 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
 
       {notice ? <div className="business-notice">{notice}</div> : null}
 
+      {planNeedsRenewal ? (
+        <section className="business-panel compact plan-renewal-panel">
+          <h2>{isChinese ? "当前计划没有覆盖今天" : "Your current plan does not cover today"}</h2>
+          <p>{isChinese ? "生成新的计划草稿并确认后，今日训练和饮食内容会在这里显示。" : "Generate and accept a new plan draft to populate today's workout and meals."}</p>
+          <button onClick={() => onNavigate?.("/plan")} type="button">{isChinese ? "生成新计划" : "Generate a new plan"}</button>
+        </section>
+      ) : null}
+
       <section className="metric-grid compact-metrics" aria-label={t("today.summary")}>
         <MetricCard label={t("metrics.goal")} value={goalLabel} />
         <MetricCard
@@ -284,9 +275,9 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
                 ))}
               </div>
               <div className="button-row">
-                <button onClick={() => updateWorkoutStatus("completed")} type="button">{t("actions.complete")}</button>
-                <button className="ghost" onClick={() => updateWorkoutStatus("partial")} type="button">{t("actions.partial")}</button>
-                <button className="ghost" onClick={() => updateWorkoutStatus("skipped")} type="button">{t("actions.skip")}</button>
+                <button disabled={saving} onClick={() => void updateWorkoutStatus("completed")} type="button">{t("actions.complete")}</button>
+                <button className="ghost" disabled={saving} onClick={() => void updateWorkoutStatus("partial")} type="button">{t("actions.partial")}</button>
+                <button className="ghost" disabled={saving} onClick={() => void updateWorkoutStatus("skipped")} type="button">{t("actions.skip")}</button>
               </div>
             </>
           ) : (
@@ -421,46 +412,8 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
           ) : (
             <p>{t("empty.noAdvice")}</p>
           )}
-          <div className="agent-mini-input">
-            <input placeholder={coachCopy.ask} aria-label={isChinese ? "询问智能教练" : "Ask Agent"} />
-            <button onClick={() => onNavigate?.("/agent")} type="button">
-              <span className="material-symbols-outlined">arrow_upward</span>
-            </button>
-          </div>
         </aside>
-
-        <article className="business-card agent-card">
-          <div className="section-heading">
-            <span>{t("nav.agent")}</span>
-            <strong>{t("safety.nonMedical")}</strong>
-          </div>
-          <p>{t("agent.todayPrompt")}</p>
-          {agentReply ? <div className="agent-reply">{agentReply}</div> : null}
-          <div className="agent-input-row">
-            <input
-              value={agentMessage}
-              onChange={(event) => setAgentMessage(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void sendAgentMessage();
-              }}
-              placeholder={t("agent.inputPlaceholder")}
-            />
-            <button onClick={() => void sendAgentMessage()}>{t("actions.send")}</button>
-          </div>
-        </article>
       </section>
-
-      <ConfirmDialog
-        cancelLabel={t("actions.cancel")}
-        confirmLabel={t("actions.confirm")}
-        onCancel={() => setRecordDraft(null)}
-        onConfirm={() => void confirmRecordDraft()}
-        open={Boolean(recordDraft)}
-        title={t("agent.confirmDraftTitle")}
-      >
-        <p>{t("agent.confirmDraftBody")}</p>
-        <pre>{formatRecordDraft(recordDraft)}</pre>
-      </ConfirmDialog>
     </div>
   );
 }

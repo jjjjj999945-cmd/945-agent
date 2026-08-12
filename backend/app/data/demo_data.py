@@ -1,9 +1,12 @@
+from datetime import date, timedelta
+
+from backend.app.core.dates import app_date
 from backend.app.models.domain import AgentAdvice, Plan, PlannedMeal, TodayResponseData, User, WorkoutPlanDay
 
 
 DEMO_USER_ID = "demo-user-945"
-TODAY_DATE = "2026-07-11"
-NOW = "2026-07-11T00:00:00.000Z"
+TODAY_DATE = app_date()
+NOW = f"{TODAY_DATE}T00:00:00.000Z"
 
 DEMO_USER = User(
     user_id=DEMO_USER_ID,
@@ -53,7 +56,7 @@ TODAY_WORKOUT = WorkoutPlanDay(
 )
 
 LOWER_BODY_WORKOUT = WorkoutPlanDay(
-    date="2026-07-13",
+    date=(date.fromisoformat(TODAY_DATE) + timedelta(days=2)).isoformat(),
     name="下肢力量",
     focus="legs_glutes",
     duration_minutes=60,
@@ -102,12 +105,12 @@ TODAY_MEALS = [
 ]
 
 DEMO_PLAN = Plan(
-    plan_id="plan-2026-07-11-demo",
+    plan_id=f"plan-{TODAY_DATE}-demo",
     user_id=DEMO_USER_ID,
     goal=DEMO_GOAL,
     status="active",
-    start_date="2026-07-11",
-    end_date="2026-07-17",
+    start_date=TODAY_DATE,
+    end_date=(date.fromisoformat(TODAY_DATE) + timedelta(days=6)).isoformat(),
     generated_by="mock",
     created_at=NOW,
     updated_at=NOW,
@@ -134,7 +137,7 @@ DEMO_PLAN = Plan(
 )
 
 DEMO_ADVICE = AgentAdvice(
-    advice_id="advice-2026-07-11-1",
+    advice_id=f"advice-{TODAY_DATE}-1",
     user_id=DEMO_USER_ID,
     date=TODAY_DATE,
     type="daily_advice",

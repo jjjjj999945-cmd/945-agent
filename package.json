@@ -9,10 +9,15 @@
     "build": "tsc && vite build",
     "qa:app": "playwright test",
     "qa:http": "playwright test --config=playwright.http.config.ts",
+    "qa:mongo": "playwright test --config=playwright.mongo.config.ts",
+    "qa:agent": "python -m backend.evals.run_agent_eval",
+    "qa:deepseek": "python -m pytest backend/tests/test_deepseek_smoke.py -q",
+    "qa:openai": "python -m pytest backend/tests/test_openai_smoke.py -q",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",
+    "lucide-react": "^1.27.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "typescript": "^5.8.0",

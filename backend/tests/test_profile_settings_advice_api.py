@@ -34,6 +34,34 @@ def test_get_and_patch_profile_for_demo_user():
     assert updated["updated_at"]
 
 
+def test_profile_requires_safety_confirmation_before_it_is_complete():
+    response = client.patch("/api/profile/demo-user-945", json={"safety_confirmed": False})
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["profile_completion"] == "incomplete"
+    assert "safety_confirmed" in data["missing_fields"]
+
+
+def test_profile_returns_complete_after_required_fields_and_safety_confirmation():
+    response = client.patch("/api/profile/demo-user-945", json={"safety_confirmed": True})
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["profile_completion"] == "complete"
+    assert data["safety_confirmed_at"] is not None
+
+
+def test_profile_clears_safety_confirmation_timestamp_when_confirmation_is_revoked():
+    confirmed = client.patch("/api/profile/demo-user-945", json={"safety_confirmed": True})
+    assert confirmed.json()["data"]["safety_confirmed_at"] is not None
+
+    revoked = client.patch("/api/profile/demo-user-945", json={"safety_confirmed": False})
+
+    assert revoked.status_code == 200
+    assert revoked.json()["data"]["safety_confirmed_at"] is None
+
+
 def test_post_profile_overwrites_demo_profile():
     response = client.post(
         "/api/profile",
@@ -112,6 +140,49 @@ def test_get_advice_and_update_advice_status():
     updated = patch_response.json()["data"]
     assert updated["advice_id"] == "advice-2026-07-11-1"
     assert updated["accepted_status"] == "accepted"
+
+
+def test_generate_feedback_creates_recovery_advice_and_plan_adjustment_for_high_fatigue():
+    checkin = client.post(
+        "/api/daily-checkins",
+        json={"user_id": "demo-user-945", "date": "2026-07-11", "fatigue_level": 4, "sleep_hours": 6.5},
+    )
+    assert checkin.status_code == 200
+
+    generated = client.post("/api/advice/generate", json={"user_id": "demo-user-945", "date": "2026-07-11"})
+    assert generated.status_code == 200
+    items = generated.json()["data"]
+    assert items[0]["type"] == "daily_advice"
+    assert items[0]["risk_level"] == "medium"
+    assert items[2]["type"] == "plan_adjustment"
+    assert "草稿" in items[2]["content"]
+
+    advice = client.get("/api/advice").json()["data"]
+    assert advice["daily"]["advice_id"] == "advice-daily-2026-07-11"
+    assert advice["adjustments"][0]["advice_id"] == "advice-adjustment-2026-07-11"
+
+
+def test_generate_feedback_flags_low_protein_when_recovery_signals_are_normal():
+    generated = client.post("/api/advice/generate", json={"user_id": "demo-user-945", "date": "2026-07-11"})
+
+    assert generated.status_code == 200
+    daily = generated.json()["data"][0]
+    assert daily["type"] == "daily_advice"
+    assert "蛋白质" in daily["title"]
+    assert daily["risk_level"] == "low"
+
+
+def test_export_returns_user_owned_structured_data():
+    response = client.get("/api/settings/export", params={"user_id": "demo-user-945"})
+
+    assert response.status_code == 200
+    exported = response.json()["data"]
+    assert exported["schema_version"] == "1.0"
+    assert exported["exported_at"]
+    assert exported["user"]["user_id"] == "demo-user-945"
+    assert exported["profile"]["user_id"] == "demo-user-945"
+    assert isinstance(exported["plans"], list)
+    assert "agent_messages" in exported
 
 
 def test_update_advice_status_rejects_missing_advice():

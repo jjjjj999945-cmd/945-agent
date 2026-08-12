@@ -1,6 +1,5 @@
 import {
   DEMO_USER_ID,
-  TODAY_DATE,
   createInitialTodayData,
   demoAdvice,
   demoBodyMetrics,
@@ -12,13 +11,16 @@ import {
 import type {
   AdvicePageData,
   AgentMessage,
+  AgentRun,
   AgentAdvice,
   BodyMetric,
   BodyPageData,
+  CurrentPlanData,
   DailyCheckin,
   DietPageData,
   FoodLog,
   MealLog,
+  Plan,
   SettingsData,
   TodayResponseData,
   User,
@@ -27,6 +29,8 @@ import type {
   WorkoutLog
 } from "../types/domain";
 import { fail, ok, type ApiResponse } from "./apiTypes";
+import { appToday } from "./dateContext";
+import { getMockDietPageData, getMockWorkoutPageData } from "./mockPlanLifecycle";
 
 type DailyCheckinInput = Omit<DailyCheckin, "checkin_id" | "created_at" | "updated_at">;
 type WorkoutLogInput = Omit<WorkoutLog, "workout_log_id" | "created_at" | "updated_at">;
@@ -46,6 +50,7 @@ let mealLogs: MealLog[] = [];
 let agentMessages: AgentMessage[] = [];
 let bodyMetrics: BodyMetric[] = [...demoBodyMetrics];
 let adviceItems: AgentAdvice[] = [demoAdvice, demoWeeklyAdvice];
+let currentPlan: Plan = demoPlan;
 
 function timestamp() {
   return new Date().toISOString();
@@ -72,7 +77,7 @@ function sumFoods(foods: FoodLog[]) {
 
 function refreshTodayFromLogs() {
   const todayMealTotals = mealLogs
-    .filter((log) => log.date === TODAY_DATE)
+    .filter((log) => log.date === appToday)
     .reduce(
       (total, log) => ({
         calories: total.calories + log.calories,
@@ -93,12 +98,49 @@ function refreshTodayFromLogs() {
       protein_logged_g: Math.max(102, todayMealTotals.protein_g),
       weekly_workouts_completed: Math.max(3, completedWorkouts)
     },
-    daily_checkin: dailyCheckins.find((checkin) => checkin.date === TODAY_DATE) ?? null,
+    daily_checkin: dailyCheckins.find((checkin) => checkin.date === appToday) ?? null,
     latest_advice: demoAdvice
   };
 }
 
+function getCurrentPlanData(): CurrentPlanData {
+  const coverageStatus =
+    currentPlan.status === "active" && currentPlan.start_date <= appToday && appToday <= currentPlan.end_date
+      ? "active_today"
+      : "expired";
+  return {
+    plan: coverageStatus === "active_today" ? currentPlan : null,
+    coverage_status: coverageStatus
+  };
+}
+
 export const api = {
+  async getCurrentPlan(user_id = DEMO_USER_ID): Promise<ApiResponse<CurrentPlanData>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+    return ok(getCurrentPlanData());
+  },
+
+  async generatePlan(input: { user_id: string; goal?: Plan["goal"] }): Promise<ApiResponse<Plan>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    return ok({ ...currentPlan, plan_id: `plan-draft-${Date.now()}`, goal: input.goal ?? currentPlan.goal, status: "draft", created_at: timestamp(), updated_at: timestamp() });
+  },
+
+  async acceptPlan(input: { user_id: string; plan_id: string }): Promise<ApiResponse<Plan>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    currentPlan = { ...currentPlan, plan_id: input.plan_id, status: "active", updated_at: timestamp() };
+    return ok(currentPlan);
+  },
+
+  async adjustPlan(input: { user_id: string; plan_id: string; adjustment_type: string; reason: string; target_date?: string; target_exercise_id?: string; target_meal_id?: string; replacement_name?: string }): Promise<ApiResponse<Plan>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    if (input.plan_id !== currentPlan.plan_id) return fail("NOT_FOUND", "Active plan not found.", { plan_id: input.plan_id });
+    currentPlan = { ...currentPlan, plan_id: `plan-adjusted-${Date.now()}`, generated_by: "agent", updated_at: timestamp() };
+    return ok(currentPlan);
+  },
   async getDemoUser(): Promise<ApiResponse<User>> {
     return ok(currentUser);
   },
@@ -135,7 +177,7 @@ export const api = {
     refreshTodayFromLogs();
     return ok({
       ...todayData,
-      date: input.date ?? TODAY_DATE
+      date: input.date ?? appToday
     });
   },
 
@@ -143,17 +185,19 @@ export const api = {
     const user = ensureDemoUser(user_id);
     if (user.error) return user;
 
-    const plannedSets = demoPlan.workout_plan.days.reduce(
-      (sum, day) => sum + day.exercises.reduce((inner, exercise) => inner + exercise.sets, 0),
-      0
-    );
+    return getMockWorkoutPageData(getCurrentPlanData(), (plan) => {
+      const plannedSets = plan.workout_plan.days.reduce(
+        (sum, day) => sum + day.exercises.reduce((inner, exercise) => inner + exercise.sets, 0),
+        0
+      );
 
-    return ok({
-      plan: demoPlan,
-      selected_day: demoPlan.workout_plan.days[0],
-      logs: workoutLogs,
-      completion_rate: todayData.status_summary.weekly_workouts_completed / todayData.status_summary.weekly_workouts_planned,
-      weekly_volume_sets: plannedSets
+      return {
+        plan,
+        selected_day: plan.workout_plan.days[0],
+        logs: workoutLogs,
+        completion_rate: todayData.status_summary.weekly_workouts_completed / todayData.status_summary.weekly_workouts_planned,
+        weekly_volume_sets: plannedSets
+      };
     });
   },
 
@@ -161,12 +205,12 @@ export const api = {
     const user = ensureDemoUser(user_id);
     if (user.error) return user;
 
-    return ok({
-      plan: demoPlan,
-      selected_day: demoPlan.meal_plan.days[0],
+    return getMockDietPageData(getCurrentPlanData(), (plan) => ({
+      plan,
+      selected_day: plan.meal_plan.days[0],
       logs: mealLogs,
-      targets: demoPlan.meal_plan.daily_targets
-    });
+      targets: plan.meal_plan.daily_targets
+    }));
   },
 
   async getBodyMetrics(user_id = DEMO_USER_ID): Promise<ApiResponse<BodyPageData>> {
@@ -212,6 +256,12 @@ export const api = {
     });
   },
 
+  async generateAdvice(input: { user_id: string; date: string }): Promise<ApiResponse<AgentAdvice[]>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    return ok(adviceItems);
+  },
+
   async updateAdviceStatus(input: {
     user_id: string;
     advice_id: string;
@@ -238,6 +288,12 @@ export const api = {
       language: currentUser.locale,
       unit_system: currentUser.unit_system
     });
+  },
+
+  async exportData(user_id = DEMO_USER_ID): Promise<ApiResponse<Record<string, unknown>>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+    return ok({ schema_version: "1.0", exported_at: timestamp(), user: currentUser, profile: currentProfile, plans: [currentPlan], workout_logs: workoutLogs, meal_logs: mealLogs, body_metrics: bodyMetrics, daily_checkins: dailyCheckins, advice: adviceItems, agent_messages: agentMessages });
   },
 
   async saveSettings(input: Partial<SettingsData> & { user_id: string }): Promise<ApiResponse<SettingsData>> {
@@ -313,7 +369,7 @@ export const api = {
     const user = ensureDemoUser(input.user_id);
     if (user.error) return user;
 
-    const day = demoPlan.meal_plan.days.find((item) => item.date === input.date);
+    const day = currentPlan.meal_plan.days.find((item) => item.date === input.date);
     const meal = day?.meals.find((item) => item.meal_id === input.meal_id);
     if (!meal) {
       return fail("NOT_FOUND", "Planned meal not found.", input);
@@ -430,5 +486,19 @@ export const api = {
     const user = ensureDemoUser(user_id);
     if (user.error) return user;
     return ok(agentMessages);
+  },
+
+  async getAgentRuns(user_id = DEMO_USER_ID): Promise<ApiResponse<AgentRun[]>> {
+    const user = ensureDemoUser(user_id);
+    if (user.error) return user;
+    return ok([]);
+  },
+
+  async retryAgentRun(input: { user_id: string; agent_run_id: string }): Promise<ApiResponse<AgentMessage>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    return fail("NOT_FOUND", "Failed Agent run not found or cannot be retried.", {
+      agent_run_id: input.agent_run_id
+    });
   }
 };

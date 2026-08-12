@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("945_REFERENCE_DATE", "2026-07-11")
+
 import pytest
 
 from backend.app.core.config import get_settings

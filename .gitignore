@@ -7,3 +7,4 @@ test-results/
 .worktrees/
 __pycache__/
 *.py[cod]
+.env.production

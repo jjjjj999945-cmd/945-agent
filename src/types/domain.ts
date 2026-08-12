@@ -102,6 +102,23 @@ export type Plan = {
   updated_at: string;
 };
 
+export type PlanCoverageStatus = "active_today" | "expired" | "none";
+
+export type CurrentPlanData = {
+  plan: Plan | null;
+  coverage_status: PlanCoverageStatus;
+};
+
+export type PlanContextValue = {
+  profile: UserProfile | null;
+  currentPlan: Plan | null;
+  coverageStatus: PlanCoverageStatus;
+  refreshPlanState: () => Promise<void>;
+  today: string;
+  isLoading: boolean;
+  error: string | null;
+};
+
 export type StatusSummary = {
   weekly_workouts_completed: number;
   weekly_workouts_planned: number;
@@ -219,6 +236,27 @@ export type AgentMessage = {
   locale: Locale;
   record_draft?: RecordDraft;
   created_at: string;
+};
+
+export type AgentRun = {
+  agent_run_id: string;
+  user_id: string;
+  status: "completed" | "failed";
+  started_at: string;
+  completed_at: string;
+  duration_ms: number;
+  provider?: string;
+  model?: string;
+  intent?: string;
+  draft_type?: string;
+  degraded: boolean;
+  degraded_reason?: string;
+  error_code?: string;
+  input_tokens: number;
+  output_tokens: number;
+  logical_generations: number;
+  http_attempts: number;
+  retry_of_agent_run_id?: string;
 };
 
 export type TodayResponseData = {

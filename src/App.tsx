@@ -10,12 +10,19 @@ import { PrototypeRouter } from "./pages/PrototypeRouter";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TodayPage } from "./pages/TodayPage";
 import { WorkoutPage } from "./pages/WorkoutPage";
+import { AuthPage } from "./pages/AuthPage";
+import { PlanProvider, usePlanContext } from "./contexts/PlanContext";
 import { getRouteByPath, isPrototypePath, type RouteId } from "./routes";
-import type { Locale } from "./types/domain";
+import type { Locale, RecordDraft } from "./types/domain";
+import { authApi, clearSession, getCurrentUserId, hasSession, saveCurrentUserId } from "./services/authSession";
 
 export function App() {
   const [locale, setLocale] = useState<Locale>("zh-CN");
   const [path, setPath] = useState(window.location.pathname);
+  const [agentDraft, setAgentDraft] = useState<RecordDraft | null>(null);
+  const httpMode = import.meta.env.VITE_945_API_MODE === "http" && import.meta.env.VITE_945_AUTH_ENABLED !== "false";
+  const [sessionReady, setSessionReady] = useState(!httpMode);
+  const [authenticated, setAuthenticated] = useState(!httpMode || hasSession());
 
   useEffect(() => {
     const onPopState = () => setPath(window.location.pathname);
@@ -23,33 +30,107 @@ export function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  useEffect(() => {
+    if (!httpMode) return;
+    if (!hasSession()) {
+      setAuthenticated(false);
+      setSessionReady(true);
+      return;
+    }
+    authApi.me().then((result) => {
+      if (result.error) {
+        clearSession();
+        setAuthenticated(false);
+      } else {
+        saveCurrentUserId(result.data.user_id);
+      }
+      setSessionReady(true);
+    });
+  }, [httpMode]);
+
   function navigate(nextPath: string) {
     window.history.pushState({}, "", nextPath);
     setPath(nextPath);
   }
 
+  async function logout() {
+    await authApi.logout();
+    clearSession();
+    setAuthenticated(false);
+    window.history.replaceState({}, "", "/");
+    setPath("/");
+  }
+
   if (isPrototypePath(path)) return <PrototypeRouter />;
+  if (!sessionReady) return null;
+  if (!authenticated) return <AuthPage onAuthenticated={() => window.location.replace("/onboarding")} />;
 
   const route = getRouteByPath(path);
 
   return (
-    <AppShell activeRoute={route.id} locale={locale} onLocaleChange={setLocale} onNavigate={navigate}>
-      {renderPage(route.id, locale, navigate, setLocale)}
+    <AppShell activeRoute={route.id} locale={locale} onLocaleChange={setLocale} onNavigate={navigate} onLogout={httpMode ? logout : undefined}>
+      <PlanProvider userId={getCurrentUserId("demo-user-945")}>
+        <PlanAwarePage
+          routeId={route.id}
+          locale={locale}
+          navigate={navigate}
+          onLocaleChange={setLocale}
+          agentDraft={agentDraft}
+          onAgentDraftChange={setAgentDraft}
+        />
+      </PlanProvider>
     </AppShell>
   );
+}
+
+function PlanAwarePage({
+  routeId,
+  locale,
+  navigate,
+  onLocaleChange,
+  agentDraft,
+  onAgentDraftChange
+}: {
+  routeId: RouteId;
+  locale: Locale;
+  navigate: (path: string) => void;
+  onLocaleChange: (locale: Locale) => void;
+  agentDraft: RecordDraft | null;
+  onAgentDraftChange: (draft: RecordDraft | null) => void;
+}) {
+  const { coverageStatus, isLoading } = usePlanContext();
+
+  if (routeId === "today" && !isLoading && coverageStatus !== "active_today") {
+    return (
+      <div className="business-page">
+        <header className="page-header">
+          <p>945</p>
+          <h1>当前计划没有覆盖今天</h1>
+          <span>完成资料建档并启用新计划后，今天的训练和饮食安排会显示在这里。</span>
+        </header>
+        <section className="business-panel compact">
+          <button onClick={() => navigate("/onboarding")} type="button">开始创建计划</button>
+        </section>
+      </div>
+    );
+  }
+
+  return renderPage(routeId, locale, navigate, onLocaleChange, agentDraft, onAgentDraftChange);
 }
 
 function renderPage(
   routeId: RouteId,
   locale: Locale,
   navigate: (path: string) => void,
-  onLocaleChange: (locale: Locale) => void
+  onLocaleChange: (locale: Locale) => void,
+  agentDraft: RecordDraft | null,
+  onAgentDraftChange: (draft: RecordDraft | null) => void,
 ) {
   switch (routeId) {
     case "onboarding":
       return <OnboardingPage locale={locale} onNavigate={navigate} />;
     case "plan":
-      return <PlanPage locale={locale} onNavigate={navigate} />;
+      return <PlanPage locale={locale} onNavigate={navigate} onAgentDraft={onAgentDraftChange} />;
     case "workout":
       return <WorkoutPage locale={locale} />;
     case "diet":
@@ -57,9 +138,9 @@ function renderPage(
     case "body":
       return <BodyPage locale={locale} />;
     case "advice":
-      return <AdvicePage locale={locale} />;
+      return <AdvicePage locale={locale} onNavigate={navigate} onAgentDraft={onAgentDraftChange} />;
     case "agent":
-      return <AgentPage locale={locale} />;
+      return <AgentPage locale={locale} pendingDraft={agentDraft} onDraftHandled={() => onAgentDraftChange(null)} />;
     case "settings":
       return <SettingsPage locale={locale} onLocaleChange={onLocaleChange} />;
     case "today":

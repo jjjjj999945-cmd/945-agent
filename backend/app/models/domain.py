@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 
 
 Locale = Literal["zh-CN", "en-US"]
@@ -12,6 +12,7 @@ AdviceType = Literal["daily_advice", "weekly_summary", "plan_adjustment", "safet
 RiskLevel = Literal["low", "medium", "high"]
 AdviceStatus = Literal["pending", "accepted", "dismissed", "deferred"]
 PlanStatus = Literal["draft", "active", "archived"]
+PlanCoverageStatus = Literal["active_today", "expired", "none"]
 PlanGenerator = Literal["agent", "mock"]
 CompletionStatus = Literal["planned", "completed", "partially_completed", "skipped"]
 MealLogSource = Literal["planned_meal_confirmation", "manual_entry"]
@@ -46,7 +47,36 @@ class UserProfile(ApiModel):
     dietary_preferences: list[str]
     allergies: list[str]
     constraints: list[str]
+    safety_confirmed: bool = False
+    safety_confirmed_at: str | None = None
     updated_at: str
+
+    @computed_field
+    @property
+    def missing_fields(self) -> list[str]:
+        required_values = {
+            "age": self.age,
+            "height_cm": self.height_cm,
+            "weight_kg": self.weight_kg,
+            "goal": self.goal,
+            "experience_level": self.experience_level,
+            "training_days_per_week": self.training_days_per_week,
+            "training_duration_minutes": self.training_duration_minutes,
+            "allergies": self.allergies,
+        }
+        missing = [name for name, value in required_values.items() if value is None]
+        if not self.equipment:
+            missing.append("equipment")
+        if not self.dietary_preferences:
+            missing.append("dietary_preferences")
+        if not self.safety_confirmed:
+            missing.append("safety_confirmed")
+        return missing
+
+    @computed_field
+    @property
+    def profile_completion(self) -> Literal["complete", "incomplete"]:
+        return "complete" if not self.missing_fields else "incomplete"
 
 
 class ProfileCreateInput(ApiModel):
@@ -66,6 +96,7 @@ class ProfileCreateInput(ApiModel):
     constraints: list[str]
     locale: Locale
     unit_system: UnitSystem
+    safety_confirmed: bool = False
 
 
 class ProfilePatchInput(ApiModel):
@@ -81,6 +112,7 @@ class ProfilePatchInput(ApiModel):
     dietary_preferences: list[str] | None = None
     allergies: list[str] | None = None
     constraints: list[str] | None = None
+    safety_confirmed: bool | None = None
 
 
 class SettingsData(ApiModel):
@@ -184,6 +216,68 @@ class Plan(ApiModel):
     updated_at: str
 
 
+class CurrentPlanResponse(ApiModel):
+    plan: Plan | None
+    coverage_status: PlanCoverageStatus
+
+
+PlanLifecycleState = CurrentPlanResponse
+
+
+class AuthCredential(ApiModel):
+    email: str
+    user_id: str
+    password_hash: str
+    password_salt: str
+    created_at: str
+    session_version: int = 1
+
+
+class RegisterInput(ApiModel):
+    display_name: str
+    email: str
+    password: str
+
+
+class LoginInput(ApiModel):
+    email: str
+    password: str
+
+
+class PasswordChangeInput(ApiModel):
+    current_password: str
+    new_password: str
+
+
+class AuthSession(ApiModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    user: User
+
+
+class PlanGenerateInput(ApiModel):
+    user_id: str
+    goal: Goal | None = None
+    days: int = 7
+    generate_workout_plan: bool = True
+    generate_meal_plan: bool = True
+
+
+class PlanAcceptInput(ApiModel):
+    user_id: str
+
+
+class PlanAdjustmentInput(ApiModel):
+    user_id: str
+    adjustment_type: Literal["reduce_intensity", "increase_intensity", "change_schedule", "swap_exercise", "skip_workout", "swap_meal", "adjust_nutrition"]
+    reason: str
+    confirmed: Literal[True]
+    target_date: str | None = None
+    target_exercise_id: str | None = None
+    target_meal_id: str | None = None
+    replacement_name: str | None = None
+
+
 class DailyCheckin(ApiModel):
     checkin_id: str
     user_id: str
@@ -257,6 +351,11 @@ class AdviceStatusInput(ApiModel):
     accepted_status: AdviceStatus
 
 
+class FeedbackGenerateInput(ApiModel):
+    user_id: str
+    date: str
+
+
 class RecordDraft(ApiModel):
     type: Literal["workout_log", "meal_log", "daily_checkin", "plan_adjustment"]
     requires_confirmation: Literal[True]
@@ -271,6 +370,66 @@ class AgentMessage(ApiModel):
     locale: Locale
     record_draft: RecordDraft | None = None
     created_at: str
+
+
+class AgentRetryInput(ApiModel):
+    message: str
+    locale: Locale
+    context: dict[str, Any] | None = None
+
+
+class AgentRunRetryRequest(ApiModel):
+    user_id: str
+
+
+class AgentTraceStep(ApiModel):
+    name: Literal[
+        "safety_guard",
+        "context_builder",
+        "rag_retriever",
+        "memory_context",
+        "model_generation",
+        "tool_execution",
+        "draft_validator",
+    ]
+    status: Literal["completed", "skipped", "failed"]
+    metadata: dict[str, str | int | float | bool]
+
+
+class AgentRun(ApiModel):
+    agent_run_id: str
+    user_id: str
+    status: Literal["completed", "failed"]
+    started_at: str
+    completed_at: str
+    duration_ms: float
+    provider: str | None = None
+    model: str | None = None
+    intent: str | None = None
+    draft_type: str | None = None
+    degraded: bool = False
+    degraded_reason: str | None = None
+    error_code: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    logical_generations: int = 0
+    http_attempts: int = 0
+    retry_input: AgentRetryInput | None = None
+    retry_of_agent_run_id: str | None = None
+    trace_steps: list[AgentTraceStep] = []
+
+
+class AgentRunMetrics(ApiModel):
+    total_runs: int
+    completed_runs: int
+    failed_runs: int
+    success_rate: float
+    average_duration_ms: float
+    total_input_tokens: int
+    total_output_tokens: int
+    total_logical_generations: int
+    total_http_attempts: int
+    failures_by_code: dict[str, int]
 
 
 class UserMemorySummary(ApiModel):

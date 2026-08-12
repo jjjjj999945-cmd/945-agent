@@ -60,6 +60,15 @@ def test_agent_draft_tools_do_not_write_records():
     assert list_recent_meal_logs(DEMO_USER_ID) == []
 
 
+def test_agent_identifies_skip_and_swap_plan_adjustment_drafts():
+    skip = create_plan_adjustment_draft("Skip today's workout")
+    swap = create_plan_adjustment_draft("Swap meal for today")
+
+    assert skip.payload["adjustment_type"] == "skip_workout"
+    assert swap.payload["adjustment_type"] == "swap_meal"
+    assert skip.payload["target_date"] == TODAY_DATE
+
+
 def test_structured_draft_builders_return_confirmation_required_drafts():
     workout_draft = build_workout_log_draft("深蹲", 4, 8, 80, "感觉很累")
     meal_draft = build_meal_log_draft("午餐", "鸡胸肉饭")

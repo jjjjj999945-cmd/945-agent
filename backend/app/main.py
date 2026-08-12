@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.responses import ok
 from backend.app.api.routes_advice import router as advice_router
+from backend.app.api.routes_auth import router as auth_router
 from backend.app.api.routes_agent import router as agent_router
 from backend.app.api.routes_body_metrics import router as body_metrics_router
 from backend.app.api.routes_daily_checkins import router as daily_checkins_router
@@ -27,13 +28,16 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:5173",
         "http://127.0.0.1:5177",
-        "http://localhost:5177"
+        "http://localhost:5177",
+        "http://127.0.0.1:8080",
+        "http://localhost:8080"
     ],
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
 app.include_router(demo_router)
+app.include_router(auth_router)
 app.include_router(plans_router)
 app.include_router(workout_logs_router)
 app.include_router(meal_logs_router)

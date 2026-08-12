@@ -63,6 +63,16 @@ def test_get_today_accepts_explicit_demo_user_and_date():
     assert response.json()["data"]["date"] == "2026-07-11"
 
 
+def test_today_uses_accepted_plan_goal_and_targets():
+    draft = client.post("/api/plans/generate", json={"user_id": "demo-user-945", "goal": "muscle_gain"}).json()["data"]
+    client.post(f"/api/plans/{draft['plan_id']}/accept", json={"user_id": "demo-user-945"})
+
+    today = client.get("/api/today").json()["data"]
+
+    assert today["user"]["goal"] == "muscle_gain"
+    assert today["status_summary"]["calories_target"] == 2600
+
+
 def test_get_today_rejects_unknown_user():
     response = client.get("/api/today", params={"user_id": "missing-user", "date": "2026-07-11"})
 

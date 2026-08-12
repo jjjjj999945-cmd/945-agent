@@ -1,20 +1,22 @@
 import {
   DEMO_USER_ID,
-  TODAY_DATE,
   demoBodyMetrics,
-  demoPlan,
   demoProfile
 } from "../data/demoData";
+import { appToday } from "./dateContext";
 import type {
   AdvicePageData,
   AgentAdvice,
   AgentMessage,
+  AgentRun,
   BodyMetric,
   BodyPageData,
+  CurrentPlanData,
   DailyCheckin,
   DietPageData,
   FoodLog,
   MealLog,
+  Plan,
   SettingsData,
   TodayResponseData,
   User,
@@ -23,6 +25,7 @@ import type {
   WorkoutLog
 } from "../types/domain";
 import { fail, type ApiResponse } from "./apiTypes";
+import { getAccessToken, getCurrentUserId } from "./authSession";
 
 type DailyCheckinInput = Omit<DailyCheckin, "checkin_id" | "created_at" | "updated_at">;
 type WorkoutLogInput = Omit<WorkoutLog, "workout_log_id" | "created_at" | "updated_at">;
@@ -34,6 +37,7 @@ type ManualMealLogInput = Omit<
 };
 
 const API_BASE_URL = import.meta.env.VITE_945_API_BASE_URL ?? "http://127.0.0.1:8000";
+const AUTH_ENABLED = import.meta.env.VITE_945_AUTH_ENABLED !== "false";
 
 function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
   if (!value || typeof value !== "object") return false;
@@ -45,35 +49,76 @@ function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
   return typeof errorValue.code === "string" && typeof errorValue.message === "string";
 }
 
+function hasValidationDetail(value: unknown): value is { detail: unknown[] } {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "detail" in value &&
+    Array.isArray((value as { detail?: unknown }).detail)
+  );
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse<T>> {
+  const currentUserId = AUTH_ENABLED ? getCurrentUserId(DEMO_USER_ID) : DEMO_USER_ID;
+  const requestPath = replaceDemoUserId(path, currentUserId);
+  const requestInit = replaceDemoUserIdInBody(init, currentUserId);
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
+    const response = await fetch(`${API_BASE_URL}${requestPath}`, {
+      ...requestInit,
       headers: {
         "Content-Type": "application/json",
-        ...init?.headers
+        ...(AUTH_ENABLED && getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+        ...requestInit?.headers
       }
     });
     let body: unknown;
     try {
       body = await response.json();
     } catch {
-      return fail("HTTP_ERROR", "945 backend returned an invalid response.", { status: response.status, path });
+      return fail("HTTP_ERROR", "945 backend returned an invalid response.", {
+        status: response.status,
+        path: requestPath
+      });
     }
 
     if (isApiResponse<T>(body)) return body;
-    if (response.status === 422) {
+    if (response.status === 422 && hasValidationDetail(body)) {
       return fail("VALIDATION_ERROR", "Request validation failed.", {
         status: response.status,
-        detail: (body as { detail?: unknown }).detail
+        detail: body.detail
       });
     }
-    return fail("HTTP_ERROR", "945 backend returned an invalid response.", { status: response.status, path });
+    return fail("HTTP_ERROR", "945 backend returned an invalid response.", {
+      status: response.status,
+      path: requestPath
+    });
   } catch (error) {
     return fail("NETWORK_ERROR", "Unable to reach 945 backend.", {
       base_url: API_BASE_URL,
       message: error instanceof Error ? error.message : String(error)
     });
+  }
+}
+
+// Product pages keep the demo ID as their local-mode default. In HTTP mode it
+// must resolve to the signed-in account, otherwise the backend rejects the
+// request as a cross-user data access attempt.
+function replaceDemoUserId(path: string, currentUserId: string) {
+  const url = new URL(path, "http://945.local");
+  if (url.searchParams.get("user_id") === DEMO_USER_ID) {
+    url.searchParams.set("user_id", currentUserId);
+  }
+  return `${url.pathname}${url.search}`;
+}
+
+function replaceDemoUserIdInBody(init: RequestInit | undefined, currentUserId: string): RequestInit | undefined {
+  if (typeof init?.body !== "string") return init;
+  try {
+    const body = JSON.parse(init.body) as Record<string, unknown>;
+    if (body.user_id !== DEMO_USER_ID) return init;
+    return { ...init, body: JSON.stringify({ ...body, user_id: currentUserId }) };
+  } catch {
+    return init;
   }
 }
 
@@ -101,7 +146,7 @@ function patch<T>(path: string, body: unknown) {
 }
 
 async function getCurrentPlan(user_id = DEMO_USER_ID) {
-  return request<typeof demoPlan>(withQuery("/api/plans/current", { user_id }));
+  return request<CurrentPlanData>(withQuery("/api/plans/current", { user_id }));
 }
 
 async function getWorkoutLogs(user_id = DEMO_USER_ID) {
@@ -118,6 +163,30 @@ function getLatestMetric(metrics: BodyMetric[]) {
 }
 
 export const httpApi = {
+  async getCurrentPlan(user_id = DEMO_USER_ID): Promise<ApiResponse<CurrentPlanData>> {
+    return getCurrentPlan(user_id);
+  },
+
+  async generatePlan(input: { user_id: string; goal?: Plan["goal"] }): Promise<ApiResponse<Plan>> {
+    return post<Plan>("/api/plans/generate", input);
+  },
+
+  async acceptPlan(input: { user_id: string; plan_id: string }): Promise<ApiResponse<Plan>> {
+    return post<Plan>(`/api/plans/${input.plan_id}/accept`, { user_id: input.user_id });
+  },
+
+  async adjustPlan(input: { user_id: string; plan_id: string; adjustment_type: string; reason: string; target_date?: string; target_exercise_id?: string; target_meal_id?: string; replacement_name?: string }): Promise<ApiResponse<Plan>> {
+    return post<Plan>(`/api/plans/${input.plan_id}/adjust`, {
+      user_id: input.user_id,
+      adjustment_type: input.adjustment_type,
+      reason: input.reason,
+      target_date: input.target_date,
+      target_exercise_id: input.target_exercise_id,
+      target_meal_id: input.target_meal_id,
+      replacement_name: input.replacement_name,
+      confirmed: true
+    });
+  },
   async getDemoUser(): Promise<ApiResponse<User>> {
     return request<User>("/api/demo-user");
   },
@@ -127,14 +196,15 @@ export const httpApi = {
   },
 
   async updateProfile(input: Partial<UserProfile> & { user_id: string }): Promise<ApiResponse<UserProfile>> {
-    return patch<UserProfile>(`/api/profile/${input.user_id}`, input);
+    const { user_id, profile_id: _profileId, updated_at: _updatedAt, ...profile } = input;
+    return patch<UserProfile>(`/api/profile/${user_id}`, profile);
   },
 
   async getToday(input: { user_id?: string; date?: string } = {}): Promise<ApiResponse<TodayResponseData>> {
     return request<TodayResponseData>(
       withQuery("/api/today", {
         user_id: input.user_id ?? DEMO_USER_ID,
-        date: input.date ?? TODAY_DATE
+        date: input.date ?? appToday
       })
     );
   },
@@ -143,21 +213,24 @@ export const httpApi = {
     const [planResponse, logsResponse, todayResponse] = await Promise.all([
       getCurrentPlan(user_id),
       getWorkoutLogs(user_id),
-      this.getToday({ user_id, date: TODAY_DATE })
+      this.getToday({ user_id, date: appToday })
     ]);
-    if (planResponse.error) return planResponse;
-    if (logsResponse.error) return logsResponse;
-    if (todayResponse.error) return todayResponse;
+    if (planResponse.error) return fail<WorkoutPageData>(planResponse.error.code, planResponse.error.message, planResponse.error.details);
+    if (logsResponse.error) return fail<WorkoutPageData>(logsResponse.error.code, logsResponse.error.message, logsResponse.error.details);
+    if (todayResponse.error) return fail<WorkoutPageData>(todayResponse.error.code, todayResponse.error.message, todayResponse.error.details);
 
-    const plannedSets = planResponse.data.workout_plan.days.reduce(
+    const plan = planResponse.data.plan;
+    if (!plan) return fail<WorkoutPageData>("PLAN_UNAVAILABLE", "Current plan does not cover today.", { coverage_status: planResponse.data.coverage_status });
+
+    const plannedSets = plan.workout_plan.days.reduce(
       (sum, day) => sum + day.exercises.reduce((inner, exercise) => inner + exercise.sets, 0),
       0
     );
 
     return {
       data: {
-        plan: planResponse.data,
-        selected_day: planResponse.data.workout_plan.days[0],
+        plan,
+        selected_day: plan.workout_plan.days[0],
         logs: logsResponse.data,
         completion_rate:
           todayResponse.data.status_summary.weekly_workouts_completed /
@@ -170,15 +243,18 @@ export const httpApi = {
 
   async getDiet(user_id = DEMO_USER_ID): Promise<ApiResponse<DietPageData>> {
     const [planResponse, logsResponse] = await Promise.all([getCurrentPlan(user_id), getMealLogs(user_id)]);
-    if (planResponse.error) return planResponse;
-    if (logsResponse.error) return logsResponse;
+    if (planResponse.error) return fail<DietPageData>(planResponse.error.code, planResponse.error.message, planResponse.error.details);
+    if (logsResponse.error) return fail<DietPageData>(logsResponse.error.code, logsResponse.error.message, logsResponse.error.details);
+
+    const plan = planResponse.data.plan;
+    if (!plan) return fail<DietPageData>("PLAN_UNAVAILABLE", "Current plan does not cover today.", { coverage_status: planResponse.data.coverage_status });
 
     return {
       data: {
-        plan: planResponse.data,
-        selected_day: planResponse.data.meal_plan.days[0],
+        plan,
+        selected_day: plan.meal_plan.days[0],
         logs: logsResponse.data,
-        targets: planResponse.data.meal_plan.daily_targets
+        targets: plan.meal_plan.daily_targets
       },
       error: null
     };
@@ -217,6 +293,10 @@ export const httpApi = {
     return request<AdvicePageData>(withQuery("/api/advice", { user_id }));
   },
 
+  async generateAdvice(input: { user_id: string; date: string }): Promise<ApiResponse<AgentAdvice[]>> {
+    return post<AgentAdvice[]>("/api/advice/generate", input);
+  },
+
   async updateAdviceStatus(input: {
     user_id: string;
     advice_id: string;
@@ -230,6 +310,10 @@ export const httpApi = {
 
   async getSettings(user_id = DEMO_USER_ID): Promise<ApiResponse<SettingsData>> {
     return request<SettingsData>(withQuery("/api/settings", { user_id }));
+  },
+
+  async exportData(user_id = DEMO_USER_ID): Promise<ApiResponse<Record<string, unknown>>> {
+    return request<Record<string, unknown>>(withQuery("/api/settings/export", { user_id }));
   },
 
   async saveSettings(input: Partial<SettingsData> & { user_id: string }): Promise<ApiResponse<SettingsData>> {
@@ -290,5 +374,15 @@ export const httpApi = {
 
   async getAgentMessages(user_id = DEMO_USER_ID): Promise<ApiResponse<AgentMessage[]>> {
     return request<AgentMessage[]>(withQuery("/api/agent/messages", { user_id }));
+  },
+
+  async getAgentRuns(user_id = DEMO_USER_ID): Promise<ApiResponse<AgentRun[]>> {
+    return request<AgentRun[]>(withQuery("/api/agent/runs", { user_id }));
+  },
+
+  async retryAgentRun(input: { user_id: string; agent_run_id: string }): Promise<ApiResponse<AgentMessage>> {
+    return post<AgentMessage>(`/api/agent/runs/${input.agent_run_id}/retry`, {
+      user_id: input.user_id
+    });
   }
 };

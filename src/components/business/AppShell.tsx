@@ -1,38 +1,51 @@
 import { createTranslator } from "../../i18n";
 import { primaryRoutes, type RouteId } from "../../routes";
 import type { Locale } from "../../types/domain";
+import {
+  BrainCircuit,
+  CalendarDays,
+  Dumbbell,
+  HeartPulse,
+  LayoutDashboard,
+  Lightbulb,
+  Settings2,
+  UserRoundPlus,
+  UtensilsCrossed,
+  type LucideIcon
+} from "lucide-react";
 
 type AppShellProps = {
   activeRoute: RouteId;
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
   onNavigate: (path: string) => void;
+  onLogout?: () => void;
   children: React.ReactNode;
 };
 
-export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, children }: AppShellProps) {
+export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, onLogout, children }: AppShellProps) {
   const t = createTranslator(locale);
-  const railIcons: Record<RouteId, string> = {
-    today: "dashboard",
-    onboarding: "person_add",
-    plan: "event_note",
-    workout: "exercise",
-    diet: "local_dining",
-    body: "monitor_heart",
-    advice: "tips_and_updates",
-    agent: "neurology",
-    settings: "settings"
+  const railIcons: Record<RouteId, LucideIcon> = {
+    today: LayoutDashboard,
+    onboarding: UserRoundPlus,
+    plan: CalendarDays,
+    workout: Dumbbell,
+    diet: UtensilsCrossed,
+    body: HeartPulse,
+    advice: Lightbulb,
+    agent: BrainCircuit,
+    settings: Settings2
   };
 
   const topNav = locale === "zh-CN"
     ? [
-        { label: "今日", path: "/", active: activeRoute === "today" },
+        { label: "今日", path: "/today", active: activeRoute === "today" },
         { label: "分析", path: "/advice", active: activeRoute === "advice" || activeRoute === "body" || activeRoute === "diet" },
         { label: "计划", path: "/plan", active: activeRoute === "plan" || activeRoute === "workout" },
         { label: "设置", path: "/settings", active: activeRoute === "settings" }
       ]
     : [
-        { label: "Dashboard", path: "/", active: activeRoute === "today" },
+        { label: "Dashboard", path: "/today", active: activeRoute === "today" },
         { label: "Analytics", path: "/advice", active: activeRoute === "advice" || activeRoute === "body" || activeRoute === "diet" },
         { label: "Schedule", path: "/plan", active: activeRoute === "plan" || activeRoute === "workout" },
         { label: "Settings", path: "/settings", active: activeRoute === "settings" }
@@ -42,29 +55,20 @@ export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, chil
     <div className="business-shell">
       <aside className="business-sidebar" aria-label={locale === "zh-CN" ? "945 导航" : "945 navigation"}>
         <button aria-label={locale === "zh-CN" ? "945 今日工作台" : "945 dashboard"} className="business-logo" onClick={() => onNavigate("/")} type="button">
-          <span className="rail-icon-base">9</span>
-          <span aria-hidden="true" className="rail-icon-hover">9</span>
+          <span className="rail-icon-base brand-mark" aria-hidden="true">945</span>
+          <span aria-hidden="true" className="rail-icon-hover">945</span>
         </button>
         <nav className="business-nav">
           {primaryRoutes.map((route) => (
-            <button
-              aria-label={t(route.navKey)}
-              className={route.id === activeRoute ? "active" : ""}
+            <NavButton
+              active={route.id === activeRoute}
+              icon={railIcons[route.id]}
               key={route.id}
+              label={t(route.navKey)}
               onClick={() => onNavigate(route.path)}
-              title={t(route.navKey)}
-              type="button"
-            >
-              <span className="material-symbols-outlined rail-icon-base">{railIcons[route.id]}</span>
-              <span aria-hidden="true" className="material-symbols-outlined rail-icon-hover">{railIcons[route.id]}</span>
-            </button>
+            />
           ))}
         </nav>
-        <a aria-label={t("shell.prototypeReference")} className="prototype-reference-link" href="/prototype" title={t("shell.prototypeReference")}>
-          <span className="material-symbols-outlined rail-icon-base">layers</span>
-          <span aria-hidden="true" className="material-symbols-outlined rail-icon-hover">layers</span>
-        </a>
-        <span className="business-avatar" aria-hidden="true" />
       </aside>
       <div className="business-workbench">
         <header className="business-topbar">
@@ -89,14 +93,34 @@ export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, chil
                 <option value="en-US">English</option>
               </select>
             </label>
-            <button className="sync-agent-button" onClick={() => onNavigate("/agent")} type="button">
+            <button className="sync-agent-button" onClick={() => onNavigate("/")} type="button">
               <span className="material-symbols-outlined">sync</span>
               {locale === "zh-CN" ? "同步教练" : "Sync Agent"}
             </button>
+            {onLogout ? (
+              <button
+                aria-label={locale === "zh-CN" ? "退出登录" : "Sign out"}
+                className="logout-button"
+                onClick={onLogout}
+                title={locale === "zh-CN" ? "退出登录" : "Sign out"}
+                type="button"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined">logout</span>
+              </button>
+            ) : null}
           </div>
         </header>
         <section className="business-main">{children}</section>
       </div>
     </div>
+  );
+}
+
+function NavButton({ active, icon: Icon, label, onClick }: { active: boolean; icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <button aria-label={label} className={active ? "active" : ""} onClick={onClick} title={label} type="button">
+      <Icon aria-hidden="true" className="rail-lucide-icon" strokeWidth={2} />
+      <span className="sidebar-nav-label">{label}</span>
+    </button>
   );
 }

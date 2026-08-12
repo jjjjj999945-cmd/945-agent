@@ -1,8 +1,29 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("945 business Today page smoke QA", () => {
-  test("verifies meal confirmation, daily check-in, Agent draft confirmation, and language switching", async ({ page }) => {
-    await page.goto("/app");
+  test("keeps the desktop workbench in the grid column beside the fixed navigation", async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await page.goto("/today");
+
+    const layout = await page.evaluate(() => {
+      const shell = document.querySelector<HTMLElement>(".business-shell")!;
+      const sidebar = document.querySelector<HTMLElement>(".business-sidebar")!;
+      const workbench = document.querySelector<HTMLElement>(".business-workbench")!;
+
+      return {
+        shell: shell.getBoundingClientRect(),
+        sidebar: sidebar.getBoundingClientRect(),
+        workbench: workbench.getBoundingClientRect()
+      };
+    });
+
+    expect(layout.sidebar.width).toBe(72);
+    expect(layout.workbench.x).toBe(layout.sidebar.width);
+    expect(layout.workbench.width).toBe(layout.shell.width - layout.sidebar.width);
+  });
+
+  test("verifies meal confirmation, daily check-in, and language switching", async ({ page }) => {
+    await page.goto("/today");
 
     await expect(page.getByRole("heading", { name: "早上好，Alex。" })).toBeVisible();
     await expect(page.getByText("1480 / 2300")).toBeVisible();
@@ -21,17 +42,29 @@ test.describe("945 business Today page smoke QA", () => {
     await page.getByRole("button", { name: "保存" }).click();
     await expect(page.getByText("已保存").first()).toBeVisible();
 
-    await page
-      .getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。")
-      .fill("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。");
-    await page.getByRole("button", { name: "发送" }).click();
-    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
-    await expect(page.getByText("动作名称: 深蹲")).toBeVisible();
-    await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
-    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeHidden();
-
     await page.getByRole("combobox").first().selectOption("en-US");
     await expect(page.getByRole("button", { name: "Today", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Save" })).toBeVisible();
+  });
+
+  test("keeps the Today page focused on execution while the coach owns chat", async ({ page }) => {
+    await page.goto("/today");
+    await expect(page.locator(".agent-mini-input")).toHaveCount(0);
+    await page.getByRole("button", { name: "智能教练" }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { name: "945 智能教练" })).toBeVisible();
+  });
+
+  test("focuses manual meal entry from the Diet-page add action", async ({ page }) => {
+    await page.goto("/diet");
+    const mealInput = page.getByLabel("餐食名称");
+    await page.getByRole("button", { name: "+ 添加餐食" }).click();
+    await expect(mealInput).toBeFocused();
+  });
+
+  test("shows the nutrition-adjustment details when requested", async ({ page }) => {
+    await page.goto("/diet");
+    await page.getByRole("button", { name: "查看详情" }).click();
+    await expect(page.getByText("碳水安排：午餐和晚餐各上调一份主食。")).toBeVisible();
   });
 });
