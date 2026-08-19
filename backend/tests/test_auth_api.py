@@ -3,7 +3,9 @@ from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.core.config import get_settings
 from backend.app.repositories.mongo import MongoRepository
+from backend.app.models.domain import AgentRetryInput, AgentRun
 from backend.app.services import demo_store
+from backend.app.services.demo_seed import timestamp
 from backend.app.services.repository_store import RepositoryBackedStore
 from backend.tests.test_mongo_repository import FakeDatabase
 
@@ -95,6 +97,27 @@ def test_mongo_session_isolates_two_users(monkeypatch):
         plan = client.post("/api/plans/generate", json={"user_id": first["user"]["user_id"]}, headers=alice_headers)
         assert plan.status_code == 200
         assert plan.json()["data"]["user_id"] == first["user"]["user_id"]
+        now = timestamp()
+        alice_run = AgentRun(
+            agent_run_id="alice-interrupted-run",
+            user_id=first["user"]["user_id"],
+            status="interrupted",
+            started_at=now,
+            updated_at=now,
+            request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+        )
+        demo_store.save_agent_run(alice_run)
+
+        cross_user_resume = client.post(
+            f"/api/agent/runs/{alice_run.agent_run_id}/resume",
+            json={"user_id": second["user"]["user_id"]},
+            headers=bob_headers,
+        )
+
+        assert cross_user_resume.status_code == 404
+        saved_alice_run = demo_store.list_agent_runs(first["user"]["user_id"])[0]
+        assert saved_alice_run.status == "interrupted"
+        assert saved_alice_run.resume_count == 0
         assert client.post("/api/auth/login", json={"email": "alice-isolation@example.com", "password": "secure-pass-945"}).status_code == 200
     finally:
         demo_store.set_repository_store_for_tests(None)

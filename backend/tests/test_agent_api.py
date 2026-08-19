@@ -7,7 +7,7 @@ from backend.app.core.config import get_settings
 from backend.app.llm.factory import get_llm_provider_router
 from backend.app.llm.errors import LLMTimeoutError
 from backend.app.main import app
-from backend.app.models.domain import AgentChatInput, AgentRun
+from backend.app.models.domain import AgentChatInput, AgentRetryInput, AgentRun
 from backend.app.services import demo_store
 from backend.app.services.agent_service import create_agent_reply
 from backend.app.services.demo_seed import timestamp
@@ -19,6 +19,14 @@ client = TestClient(app)
 class FailingRouter:
     async def generate(self, request):
         raise LLMTimeoutError("timeout", request_id=request.request_id)
+
+    async def recover(self, request, exc):
+        raise exc
+
+
+class RuntimeCrashRouter:
+    async def generate(self, request):
+        raise RuntimeError("simulated interruption")
 
     async def recover(self, request, exc):
         raise exc
@@ -297,15 +305,29 @@ def test_get_agent_runs_exposes_safe_observability_fields_only():
             "message": "How should I warm up before a squat session?",
         },
     )
+    demo_store.save_agent_run(
+        AgentRun(
+            agent_run_id="newer-interrupted-run",
+            user_id="demo-user-945",
+            status="interrupted",
+            started_at="2026-07-11T09:00:00Z",
+            updated_at="2099-07-11T09:00:01Z",
+            request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+        )
+    )
 
     response = client.get("/api/agent/runs", params={"user_id": "demo-user-945"})
 
     assert response.status_code == 200
-    run = response.json()["data"][0]
+    runs = response.json()["data"]
+    assert runs[0]["agent_run_id"] == "newer-interrupted-run"
+    assert all("request_input" not in run for run in runs)
+    assert all("retry_input" not in run for run in runs)
+    assert all("trace_steps" not in run for run in runs)
+    run = next(item for item in runs if item["status"] == "completed")
     assert run["status"] == "completed"
     assert run["provider"] == "deterministic"
     assert run["intent"] == "ask_question"
-    assert "retry_input" not in run
 
 
 def test_get_agent_metrics_aggregates_success_failure_and_latency():
@@ -366,6 +388,55 @@ def test_retry_agent_run_replays_only_a_failed_turn_and_returns_a_draft():
     assert response.status_code == 200
     assert response.json()["data"]["record_draft"]["type"] == "workout_log"
     assert demo_store.list_workout_logs("demo-user-945") == []
+
+
+def test_resume_agent_run_uses_same_run_without_structured_writes():
+    input_data = AgentChatInput(
+        user_id="demo-user-945",
+        locale="zh-CN",
+        message="今天深蹲 4 组，每组 8 次，80kg，帮我记录",
+    )
+    with pytest.raises(RuntimeError):
+        asyncio.run(
+            create_agent_reply(input_data, provider_router=RuntimeCrashRouter())
+        )
+    run_id = demo_store.list_agent_runs("demo-user-945")[0].agent_run_id
+
+    response = client.post(
+        f"/api/agent/runs/{run_id}/resume",
+        json={"user_id": "demo-user-945"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["message_id"] == f"msg-agent-{run_id}"
+    runs = demo_store.list_agent_runs("demo-user-945")
+    assert len(runs) == 1
+    assert runs[0].agent_run_id == run_id
+    assert runs[0].status == "completed"
+    assert demo_store.list_workout_logs("demo-user-945") == []
+    assert demo_store.list_meal_logs("demo-user-945") == []
+
+
+def test_resume_agent_run_maps_missing_checkpoint_to_conflict():
+    now = timestamp()
+    demo_store.save_agent_run(
+        AgentRun(
+            agent_run_id="missing-checkpoint-api",
+            user_id="demo-user-945",
+            status="interrupted",
+            started_at=now,
+            updated_at=now,
+            request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+        )
+    )
+
+    response = client.post(
+        "/api/agent/runs/missing-checkpoint-api/resume",
+        json={"user_id": "demo-user-945"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "AGENT_CHECKPOINT_MISSING"
 
 
 def test_agent_chat_rejects_unknown_user():

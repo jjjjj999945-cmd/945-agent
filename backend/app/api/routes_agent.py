@@ -6,12 +6,28 @@ from backend.app.api.auth import authorize_user
 from backend.app.data.demo_data import DEMO_USER_ID
 from backend.app.llm.errors import LLMError
 from backend.app.models.domain import AgentChatInput, AgentRunRetryRequest
-from backend.app.services.agent_service import create_agent_reply, retry_agent_run
+from backend.app.services.agent_service import (
+    AgentRunResumeError,
+    create_agent_reply,
+    list_user_agent_runs,
+    resume_agent_run,
+    retry_agent_run,
+)
 from backend.app.services.agent_observability import summarize_agent_runs
-from backend.app.services.demo_store import list_agent_messages, list_agent_runs
+from backend.app.services.demo_store import list_agent_messages
 
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
+
+
+def _llm_error_response(exc: LLMError) -> JSONResponse:
+    details = {"request_id": exc.request_id}
+    if exc.provider_request_id is not None:
+        details["provider_request_id"] = exc.provider_request_id
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error(exc.code, exc.message, details),
+    )
 
 
 @router.post("/chat")
@@ -21,13 +37,7 @@ async def chat(input_data: AgentChatInput, authorization: str | None = Header(de
     try:
         reply = await create_agent_reply(input_data)
     except LLMError as exc:
-        details = {"request_id": exc.request_id}
-        if exc.provider_request_id is not None:
-            details["provider_request_id"] = exc.provider_request_id
-        return JSONResponse(
-            status_code=exc.status_code,
-            content=error(exc.code, exc.message, details),
-        )
+        return _llm_error_response(exc)
     if reply is None:
         return JSONResponse(
             status_code=404,
@@ -54,7 +64,7 @@ def runs(user_id: str = DEMO_USER_ID, authorization: str | None = Header(default
     denied = authorize_user(user_id, authorization)
     if denied:
         return denied
-    saved_runs = list_agent_runs(user_id)
+    saved_runs = list_user_agent_runs(user_id)
     if saved_runs is None:
         return JSONResponse(
             status_code=404,
@@ -62,8 +72,12 @@ def runs(user_id: str = DEMO_USER_ID, authorization: str | None = Header(default
         )
     return ok(
         [
-            run.model_dump(exclude={"retry_input", "trace_steps"})
-            for run in sorted(saved_runs, key=lambda item: item.completed_at, reverse=True)
+            run.model_dump(exclude={"request_input", "retry_input", "trace_steps"})
+            for run in sorted(
+                saved_runs,
+                key=lambda item: item.updated_at or item.completed_at or item.started_at,
+                reverse=True,
+            )
         ]
     )
 
@@ -77,7 +91,7 @@ def run_trace(
     denied = authorize_user(user_id, authorization)
     if denied:
         return denied
-    saved_runs = list_agent_runs(user_id)
+    saved_runs = list_user_agent_runs(user_id)
     run = next((item for item in saved_runs or [] if item.agent_run_id == agent_run_id), None)
     if run is None:
         return JSONResponse(
@@ -92,7 +106,7 @@ def metrics(user_id: str = DEMO_USER_ID, authorization: str | None = Header(defa
     denied = authorize_user(user_id, authorization)
     if denied:
         return denied
-    saved_runs = list_agent_runs(user_id)
+    saved_runs = list_user_agent_runs(user_id)
     if saved_runs is None:
         return JSONResponse(
             status_code=404,
@@ -113,19 +127,47 @@ async def retry(
     try:
         reply = await retry_agent_run(input_data.user_id, agent_run_id)
     except LLMError as exc:
-        details = {"request_id": exc.request_id}
-        if exc.provider_request_id is not None:
-            details["provider_request_id"] = exc.provider_request_id
-        return JSONResponse(
-            status_code=exc.status_code,
-            content=error(exc.code, exc.message, details),
-        )
+        return _llm_error_response(exc)
     if reply is None:
         return JSONResponse(
             status_code=404,
             content=error(
                 "NOT_FOUND",
                 "Failed agent run not found or cannot be retried.",
+                {"agent_run_id": agent_run_id},
+            ),
+        )
+    return ok(reply.model_dump())
+
+
+@router.post("/runs/{agent_run_id}/resume")
+async def resume(
+    agent_run_id: str,
+    input_data: AgentRunRetryRequest,
+    authorization: str | None = Header(default=None),
+) -> object:
+    denied = authorize_user(input_data.user_id, authorization)
+    if denied:
+        return denied
+    try:
+        reply = await resume_agent_run(input_data.user_id, agent_run_id)
+    except AgentRunResumeError as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error(
+                exc.code,
+                exc.message,
+                {"agent_run_id": agent_run_id},
+            ),
+        )
+    except LLMError as exc:
+        return _llm_error_response(exc)
+    if reply is None:
+        return JSONResponse(
+            status_code=404,
+            content=error(
+                "NOT_FOUND",
+                "Agent run not found.",
                 {"agent_run_id": agent_run_id},
             ),
         )
