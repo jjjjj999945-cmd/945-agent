@@ -60,6 +60,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
   const [notice, setNotice] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
 
@@ -73,9 +74,47 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
     if (pendingDraft) setDraft(pendingDraft);
   }, [pendingDraft]);
 
-  async function loadMessages() {
+  useEffect(() => {
+    if (latestRun?.status !== "running") return;
+    const activeRunId = latestRun.agent_run_id;
+    let cancelled = false;
+
+    const intervalId = window.setInterval(() => {
+      void (async () => {
+        const nextRun = await loadLatestRun(false);
+        if (
+          cancelled ||
+          !nextRun ||
+          nextRun.agent_run_id !== activeRunId ||
+          nextRun.status === "running"
+        ) {
+          return;
+        }
+
+        const loadedMessages = await loadMessages();
+        await loadTodayContext();
+        if (cancelled) return;
+        if (nextRun.status === "completed") {
+          const completedMessage = loadedMessages.find(
+            (message) => message.message_id === `msg-agent-${activeRunId}`
+          );
+          setDraft(completedMessage?.record_draft ?? null);
+        }
+        setLatestRun(nextRun);
+      })();
+    }, 2000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [latestRun?.agent_run_id, latestRun?.status]);
+
+  async function loadMessages(): Promise<AgentMessage[]> {
     const response = await api.getAgentMessages(DEMO_USER_ID);
-    if (!response.error) setMessages(response.data);
+    if (response.error) return [];
+    setMessages(response.data);
+    return response.data;
   }
 
   async function loadTodayContext() {
@@ -83,9 +122,12 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
     if (!response.error) setToday(response.data);
   }
 
-  async function loadLatestRun() {
+  async function loadLatestRun(updateState = true): Promise<AgentRun | null> {
     const response = await api.getAgentRuns(DEMO_USER_ID);
-    if (!response.error) setLatestRun(response.data[0] ?? null);
+    if (response.error) return null;
+    const nextRun = response.data[0] ?? null;
+    if (updateState) setLatestRun(nextRun);
+    return nextRun;
   }
 
   async function send() {
@@ -134,6 +176,32 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       await loadLatestRun();
     } finally {
       setIsRetrying(false);
+    }
+  }
+
+  async function resumeLatestRun() {
+    if (!latestRun || latestRun.status !== "interrupted" || isResuming) return;
+    setNotice("");
+    setIsResuming(true);
+    try {
+      const response = await api.resumeAgentRun({
+        user_id: DEMO_USER_ID,
+        agent_run_id: latestRun.agent_run_id
+      });
+      if (response.error) {
+        setNotice(response.error.message);
+        await loadLatestRun();
+        return;
+      }
+      setDraft(response.data.record_draft ?? null);
+      await loadMessages();
+      setMessages((current) => current.some((message) => message.message_id === response.data.message_id)
+        ? current
+        : [...current, response.data]);
+      await loadTodayContext();
+      await loadLatestRun();
+    } finally {
+      setIsResuming(false);
     }
   }
 
@@ -230,21 +298,37 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
             <strong>
               {isSending || isRetrying
                 ? (isChinese ? "分析中" : "Analyzing")
-                : latestRun?.status === "failed"
-                  ? (isChinese ? "需要重试" : "Needs retry")
-                  : latestRun?.status === "completed"
-                    ? (isChinese ? "已完成" : "Completed")
-                    : (isChinese ? "等待请求" : "Waiting")}
+                : isResuming
+                  ? (isChinese ? "恢复中" : "Resuming")
+                  : latestRun?.status === "running"
+                    ? (isChinese ? "执行中" : "Running")
+                    : latestRun?.status === "interrupted"
+                      ? (isChinese ? "任务中断" : "Interrupted")
+                      : latestRun?.status === "failed"
+                        ? (isChinese ? "需要重试" : "Needs retry")
+                        : latestRun?.status === "completed"
+                          ? (isChinese ? "已完成" : "Completed")
+                          : (isChinese ? "等待请求" : "Waiting")}
             </strong>
           </div>
           {isSending || isRetrying ? <small>{isChinese ? "正在读取当前上下文并生成建议" : "Reading your context and preparing a suggestion."}</small> : null}
-          {!isSending && !isRetrying && latestRun?.status === "failed" ? <small>{isChinese ? `上次请求未完成${latestRun.error_code ? `：${latestRun.error_code}` : ""}` : `The last request did not finish${latestRun.error_code ? `: ${latestRun.error_code}` : ""}.`}</small> : null}
-          {!isSending && !isRetrying && latestRun?.status === "completed" ? <small>{isChinese ? "本次请求已完成" : "This request completed."}</small> : null}
-          {!isSending && !isRetrying && !latestRun ? <small>{isChinese ? "发送消息后，945 会在这里反馈处理结果。" : "945 will show the request result here after you send a message."}</small> : null}
+          {isResuming ? <small>{isChinese ? "正在继续上次未完成的任务" : "Continuing the interrupted request."}</small> : null}
+          {!isSending && !isRetrying && !isResuming && latestRun?.status === "running" ? <small>{isChinese ? "任务正在执行" : "The request is running."}</small> : null}
+          {!isSending && !isRetrying && !isResuming && latestRun?.status === "interrupted" ? <small>{isChinese ? "任务执行被中断，可以继续任务。" : "The request was interrupted and can be resumed."}</small> : null}
+          {!isSending && !isRetrying && !isResuming && latestRun?.status === "failed" ? <small>{isChinese ? `上次请求未完成${latestRun.error_code ? `：${latestRun.error_code}` : ""}` : `The last request did not finish${latestRun.error_code ? `: ${latestRun.error_code}` : ""}.`}</small> : null}
+          {!isSending && !isRetrying && !isResuming && latestRun?.status === "completed" ? <small>{isChinese ? "本次请求已完成" : "This request completed."}</small> : null}
+          {!isSending && !isRetrying && !isResuming && !latestRun ? <small>{isChinese ? "发送消息后，945 会在这里反馈处理结果。" : "945 will show the request result here after you send a message."}</small> : null}
           {latestRun?.status === "failed" ? (
             <div className="button-row">
               <button disabled={isRetrying} onClick={() => void retryLatestRun()} type="button">
                 {isRetrying ? (isChinese ? "重试中" : "Retrying") : (isChinese ? "重试此请求" : "Retry request")}
+              </button>
+            </div>
+          ) : null}
+          {latestRun?.status === "interrupted" ? (
+            <div className="button-row">
+              <button disabled={isResuming} onClick={() => void resumeLatestRun()} type="button">
+                {isResuming ? (isChinese ? "恢复中" : "Resuming") : (isChinese ? "继续任务" : "Resume request")}
               </button>
             </div>
           ) : null}

@@ -384,5 +384,11 @@ export const httpApi = {
     return post<AgentMessage>(`/api/agent/runs/${input.agent_run_id}/retry`, {
       user_id: input.user_id
     });
+  },
+
+  async resumeAgentRun(input: { user_id: string; agent_run_id: string }): Promise<ApiResponse<AgentMessage>> {
+    return post<AgentMessage>(`/api/agent/runs/${input.agent_run_id}/resume`, {
+      user_id: input.user_id
+    });
   }
 };
