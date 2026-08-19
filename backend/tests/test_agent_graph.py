@@ -31,6 +31,86 @@ class StubRouter:
         raise exc
 
 
+class CrashOnceRouter:
+    def __init__(self):
+        self.requests = []
+
+    async def generate(self, request):
+        self.requests.append(request)
+        if len(self.requests) == 1:
+            raise RuntimeError("simulated process interruption")
+        return AgentModelResponse(intent="ask_question", reply="恢复完成", provider="stub")
+
+    async def recover(self, request, exc):
+        raise exc
+
+
+def test_agent_graph_resumes_the_same_thread_from_the_failed_node(monkeypatch):
+    router = CrashOnceRouter()
+    original = agent_graph_module.context_builder
+    context_calls = []
+
+    def counting_context_builder(user_id, date):
+        context_calls.append((user_id, date))
+        return original(user_id, date)
+
+    monkeypatch.setattr(agent_graph_module, "context_builder", counting_context_builder)
+    agent_graph_module.get_agent_graph.cache_clear()
+    with pytest.raises(RuntimeError, match="simulated process interruption"):
+        asyncio.run(
+            run_agent_graph(
+                user_id=DEMO_USER_ID,
+                locale="zh-CN",
+                message="如何热身？",
+                context={"date": "2026-07-11"},
+                provider_router=router,
+                request_id="graph-resume-same-thread",
+            )
+        )
+
+    result = asyncio.run(
+        agent_graph_module.resume_agent_graph(
+            "graph-resume-same-thread",
+            provider_router=router,
+        )
+    )
+
+    assert result.reply == "恢复完成"
+    assert len(context_calls) == 1
+    assert len(router.requests) == 2
+
+
+def test_agent_graph_returns_completed_snapshot_without_provider_call():
+    first = StubRouter(
+        [AgentModelResponse(intent="ask_question", reply="已经完成", provider="stub")]
+    )
+    asyncio.run(
+        run_agent_graph(
+            user_id=DEMO_USER_ID,
+            locale="zh-CN",
+            message="如何热身？",
+            provider_router=first,
+            request_id="graph-resume-completed",
+        )
+    )
+    never_called = StubRouter([RuntimeError("provider must not be called")])
+
+    result = asyncio.run(
+        agent_graph_module.resume_agent_graph(
+            "graph-resume-completed",
+            provider_router=never_called,
+        )
+    )
+
+    assert result.reply == "已经完成"
+    assert never_called.requests == []
+
+
+def test_agent_graph_rejects_a_missing_checkpoint():
+    with pytest.raises(agent_graph_module.AgentCheckpointMissingError):
+        asyncio.run(agent_graph_module.resume_agent_graph("missing-checkpoint"))
+
+
 def test_demo_storage_uses_in_memory_agent_checkpointer():
     checkpointer = create_agent_checkpointer(Settings(storage_backend="demo"))
 
@@ -160,6 +240,54 @@ def test_agent_graph_persists_execution_checkpoints_in_mongo(monkeypatch):
         assert result.reply
         assert client[database_name]["agent_checkpoints"].count_documents({}) > 0
         assert client[database_name]["agent_checkpoint_writes"].count_documents({}) > 0
+    finally:
+        client.drop_database(database_name)
+        get_agent_graph.cache_clear()
+        get_agent_checkpointer.cache_clear()
+        get_settings.cache_clear()
+
+
+@pytest.mark.skipif(
+    os.getenv("945_RUN_MONGO_INTEGRATION_TESTS") != "1",
+    reason="Set 945_RUN_MONGO_INTEGRATION_TESTS=1 to run against local MongoDB.",
+)
+def test_mongo_checkpoint_resumes_after_graph_and_saver_recreation(monkeypatch):
+    from pymongo import MongoClient
+
+    from backend.app.agents.checkpoint import get_agent_checkpointer
+    from backend.app.core.config import get_settings
+
+    database_name = "945_agent_resume_checkpoint_test"
+    client = MongoClient("mongodb://127.0.0.1:27017")
+    client.drop_database(database_name)
+    monkeypatch.setenv("945_STORAGE_BACKEND", "mongo")
+    monkeypatch.setenv("945_MONGODB_DATABASE", database_name)
+    get_settings.cache_clear()
+    get_agent_checkpointer.cache_clear()
+    get_agent_graph.cache_clear()
+    router = CrashOnceRouter()
+    try:
+        with pytest.raises(RuntimeError, match="simulated process interruption"):
+            asyncio.run(
+                run_agent_graph(
+                    user_id=DEMO_USER_ID,
+                    locale="zh-CN",
+                    message="如何热身？",
+                    provider_router=router,
+                    request_id="mongo-resume-after-restart",
+                )
+            )
+
+        get_agent_graph.cache_clear()
+        get_agent_checkpointer.cache_clear()
+        result = asyncio.run(
+            agent_graph_module.resume_agent_graph(
+                "mongo-resume-after-restart",
+                provider_router=router,
+            )
+        )
+
+        assert result.reply == "恢复完成"
     finally:
         client.drop_database(database_name)
         get_agent_graph.cache_clear()

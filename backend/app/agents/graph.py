@@ -20,6 +20,10 @@ from backend.app.rag.retriever import KnowledgeChunk
 from backend.app.services.memory_service import list_user_memory_summaries
 
 
+class AgentCheckpointMissingError(Exception):
+    pass
+
+
 class AgentGraphResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -292,3 +296,41 @@ async def run_agent_graph(
         },
     )
     return state["result"]
+
+
+async def resume_agent_graph(
+    request_id: str,
+    *,
+    provider_router: LLMProviderRouter | None = None,
+) -> AgentGraphResult:
+    graph = get_agent_graph()
+    snapshot = graph.get_state({"configurable": {"thread_id": request_id}})
+    values = dict(snapshot.values or {})
+    saved_result = values.get("result")
+    if saved_result is not None:
+        return AgentGraphResult.model_validate(saved_result)
+    if not values or not snapshot.next:
+        raise AgentCheckpointMissingError(request_id)
+
+    user_id = str(values["user_id"])
+    locale = str(values["locale"])
+    settings = get_settings()
+    state = await graph.ainvoke(
+        None,
+        config={
+            "configurable": {
+                "thread_id": request_id,
+                "provider_router": provider_router,
+            },
+            "metadata": agent_trace_metadata(
+                request_id=request_id,
+                user_id=user_id,
+                locale=locale,
+                provider=settings.llm_provider,
+            ),
+        },
+    )
+    result = state.get("result")
+    if result is None:
+        raise AgentCheckpointMissingError(request_id)
+    return AgentGraphResult.model_validate(result)
