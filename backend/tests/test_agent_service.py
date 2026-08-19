@@ -3,6 +3,7 @@ import asyncio
 import pytest
 
 from backend.app.llm.errors import LLMTimeoutError
+from backend.app.llm.models import AgentModelResponse
 from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRetryInput, AgentRun
 from backend.app.services import demo_store
 from backend.app.services import agent_service
@@ -15,6 +16,40 @@ from backend.app.services.demo_store import list_agent_messages
 class FailingRouter:
     async def generate(self, request):
         raise LLMTimeoutError("timeout", request_id=request.request_id)
+
+    async def recover(self, request, exc):
+        raise exc
+
+
+class InspectingRouter:
+    def __init__(self):
+        self.observed_status = None
+
+    async def generate(self, request):
+        self.observed_status = demo_store.list_agent_runs(request.user_id)[0].status
+        return AgentModelResponse(intent="ask_question", reply="执行完成", provider="stub")
+
+    async def recover(self, request, exc):
+        raise exc
+
+
+class RuntimeCrashOnceRouter:
+    def __init__(self):
+        self.attempts = 0
+
+    async def generate(self, request):
+        self.attempts += 1
+        if self.attempts == 1:
+            raise RuntimeError("simulated interruption")
+        return AgentModelResponse(intent="ask_question", reply="恢复后的回复", provider="stub")
+
+    async def recover(self, request, exc):
+        raise exc
+
+
+class CancelledRouter:
+    async def generate(self, request):
+        raise asyncio.CancelledError()
 
     async def recover(self, request, exc):
         raise exc
@@ -95,6 +130,165 @@ def test_agent_metrics_exclude_nonterminal_runs_from_rate_and_latency():
     assert (metrics.running_runs, metrics.interrupted_runs) == (1, 1)
     assert metrics.success_rate == 0.5
     assert metrics.average_duration_ms == 200
+
+
+def test_agent_service_persists_running_before_provider_execution():
+    router = InspectingRouter()
+    reply = asyncio.run(
+        create_agent_reply(
+            AgentChatInput(
+                user_id="demo-user-945",
+                locale="zh-CN",
+                message="如何热身？",
+            ),
+            provider_router=router,
+        )
+    )
+
+    runs = demo_store.list_agent_runs("demo-user-945")
+    assert router.observed_status == "running"
+    assert len(runs) == 1
+    assert runs[0].status == "completed"
+    assert reply.message_id == f"msg-agent-{runs[0].agent_run_id}"
+
+
+def test_agent_service_resumes_interrupted_run_in_place_without_writes():
+    router = RuntimeCrashOnceRouter()
+    input_data = AgentChatInput(
+        user_id="demo-user-945",
+        locale="zh-CN",
+        message="今天深蹲 4 组，每组 8 次，80kg，帮我记录",
+    )
+    with pytest.raises(RuntimeError, match="simulated interruption"):
+        asyncio.run(create_agent_reply(input_data, provider_router=router))
+
+    interrupted = demo_store.list_agent_runs("demo-user-945")[0]
+    assert interrupted.status == "interrupted"
+    assert list_agent_messages("demo-user-945") == []
+
+    reply = asyncio.run(
+        agent_service.resume_agent_run(
+            "demo-user-945",
+            interrupted.agent_run_id,
+            provider_router=router,
+        )
+    )
+
+    runs = demo_store.list_agent_runs("demo-user-945")
+    messages = list_agent_messages("demo-user-945")
+    assert len(runs) == 1
+    assert runs[0].agent_run_id == interrupted.agent_run_id
+    assert runs[0].status == "completed"
+    assert runs[0].resume_count == 1
+    assert [message.message_id for message in messages] == [
+        f"msg-user-{interrupted.agent_run_id}",
+        f"msg-agent-{interrupted.agent_run_id}",
+    ]
+    assert reply.message_id == f"msg-agent-{interrupted.agent_run_id}"
+    assert demo_store.list_workout_logs("demo-user-945") == []
+    assert demo_store.list_meal_logs("demo-user-945") == []
+
+
+def test_agent_service_marks_orphaned_running_run_interrupted():
+    now = timestamp()
+    demo_store.save_agent_run(
+        AgentRun(
+            agent_run_id="orphaned-run",
+            user_id="demo-user-945",
+            status="running",
+            started_at=now,
+            updated_at=now,
+            request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+        )
+    )
+
+    runs = agent_service.list_user_agent_runs("demo-user-945")
+
+    assert runs[0].status == "interrupted"
+
+
+def test_agent_service_fails_explicitly_when_checkpoint_is_missing():
+    now = timestamp()
+    demo_store.save_agent_run(
+        AgentRun(
+            agent_run_id="missing-checkpoint",
+            user_id="demo-user-945",
+            status="interrupted",
+            started_at=now,
+            updated_at=now,
+            request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+        )
+    )
+
+    with pytest.raises(agent_service.AgentRunResumeError) as captured:
+        asyncio.run(
+            agent_service.resume_agent_run("demo-user-945", "missing-checkpoint")
+        )
+
+    run = demo_store.list_agent_runs("demo-user-945")[0]
+    assert captured.value.code == "AGENT_CHECKPOINT_MISSING"
+    assert run.status == "failed"
+    assert run.error_code == "AGENT_CHECKPOINT_MISSING"
+    assert run.retry_input.message == "继续任务"
+
+
+def test_agent_service_marks_cancelled_execution_interrupted():
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(
+            create_agent_reply(
+                AgentChatInput(
+                    user_id="demo-user-945",
+                    locale="zh-CN",
+                    message="如何热身？",
+                ),
+                provider_router=CancelledRouter(),
+            )
+        )
+
+    run = demo_store.list_agent_runs("demo-user-945")[0]
+    assert run.status == "interrupted"
+    assert list_agent_messages("demo-user-945") == []
+
+
+def test_agent_service_rejects_resuming_an_active_run_without_messages():
+    now = timestamp()
+    run = AgentRun(
+        agent_run_id="active-run",
+        user_id="demo-user-945",
+        status="running",
+        started_at=now,
+        updated_at=now,
+        request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+    )
+    demo_store.save_agent_run(run)
+    agent_service._active_agent_run_ids.add(run.agent_run_id)
+
+    with pytest.raises(agent_service.AgentRunResumeError) as captured:
+        asyncio.run(agent_service.resume_agent_run(run.user_id, run.agent_run_id))
+
+    assert captured.value.code == "AGENT_RUN_ACTIVE"
+    assert list_agent_messages(run.user_id) == []
+
+
+@pytest.mark.parametrize("status", ["completed", "failed"])
+def test_agent_service_rejects_resuming_a_terminal_run_without_messages(status):
+    now = timestamp()
+    run = AgentRun(
+        agent_run_id=f"terminal-{status}",
+        user_id="demo-user-945",
+        status=status,
+        started_at=now,
+        updated_at=now,
+        completed_at=now,
+        request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+    )
+    demo_store.save_agent_run(run)
+
+    with pytest.raises(agent_service.AgentRunResumeError) as captured:
+        asyncio.run(agent_service.resume_agent_run(run.user_id, run.agent_run_id))
+
+    assert captured.value.code == "AGENT_RUN_NOT_RESUMABLE"
+    assert list_agent_messages(run.user_id) == []
 
 
 def test_agent_service_does_not_save_partial_turn_on_provider_error():

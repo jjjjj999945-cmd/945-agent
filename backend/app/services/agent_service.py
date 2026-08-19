@@ -1,34 +1,85 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
 from uuid import uuid4
 
-from backend.app.agents.graph import run_agent_graph
+from backend.app.agents.graph import (
+    AgentCheckpointMissingError,
+    AgentGraphResult,
+    resume_agent_graph,
+    run_agent_graph,
+)
 from backend.app.core.config import get_settings
 from backend.app.llm.errors import AgentUsageLimitError, LLMError
 from backend.app.llm.factory import LLMProviderRouter
-from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRetryInput, AgentRun, AgentTraceStep
+from backend.app.models.domain import (
+    AgentChatInput,
+    AgentMessage,
+    AgentRetryInput,
+    AgentRun,
+    AgentTraceStep,
+)
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import (
     is_demo_user,
-    list_agent_runs,
     list_agent_messages,
-    save_agent_run,
+    list_agent_runs,
     save_agent_message,
+    save_agent_run,
 )
+
+
+class AgentRunResumeError(Exception):
+    def __init__(self, code: str, message: str, status_code: int = 409) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.status_code = status_code
+
+
+_active_agent_run_ids: set[str] = set()
 
 
 def _parse_timestamp(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def _enforce_agent_run_limit(user_id: str) -> None:
+def list_user_agent_runs(user_id: str) -> list[AgentRun] | None:
+    runs = list_agent_runs(user_id)
+    if runs is None:
+        return None
+
+    normalized = []
+    for run in runs:
+        if run.status == "running" and run.agent_run_id not in _active_agent_run_ids:
+            run = save_agent_run(
+                run.model_copy(
+                    update={
+                        "status": "interrupted",
+                        "updated_at": timestamp(),
+                    }
+                )
+            )
+        normalized.append(run)
+    return normalized
+
+
+def _enforce_agent_run_limit(
+    user_id: str,
+    exclude_run_id: str | None = None,
+) -> None:
     settings = get_settings()
     runs = list_agent_runs(user_id) or []
 
     max_runs = settings.agent_max_runs_per_hour
     if max_runs > 0:
         threshold = datetime.now(UTC) - timedelta(hours=1)
-        recent_runs = [run for run in runs if _parse_timestamp(run.started_at) >= threshold]
+        recent_runs = [
+            run
+            for run in runs
+            if run.agent_run_id != exclude_run_id
+            and _parse_timestamp(run.started_at) >= threshold
+        ]
         if len(recent_runs) >= max_runs:
             raise AgentUsageLimitError(
                 "The hourly Agent usage limit has been reached.",
@@ -64,6 +115,115 @@ def _enforce_agent_run_limit(user_id: str) -> None:
         )
 
 
+def _request_input(input_data: AgentChatInput) -> AgentRetryInput:
+    return AgentRetryInput(
+        message=input_data.message,
+        locale=input_data.locale,
+        context=input_data.context,
+    )
+
+
+def _elapsed_duration(run: AgentRun, started_clock: float) -> float:
+    return round(run.duration_ms + (perf_counter() - started_clock) * 1000, 2)
+
+
+def _complete_agent_run(
+    run: AgentRun,
+    input_data: AgentChatInput,
+    graph_result: AgentGraphResult,
+    started_clock: float,
+) -> AgentMessage:
+    completed_at = timestamp()
+    user_message = AgentMessage(
+        message_id=f"msg-user-{run.agent_run_id}",
+        user_id=input_data.user_id,
+        role="user",
+        content=input_data.message,
+        locale=input_data.locale,
+        created_at=completed_at,
+    )
+    agent_message = AgentMessage(
+        message_id=f"msg-agent-{run.agent_run_id}",
+        user_id=input_data.user_id,
+        role="agent",
+        content=graph_result.reply,
+        locale=input_data.locale,
+        record_draft=graph_result.record_draft,
+        created_at=completed_at,
+    )
+    save_agent_message(user_message)
+    save_agent_message(agent_message)
+    save_agent_run(
+        run.model_copy(
+            update={
+                "status": "completed",
+                "updated_at": completed_at,
+                "completed_at": completed_at,
+                "duration_ms": _elapsed_duration(run, started_clock),
+                "provider": graph_result.provider,
+                "model": graph_result.model,
+                "intent": graph_result.intent,
+                "draft_type": (
+                    graph_result.record_draft.type
+                    if graph_result.record_draft is not None
+                    else None
+                ),
+                "degraded": graph_result.degraded,
+                "degraded_reason": graph_result.degraded_reason,
+                "error_code": None,
+                "input_tokens": graph_result.usage.input_tokens,
+                "output_tokens": graph_result.usage.output_tokens,
+                "logical_generations": graph_result.usage.logical_generations,
+                "http_attempts": graph_result.usage.http_attempts,
+                "trace_steps": graph_result.trace_steps,
+            }
+        )
+    )
+    return agent_message
+
+
+def _fail_agent_run(
+    run: AgentRun,
+    input_data: AgentChatInput,
+    exc: LLMError,
+    started_clock: float,
+) -> AgentRun:
+    completed_at = timestamp()
+    return save_agent_run(
+        run.model_copy(
+            update={
+                "status": "failed",
+                "updated_at": completed_at,
+                "completed_at": completed_at,
+                "duration_ms": _elapsed_duration(run, started_clock),
+                "error_code": exc.code,
+                "http_attempts": exc.http_attempts,
+                "retry_input": _request_input(input_data),
+                "trace_steps": [
+                    AgentTraceStep(
+                        name="model_generation",
+                        status="failed",
+                        metadata={"error_code": exc.code},
+                    )
+                ],
+            }
+        )
+    )
+
+
+def _interrupt_agent_run(run: AgentRun, started_clock: float) -> AgentRun:
+    return save_agent_run(
+        run.model_copy(
+            update={
+                "status": "interrupted",
+                "updated_at": timestamp(),
+                "completed_at": None,
+                "duration_ms": _elapsed_duration(run, started_clock),
+            }
+        )
+    )
+
+
 async def create_agent_reply(
     input_data: AgentChatInput,
     *,
@@ -78,7 +238,18 @@ async def create_agent_reply(
     request_id = uuid4().hex
     started_at = timestamp()
     started_clock = perf_counter()
+    run = AgentRun(
+        agent_run_id=request_id,
+        user_id=input_data.user_id,
+        status="running",
+        started_at=started_at,
+        updated_at=started_at,
+        request_input=_request_input(input_data),
+        retry_of_agent_run_id=retry_of_agent_run_id,
+    )
+    _active_agent_run_ids.add(request_id)
     try:
+        save_agent_run(run)
         graph_result = await run_agent_graph(
             user_id=input_data.user_id,
             locale=input_data.locale,
@@ -88,75 +259,114 @@ async def create_agent_reply(
             provider_router=provider_router,
             request_id=request_id,
         )
+        return _complete_agent_run(run, input_data, graph_result, started_clock)
     except LLMError as exc:
+        _fail_agent_run(run, input_data, exc, started_clock)
+        raise
+    except asyncio.CancelledError:
+        _interrupt_agent_run(run, started_clock)
+        raise
+    except Exception:
+        _interrupt_agent_run(run, started_clock)
+        raise
+    finally:
+        _active_agent_run_ids.discard(request_id)
+
+
+async def resume_agent_run(
+    user_id: str,
+    agent_run_id: str,
+    *,
+    provider_router: LLMProviderRouter | None = None,
+) -> AgentMessage | None:
+    runs = list_user_agent_runs(user_id)
+    if runs is None:
+        return None
+    run = next((item for item in runs if item.agent_run_id == agent_run_id), None)
+    if run is None:
+        return None
+    if agent_run_id in _active_agent_run_ids:
+        raise AgentRunResumeError("AGENT_RUN_ACTIVE", "Agent run is still active.")
+    if run.status != "interrupted":
+        raise AgentRunResumeError(
+            "AGENT_RUN_NOT_RESUMABLE",
+            "Agent run is not interrupted.",
+        )
+    if run.request_input is None:
+        completed_at = timestamp()
         save_agent_run(
-            AgentRun(
-                agent_run_id=request_id,
-                user_id=input_data.user_id,
-                status="failed",
-                started_at=started_at,
-                completed_at=timestamp(),
-                duration_ms=round((perf_counter() - started_clock) * 1000, 2),
-            error_code=exc.code,
-            http_attempts=exc.http_attempts,
-                retry_input=AgentRetryInput(
-                    message=input_data.message,
-                    locale=input_data.locale,
-                    context=input_data.context,
-                ),
-                retry_of_agent_run_id=retry_of_agent_run_id,
-                trace_steps=[
-                    AgentTraceStep(
-                        name="model_generation",
-                        status="failed",
-                        metadata={"error_code": exc.code},
-                    )
-                ],
+            run.model_copy(
+                update={
+                    "status": "failed",
+                    "updated_at": completed_at,
+                    "completed_at": completed_at,
+                    "error_code": "AGENT_CHECKPOINT_MISSING",
+                }
             )
         )
-        raise
-    user_message = AgentMessage(
-        message_id=f"msg-user-{uuid4().hex}",
-        user_id=input_data.user_id,
-        role="user",
-        content=input_data.message,
-        locale=input_data.locale,
-        created_at=timestamp(),
-    )
-    agent_message = AgentMessage(
-        message_id=f"msg-agent-{uuid4().hex}",
-        user_id=input_data.user_id,
-        role="agent",
-        content=graph_result.reply,
-        locale=input_data.locale,
-        record_draft=graph_result.record_draft,
-        created_at=timestamp(),
-    )
-    save_agent_message(user_message)
-    save_agent_message(agent_message)
-    save_agent_run(
-        AgentRun(
-            agent_run_id=request_id,
-            user_id=input_data.user_id,
-            status="completed",
-            started_at=started_at,
-            completed_at=timestamp(),
-            duration_ms=round((perf_counter() - started_clock) * 1000, 2),
-            provider=graph_result.provider,
-            model=graph_result.model,
-            intent=graph_result.intent,
-            draft_type=(graph_result.record_draft.type if graph_result.record_draft else None),
-            degraded=graph_result.degraded,
-            degraded_reason=graph_result.degraded_reason,
-            input_tokens=graph_result.usage.input_tokens,
-            output_tokens=graph_result.usage.output_tokens,
-            logical_generations=graph_result.usage.logical_generations,
-            http_attempts=graph_result.usage.http_attempts,
-            retry_of_agent_run_id=retry_of_agent_run_id,
-            trace_steps=graph_result.trace_steps,
+        raise AgentRunResumeError(
+            "AGENT_CHECKPOINT_MISSING",
+            "Agent checkpoint is missing.",
         )
+
+    _enforce_agent_run_limit(user_id, exclude_run_id=agent_run_id)
+    input_data = AgentChatInput(
+        user_id=user_id,
+        locale=run.request_input.locale,
+        message=run.request_input.message,
+        context=run.request_input.context,
     )
-    return agent_message
+    started_clock = perf_counter()
+    running_run = run.model_copy(
+        update={
+            "status": "running",
+            "updated_at": timestamp(),
+            "completed_at": None,
+            "resume_count": run.resume_count + 1,
+        }
+    )
+    _active_agent_run_ids.add(agent_run_id)
+    try:
+        save_agent_run(running_run)
+        graph_result = await resume_agent_graph(
+            agent_run_id,
+            provider_router=provider_router,
+        )
+        return _complete_agent_run(
+            running_run,
+            input_data,
+            graph_result,
+            started_clock,
+        )
+    except AgentCheckpointMissingError as exc:
+        completed_at = timestamp()
+        save_agent_run(
+            running_run.model_copy(
+                update={
+                    "status": "failed",
+                    "updated_at": completed_at,
+                    "completed_at": completed_at,
+                    "duration_ms": _elapsed_duration(running_run, started_clock),
+                    "error_code": "AGENT_CHECKPOINT_MISSING",
+                    "retry_input": running_run.request_input,
+                }
+            )
+        )
+        raise AgentRunResumeError(
+            "AGENT_CHECKPOINT_MISSING",
+            "Agent checkpoint is missing.",
+        ) from exc
+    except LLMError as exc:
+        _fail_agent_run(running_run, input_data, exc, started_clock)
+        raise
+    except asyncio.CancelledError:
+        _interrupt_agent_run(running_run, started_clock)
+        raise
+    except Exception:
+        _interrupt_agent_run(running_run, started_clock)
+        raise
+    finally:
+        _active_agent_run_ids.discard(agent_run_id)
 
 
 async def retry_agent_run(
