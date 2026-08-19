@@ -3,10 +3,12 @@ import asyncio
 import pytest
 
 from backend.app.llm.errors import LLMTimeoutError
-from backend.app.models.domain import AgentChatInput
+from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRetryInput, AgentRun
 from backend.app.services import demo_store
 from backend.app.services import agent_service
+from backend.app.services.agent_observability import summarize_agent_runs
 from backend.app.services.agent_service import create_agent_reply
+from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import list_agent_messages
 
 
@@ -16,6 +18,83 @@ class FailingRouter:
 
     async def recover(self, request, exc):
         raise exc
+
+
+def test_demo_store_upserts_agent_runs_and_messages_by_id():
+    now = timestamp()
+    run = AgentRun(
+        agent_run_id="run-upsert",
+        user_id="demo-user-945",
+        status="running",
+        started_at=now,
+        updated_at=now,
+        request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+    )
+    demo_store.save_agent_run(run)
+    demo_store.save_agent_run(run.model_copy(update={"status": "interrupted"}))
+    message = AgentMessage(
+        message_id="msg-agent-run-upsert",
+        user_id="demo-user-945",
+        role="agent",
+        content="旧内容",
+        locale="zh-CN",
+        created_at=now,
+    )
+    demo_store.save_agent_message(message)
+    demo_store.save_agent_message(message.model_copy(update={"content": "新内容"}))
+
+    assert len(demo_store.list_agent_runs("demo-user-945")) == 1
+    assert demo_store.list_agent_runs("demo-user-945")[0].status == "interrupted"
+    assert len(demo_store.list_agent_messages("demo-user-945")) == 1
+    assert demo_store.list_agent_messages("demo-user-945")[0].content == "新内容"
+
+
+def test_agent_metrics_exclude_nonterminal_runs_from_rate_and_latency():
+    now = timestamp()
+    runs = [
+        AgentRun(
+            agent_run_id="completed",
+            user_id="demo-user-945",
+            status="completed",
+            started_at=now,
+            updated_at=now,
+            completed_at=now,
+            duration_ms=100,
+        ),
+        AgentRun(
+            agent_run_id="failed",
+            user_id="demo-user-945",
+            status="failed",
+            started_at=now,
+            updated_at=now,
+            completed_at=now,
+            duration_ms=300,
+            error_code="LLM_TIMEOUT",
+        ),
+        AgentRun(
+            agent_run_id="running",
+            user_id="demo-user-945",
+            status="running",
+            started_at=now,
+            updated_at=now,
+            duration_ms=900,
+        ),
+        AgentRun(
+            agent_run_id="interrupted",
+            user_id="demo-user-945",
+            status="interrupted",
+            started_at=now,
+            updated_at=now,
+            duration_ms=700,
+        ),
+    ]
+
+    metrics = summarize_agent_runs(runs)
+
+    assert (metrics.total_runs, metrics.completed_runs, metrics.failed_runs) == (4, 1, 1)
+    assert (metrics.running_runs, metrics.interrupted_runs) == (1, 1)
+    assert metrics.success_rate == 0.5
+    assert metrics.average_duration_ms == 200
 
 
 def test_agent_service_does_not_save_partial_turn_on_provider_error():

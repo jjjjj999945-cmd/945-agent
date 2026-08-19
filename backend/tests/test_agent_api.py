@@ -336,6 +336,8 @@ def test_get_agent_metrics_aggregates_success_failure_and_latency():
         "total_runs": 2,
         "completed_runs": 1,
         "failed_runs": 1,
+        "running_runs": 0,
+        "interrupted_runs": 0,
         "success_rate": 0.5,
         "average_duration_ms": pytest.approx(response.json()["data"]["average_duration_ms"]),
         "total_input_tokens": 0,

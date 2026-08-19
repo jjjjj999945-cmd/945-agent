@@ -255,7 +255,14 @@ def save_agent_message(message: AgentMessage) -> AgentMessage:
     store = _active_repository_store()
     if store:
         return store.save_agent_message(message)
-    agent_messages.append(message)
+    existing = next(
+        (item for item in agent_messages if item.message_id == message.message_id),
+        None,
+    )
+    if existing is None:
+        agent_messages.append(message)
+    else:
+        agent_messages[agent_messages.index(existing)] = message
     return message
 
 
@@ -273,7 +280,14 @@ def save_agent_run(run: AgentRun) -> AgentRun:
     store = _active_repository_store()
     if store:
         return store.save_agent_run(run)
-    agent_runs.append(run)
+    existing = next(
+        (item for item in agent_runs if item.agent_run_id == run.agent_run_id),
+        None,
+    )
+    if existing is None:
+        agent_runs.append(run)
+    else:
+        agent_runs[agent_runs.index(existing)] = run
     return run
 
 
