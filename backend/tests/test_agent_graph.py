@@ -1,18 +1,31 @@
 import asyncio
 import os
+from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 from langgraph.checkpoint.memory import MemorySaver
 
 import backend.app.agents.graph as agent_graph_module
 from backend.app.agents.checkpoint import create_agent_checkpointer
-from backend.app.agents.graph import get_agent_graph, run_agent_graph
+from backend.app.agents.graph import AgentGraphResult, get_agent_graph, run_agent_graph
 from backend.app.agents.nodes import safety_guard
 from backend.app.core.config import Settings
 from backend.app.data.demo_data import DEMO_USER_ID
 from backend.app.llm.errors import LLMOutputInvalidError
 from backend.app.llm.models import AgentModelResponse, ProviderContinuation, ToolCallProposal
 from backend.app.models.domain import AgentMessage
+from backend.app.services.agent_run_lease import AgentLeaseToken
+
+
+def _lease_token(run_id: str, version: int = 1) -> AgentLeaseToken:
+    return AgentLeaseToken(
+        user_id=DEMO_USER_ID,
+        agent_run_id=run_id,
+        owner=f"worker-test-v{version}",
+        version=version,
+        expires_at=datetime(2026, 8, 21, 12, version, tzinfo=UTC),
+    )
 
 
 class StubRouter:
@@ -68,9 +81,26 @@ def test_agent_graph_resumes_the_same_thread_from_the_failed_node(monkeypatch):
             )
         )
 
+    checkpoint_id = agent_graph_module.get_safe_resume_checkpoint_id(
+        "graph-resume-same-thread",
+        before_version=0,
+    )
+    assert checkpoint_id is not None
+    monkeypatch.setattr(
+        "backend.app.agents.checkpoint.agent_run_lease_is_valid",
+        lambda token: True,
+    )
+    monkeypatch.setattr(
+        agent_graph_module,
+        "agent_run_lease_is_valid",
+        lambda token: True,
+    )
+
     result = asyncio.run(
         agent_graph_module.resume_agent_graph(
             "graph-resume-same-thread",
+            checkpoint_id=checkpoint_id,
+            lease_token=_lease_token("graph-resume-same-thread"),
             provider_router=router,
         )
     )
@@ -94,10 +124,17 @@ def test_agent_graph_returns_completed_snapshot_without_provider_call():
         )
     )
     never_called = StubRouter([RuntimeError("provider must not be called")])
+    checkpoint_id = agent_graph_module.get_safe_resume_checkpoint_id(
+        "graph-resume-completed",
+        before_version=0,
+    )
+    assert checkpoint_id is not None
 
     result = asyncio.run(
         agent_graph_module.resume_agent_graph(
             "graph-resume-completed",
+            checkpoint_id=checkpoint_id,
+            lease_token=_lease_token("graph-resume-completed"),
             provider_router=never_called,
         )
     )
@@ -108,13 +145,166 @@ def test_agent_graph_returns_completed_snapshot_without_provider_call():
 
 def test_agent_graph_rejects_a_missing_checkpoint():
     with pytest.raises(agent_graph_module.AgentCheckpointMissingError):
-        asyncio.run(agent_graph_module.resume_agent_graph("missing-checkpoint"))
+        asyncio.run(
+            agent_graph_module.resume_agent_graph(
+                "missing-checkpoint",
+                checkpoint_id="checkpoint-missing",
+                lease_token=_lease_token("missing-checkpoint"),
+            )
+        )
 
 
 def test_demo_storage_uses_in_memory_agent_checkpointer():
+    from backend.app.agents.checkpoint import LeaseFencedCheckpointer
+
     checkpointer = create_agent_checkpointer(Settings(storage_backend="demo"))
 
-    assert isinstance(checkpointer, MemorySaver)
+    assert isinstance(checkpointer, LeaseFencedCheckpointer)
+    assert isinstance(checkpointer.delegate, MemorySaver)
+
+
+def test_fenced_checkpointer_rejects_a_stale_lease(monkeypatch):
+    from backend.app.agents.checkpoint import LeaseFencedCheckpointer
+    from backend.app.services.agent_run_lease import AgentLeaseLostError
+
+    monkeypatch.setattr(
+        "backend.app.agents.checkpoint.agent_run_lease_is_valid",
+        lambda token: False,
+    )
+    saver = LeaseFencedCheckpointer(MemorySaver())
+    config = {
+        "configurable": {
+            "thread_id": "run-stale",
+            "checkpoint_ns": "",
+            "agent_user_id": "demo-user-945",
+            "agent_run_id": "run-stale",
+            "agent_lease_owner": "worker-a",
+            "agent_lease_version": 1,
+            "agent_lease_expires_at": "2026-08-21T12:01:00+00:00",
+        }
+    }
+    checkpoint = {
+        "v": 1,
+        "id": "checkpoint-stale-1",
+        "ts": "2026-08-21T12:00:00+00:00",
+        "channel_values": {},
+        "channel_versions": {},
+        "versions_seen": {},
+        "pending_sends": [],
+    }
+
+    with pytest.raises(AgentLeaseLostError):
+        saver.put(config, checkpoint, {}, {})
+
+
+def test_fenced_checkpoint_metadata_selects_only_the_matching_lease_result(
+    monkeypatch,
+):
+    from backend.app.agents.checkpoint import LeaseFencedCheckpointer
+    from backend.app.services.agent_run_lease import lease_config
+
+    monkeypatch.setattr(
+        "backend.app.agents.checkpoint.agent_run_lease_is_valid",
+        lambda token: True,
+    )
+    saver = LeaseFencedCheckpointer(MemorySaver())
+    token = _lease_token("run-versioned-checkpoint", version=2)
+    config = {
+        "configurable": {
+            "thread_id": token.agent_run_id,
+            "checkpoint_ns": "",
+            **lease_config(token),
+        }
+    }
+    result = AgentGraphResult(
+        intent="ask_question",
+        reply="版本二结果",
+        record_draft=None,
+        today_context=None,
+        rag_chunks=[],
+        provider="stub",
+    )
+    checkpoint = {
+        "v": 1,
+        "id": "checkpoint-version-2",
+        "ts": "2026-08-21T12:00:00+00:00",
+        "channel_values": {"result": result},
+        "channel_versions": {"result": "0001"},
+        "versions_seen": {},
+        "pending_sends": [],
+    }
+    saver.put(config, checkpoint, {}, {"result": "0001"})
+    monkeypatch.setattr(
+        agent_graph_module,
+        "get_agent_checkpointer",
+        lambda: saver,
+    )
+
+    assert (
+        agent_graph_module.get_safe_resume_checkpoint_id(
+            token.agent_run_id,
+            before_version=1,
+        )
+        is None
+    )
+    assert (
+        agent_graph_module.get_safe_resume_checkpoint_id(
+            token.agent_run_id,
+            before_version=2,
+        )
+        == "checkpoint-version-2"
+    )
+    assert (
+        agent_graph_module.load_completed_agent_graph_result(
+            token.agent_run_id,
+            lease_version=1,
+        )
+        is None
+    )
+    loaded = agent_graph_module.load_completed_agent_graph_result(
+        token.agent_run_id,
+        lease_version=2,
+    )
+
+    assert loaded is not None
+    assert loaded.reply == "版本二结果"
+
+
+def test_resume_agent_graph_reads_the_pinned_checkpoint(monkeypatch):
+    captured = {}
+    result = AgentGraphResult(
+        intent="ask_question",
+        reply="固定检查点结果",
+        record_draft=None,
+        today_context=None,
+        rag_chunks=[],
+        provider="stub",
+    )
+
+    class StubGraph:
+        def get_state(self, config):
+            captured.update(config)
+            return SimpleNamespace(values={"result": result}, next=())
+
+    monkeypatch.setattr(agent_graph_module, "get_agent_graph", lambda: StubGraph())
+    token = AgentLeaseToken(
+        user_id="demo-user-945",
+        agent_run_id="run-pinned",
+        owner="worker-b",
+        version=2,
+        expires_at=datetime(2026, 8, 21, 12, 1, tzinfo=UTC),
+    )
+
+    restored = asyncio.run(
+        agent_graph_module.resume_agent_graph(
+            "run-pinned",
+            checkpoint_id="checkpoint-v1-safe",
+            lease_token=token,
+        )
+    )
+
+    assert restored.reply == "固定检查点结果"
+    assert captured["configurable"]["checkpoint_id"] == "checkpoint-v1-safe"
 
 
 def test_agent_graph_configures_langsmith_before_compiling(monkeypatch):
@@ -162,6 +352,7 @@ def test_agent_graph_passes_only_anonymous_metadata_to_runtime_config(monkeypatc
 
 def test_mongo_storage_uses_mongodb_agent_checkpointer(monkeypatch):
     from backend.app.agents import checkpoint
+    from backend.app.agents.checkpoint import LeaseFencedCheckpointer
 
     class StubMongoDBSaver:
         def __init__(self, client, **kwargs):
@@ -177,10 +368,17 @@ def test_mongo_storage_uses_mongodb_agent_checkpointer(monkeypatch):
 
     checkpointer = create_agent_checkpointer(settings)
 
-    assert isinstance(checkpointer, StubMongoDBSaver)
-    assert checkpointer.kwargs["db_name"] == "945_test"
-    assert checkpointer.kwargs["checkpoint_collection_name"] == "agent_checkpoints"
-    assert checkpointer.kwargs["writes_collection_name"] == "agent_checkpoint_writes"
+    assert isinstance(checkpointer, LeaseFencedCheckpointer)
+    assert isinstance(checkpointer.delegate, StubMongoDBSaver)
+    assert checkpointer.delegate.kwargs["db_name"] == "945_test"
+    assert (
+        checkpointer.delegate.kwargs["checkpoint_collection_name"]
+        == "agent_checkpoints"
+    )
+    assert (
+        checkpointer.delegate.kwargs["writes_collection_name"]
+        == "agent_checkpoint_writes"
+    )
 
 
 @pytest.mark.skipif(
@@ -280,9 +478,25 @@ def test_mongo_checkpoint_resumes_after_graph_and_saver_recreation(monkeypatch):
 
         get_agent_graph.cache_clear()
         get_agent_checkpointer.cache_clear()
+        checkpoint_id = agent_graph_module.get_safe_resume_checkpoint_id(
+            "mongo-resume-after-restart",
+            before_version=0,
+        )
+        assert checkpoint_id is not None
+        monkeypatch.setattr(
+            "backend.app.agents.checkpoint.agent_run_lease_is_valid",
+            lambda token: True,
+        )
+        monkeypatch.setattr(
+            agent_graph_module,
+            "agent_run_lease_is_valid",
+            lambda token: True,
+        )
         result = asyncio.run(
             agent_graph_module.resume_agent_graph(
                 "mongo-resume-after-restart",
+                checkpoint_id=checkpoint_id,
+                lease_token=_lease_token("mongo-resume-after-restart"),
                 provider_router=router,
             )
         )

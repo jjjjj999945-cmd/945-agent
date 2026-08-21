@@ -33,3 +33,26 @@ def lease_token_from_run(run: AgentRun) -> AgentLeaseToken:
         version=run.lease_version,
         expires_at=run.lease_expires_at,
     )
+
+
+def lease_config(token: AgentLeaseToken) -> dict[str, object]:
+    return {
+        "agent_user_id": token.user_id,
+        "agent_run_id": token.agent_run_id,
+        "agent_lease_owner": token.owner,
+        "agent_lease_version": token.version,
+        "agent_lease_expires_at": token.expires_at.isoformat(),
+    }
+
+
+def lease_token_from_config(config: dict) -> AgentLeaseToken | None:
+    values = config.get("configurable", {})
+    if "agent_lease_version" not in values:
+        return None
+    return AgentLeaseToken(
+        user_id=str(values["agent_user_id"]),
+        agent_run_id=str(values["agent_run_id"]),
+        owner=str(values["agent_lease_owner"]),
+        version=int(values["agent_lease_version"]),
+        expires_at=datetime.fromisoformat(str(values["agent_lease_expires_at"])),
+    )
