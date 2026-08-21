@@ -1,16 +1,64 @@
 import asyncio
+from datetime import UTC, datetime, timedelta
+from time import perf_counter
 
 import pytest
 
+from backend.app.agents.graph import AgentGraphResult
 from backend.app.llm.errors import LLMTimeoutError
 from backend.app.llm.models import AgentModelResponse
 from backend.app.models.domain import AgentChatInput, AgentMessage, AgentRetryInput, AgentRun
 from backend.app.services import demo_store
 from backend.app.services import agent_service
+from backend.app.services import agent_run_lease
 from backend.app.services.agent_observability import summarize_agent_runs
+from backend.app.services.agent_run_lease import (
+    AgentLeaseLostError,
+    AgentLeaseToken,
+    lease_token_from_run,
+)
 from backend.app.services.agent_service import create_agent_reply
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import list_agent_messages
+
+
+def _lease_test_run(run_id: str) -> AgentRun:
+    return AgentRun(
+        agent_run_id=run_id,
+        user_id="demo-user-945",
+        status="running",
+        started_at="2026-08-21T12:00:00Z",
+        request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+    )
+
+
+def _lease_test_input() -> AgentChatInput:
+    return AgentChatInput(
+        user_id="demo-user-945",
+        locale="zh-CN",
+        message="继续任务",
+    )
+
+
+def _lease_test_result(reply: str) -> AgentGraphResult:
+    return AgentGraphResult(
+        intent="ask_question",
+        reply=reply,
+        record_draft=None,
+        today_context=None,
+        rag_chunks=[],
+        provider="stub",
+    )
+
+
+def _lease_test_token() -> AgentLeaseToken:
+    return AgentLeaseToken(
+        user_id="demo-user-945",
+        agent_run_id="run-heartbeat",
+        owner="worker-a",
+        version=1,
+        expires_at=datetime(2026, 8, 21, 12, 1, tzinfo=UTC),
+    )
 
 
 class FailingRouter:
@@ -207,6 +255,106 @@ def test_agent_service_marks_orphaned_running_run_interrupted():
     assert runs[0].status == "interrupted"
 
 
+def test_agent_service_keeps_a_foreign_live_lease_running(monkeypatch):
+    now = datetime(2026, 8, 21, 12, 0, tzinfo=UTC)
+    monkeypatch.setattr(demo_store, "_agent_lease_now", lambda: now)
+    run = demo_store.create_agent_run_with_lease(
+        AgentRun(
+            agent_run_id="foreign-live-run",
+            user_id="demo-user-945",
+            status="running",
+            started_at="2026-08-21T12:00:00Z",
+        ),
+        "other-worker",
+    )
+    assert run is not None
+
+    listed = agent_service.list_user_agent_runs(run.user_id)
+
+    assert listed is not None
+    assert listed[0].status == "running"
+
+
+def test_stale_worker_cannot_publish_messages_after_a_new_lease(monkeypatch):
+    now = datetime(2026, 8, 21, 12, 0, tzinfo=UTC)
+    monkeypatch.setattr(demo_store, "_agent_lease_now", lambda: now)
+    first = demo_store.create_agent_run_with_lease(
+        _lease_test_run("stale-run"),
+        "worker-a",
+    )
+    assert first is not None
+    first_token = lease_token_from_run(first)
+    now += timedelta(seconds=61)
+    demo_store.interrupt_expired_agent_runs(first.user_id)
+    second = demo_store.acquire_agent_run_lease(
+        first.user_id,
+        first.agent_run_id,
+        "worker-b",
+    )
+
+    result = agent_service._complete_agent_run(
+        first,
+        first_token,
+        _lease_test_input(),
+        _lease_test_result("旧结果"),
+        perf_counter(),
+    )
+
+    assert result is None
+    assert demo_store.list_agent_messages(first.user_id) == []
+    assert second is not None
+    assert second.lease_version == 2
+
+
+def test_agent_service_allows_only_one_concurrent_resume(monkeypatch):
+    interrupted = _lease_test_run("concurrent-resume").model_copy(
+        update={"status": "interrupted"}
+    )
+    demo_store.save_agent_run(interrupted)
+    started = asyncio.Event()
+    release = asyncio.Event()
+    calls = 0
+
+    monkeypatch.setattr(
+        agent_service,
+        "get_safe_resume_checkpoint_id",
+        lambda run_id, before_version: "checkpoint-safe",
+    )
+
+    async def slow_resume(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        started.set()
+        await release.wait()
+        return _lease_test_result("恢复完成")
+
+    monkeypatch.setattr(agent_service, "resume_agent_graph", slow_resume)
+
+    async def scenario():
+        first = asyncio.create_task(
+            agent_service.resume_agent_run(
+                interrupted.user_id,
+                interrupted.agent_run_id,
+            )
+        )
+        await started.wait()
+        with pytest.raises(agent_service.AgentRunResumeError) as captured:
+            await agent_service.resume_agent_run(
+                interrupted.user_id,
+                interrupted.agent_run_id,
+            )
+        assert captured.value.code == "AGENT_RUN_ACTIVE"
+        release.set()
+        await first
+
+    asyncio.run(scenario())
+
+    saved = demo_store.list_agent_runs(interrupted.user_id)[0]
+    assert calls == 1
+    assert saved.resume_count == 1
+    assert saved.status == "completed"
+
+
 def test_agent_service_fails_explicitly_when_checkpoint_is_missing():
     now = timestamp()
     demo_store.save_agent_run(
@@ -250,24 +398,55 @@ def test_agent_service_marks_cancelled_execution_interrupted():
     assert list_agent_messages("demo-user-945") == []
 
 
-def test_agent_service_rejects_resuming_an_active_run_without_messages():
-    now = timestamp()
-    run = AgentRun(
-        agent_run_id="active-run",
-        user_id="demo-user-945",
-        status="running",
-        started_at=now,
-        updated_at=now,
-        request_input=AgentRetryInput(message="继续任务", locale="zh-CN"),
+def test_lease_session_cancels_work_when_renewal_loses_ownership(monkeypatch):
+    token = _lease_test_token()
+    monkeypatch.setattr(agent_run_lease, "renew_agent_run_lease", lambda _: None)
+
+    async def never_finishes():
+        await asyncio.Event().wait()
+
+    with pytest.raises(AgentLeaseLostError):
+        asyncio.run(
+            agent_run_lease.AgentLeaseSession(
+                token,
+                heartbeat_seconds=0,
+            ).run(never_finishes())
+        )
+
+
+def test_message_repair_reads_the_final_checkpoint_without_running_the_graph(
+    monkeypatch,
+):
+    run = _lease_test_run("repair-messages").model_copy(
+        update={
+            "status": "completed",
+            "lease_version": 1,
+            "messages_persisted": False,
+            "completed_at": "2026-08-21T12:01:00Z",
+        }
     )
     demo_store.save_agent_run(run)
-    agent_service._active_agent_run_ids.add(run.agent_run_id)
+    monkeypatch.setattr(
+        agent_service,
+        "load_completed_agent_graph_result",
+        lambda run_id, lease_version: _lease_test_result("检查点回复"),
+    )
 
-    with pytest.raises(agent_service.AgentRunResumeError) as captured:
-        asyncio.run(agent_service.resume_agent_run(run.user_id, run.agent_run_id))
+    async def forbidden_graph_call(*args, **kwargs):
+        raise AssertionError("message repair must not execute the graph")
 
-    assert captured.value.code == "AGENT_RUN_ACTIVE"
-    assert list_agent_messages(run.user_id) == []
+    monkeypatch.setattr(agent_service, "run_agent_graph", forbidden_graph_call)
+    monkeypatch.setattr(agent_service, "resume_agent_graph", forbidden_graph_call)
+
+    messages = agent_service.list_user_agent_messages(run.user_id)
+
+    assert messages is not None
+    assert [message.message_id for message in messages] == [
+        f"msg-user-{run.agent_run_id}",
+        f"msg-agent-{run.agent_run_id}",
+    ]
+    repaired = demo_store.list_agent_runs(run.user_id)[0]
+    assert repaired.messages_persisted is True
 
 
 @pytest.mark.parametrize("status", ["completed", "failed"])

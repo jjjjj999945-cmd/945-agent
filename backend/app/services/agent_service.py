@@ -6,6 +6,8 @@ from uuid import uuid4
 from backend.app.agents.graph import (
     AgentCheckpointMissingError,
     AgentGraphResult,
+    get_safe_resume_checkpoint_id,
+    load_completed_agent_graph_result,
     resume_agent_graph,
     run_agent_graph,
 )
@@ -21,15 +23,27 @@ from backend.app.models.domain import (
 )
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import (
+    acquire_agent_run_lease,
+    create_agent_run_with_lease,
+    interrupt_expired_agent_runs,
     is_demo_user,
     list_agent_messages,
     list_agent_runs,
+    mark_agent_run_messages_persisted,
     save_agent_message,
-    save_agent_run,
+    set_agent_run_resume_checkpoint,
+    transition_agent_run_with_lease,
+)
+from backend.app.services.agent_run_lease import (
+    AgentLeaseLostError,
+    AgentLeaseSession,
+    AgentLeaseToken,
+    lease_token_from_run,
+    new_lease_owner,
 )
 
 
-class AgentRunResumeError(Exception):
+class AgentRunExecutionError(Exception):
     def __init__(self, code: str, message: str, status_code: int = 409) -> None:
         super().__init__(message)
         self.code = code
@@ -37,7 +51,8 @@ class AgentRunResumeError(Exception):
         self.status_code = status_code
 
 
-_active_agent_run_ids: set[str] = set()
+class AgentRunResumeError(AgentRunExecutionError):
+    pass
 
 
 def _parse_timestamp(value: str) -> datetime:
@@ -45,23 +60,8 @@ def _parse_timestamp(value: str) -> datetime:
 
 
 def list_user_agent_runs(user_id: str) -> list[AgentRun] | None:
-    runs = list_agent_runs(user_id)
-    if runs is None:
-        return None
-
-    normalized = []
-    for run in runs:
-        if run.status == "running" and run.agent_run_id not in _active_agent_run_ids:
-            run = save_agent_run(
-                run.model_copy(
-                    update={
-                        "status": "interrupted",
-                        "updated_at": timestamp(),
-                    }
-                )
-            )
-        normalized.append(run)
-    return normalized
+    interrupt_expired_agent_runs(user_id)
+    return list_agent_runs(user_id)
 
 
 def _enforce_agent_run_limit(
@@ -127,20 +127,19 @@ def _elapsed_duration(run: AgentRun, started_clock: float) -> float:
     return round(run.duration_ms + (perf_counter() - started_clock) * 1000, 2)
 
 
-def _complete_agent_run(
+def _messages_for_result(
     run: AgentRun,
     input_data: AgentChatInput,
     graph_result: AgentGraphResult,
-    started_clock: float,
-) -> AgentMessage:
-    completed_at = timestamp()
+    created_at: str,
+) -> tuple[AgentMessage, AgentMessage]:
     user_message = AgentMessage(
         message_id=f"msg-user-{run.agent_run_id}",
         user_id=input_data.user_id,
         role="user",
         content=input_data.message,
         locale=input_data.locale,
-        created_at=completed_at,
+        created_at=created_at,
     )
     agent_message = AgentMessage(
         message_id=f"msg-agent-{run.agent_run_id}",
@@ -149,16 +148,27 @@ def _complete_agent_run(
         content=graph_result.reply,
         locale=input_data.locale,
         record_draft=graph_result.record_draft,
-        created_at=completed_at,
+        created_at=created_at,
     )
-    save_agent_message(user_message)
-    save_agent_message(agent_message)
-    save_agent_run(
+    return user_message, agent_message
+
+
+def _complete_agent_run(
+    run: AgentRun,
+    token: AgentLeaseToken,
+    input_data: AgentChatInput,
+    graph_result: AgentGraphResult,
+    started_clock: float,
+) -> AgentMessage | None:
+    completed_at = timestamp()
+    completed = transition_agent_run_with_lease(
+        token,
         run.model_copy(
             update={
                 "status": "completed",
                 "updated_at": completed_at,
                 "completed_at": completed_at,
+                "messages_persisted": False,
                 "duration_ms": _elapsed_duration(run, started_clock),
                 "provider": graph_result.provider,
                 "model": graph_result.model,
@@ -177,19 +187,37 @@ def _complete_agent_run(
                 "http_attempts": graph_result.usage.http_attempts,
                 "trace_steps": graph_result.trace_steps,
             }
-        )
+        ),
+    )
+    if completed is None:
+        return None
+
+    user_message, agent_message = _messages_for_result(
+        completed,
+        input_data,
+        graph_result,
+        completed_at,
+    )
+    save_agent_message(user_message)
+    save_agent_message(agent_message)
+    mark_agent_run_messages_persisted(
+        completed.user_id,
+        completed.agent_run_id,
+        completed.lease_version,
     )
     return agent_message
 
 
 def _fail_agent_run(
     run: AgentRun,
+    token: AgentLeaseToken,
     input_data: AgentChatInput,
     exc: LLMError,
     started_clock: float,
 ) -> AgentRun:
     completed_at = timestamp()
-    return save_agent_run(
+    failed = transition_agent_run_with_lease(
+        token,
         run.model_copy(
             update={
                 "status": "failed",
@@ -207,12 +235,20 @@ def _fail_agent_run(
                     )
                 ],
             }
-        )
+        ),
     )
+    if failed is None:
+        raise AgentLeaseLostError(run.agent_run_id)
+    return failed
 
 
-def _interrupt_agent_run(run: AgentRun, started_clock: float) -> AgentRun:
-    return save_agent_run(
+def _interrupt_agent_run(
+    run: AgentRun,
+    token: AgentLeaseToken,
+    started_clock: float,
+) -> AgentRun:
+    interrupted = transition_agent_run_with_lease(
+        token,
         run.model_copy(
             update={
                 "status": "interrupted",
@@ -220,7 +256,55 @@ def _interrupt_agent_run(run: AgentRun, started_clock: float) -> AgentRun:
                 "completed_at": None,
                 "duration_ms": _elapsed_duration(run, started_clock),
             }
+        ),
+    )
+    if interrupted is None:
+        raise AgentLeaseLostError(run.agent_run_id)
+    return interrupted
+
+
+def list_user_agent_messages(user_id: str) -> list[AgentMessage] | None:
+    runs = list_agent_runs(user_id)
+    if runs is None:
+        return None
+
+    for run in runs:
+        if run.status != "completed" or run.messages_persisted:
+            continue
+        graph_result = load_completed_agent_graph_result(
+            run.agent_run_id,
+            run.lease_version,
         )
+        if graph_result is None or run.request_input is None:
+            continue
+        input_data = AgentChatInput(
+            user_id=run.user_id,
+            locale=run.request_input.locale,
+            message=run.request_input.message,
+            context=run.request_input.context,
+        )
+        created_at = run.completed_at or run.updated_at or run.started_at
+        user_message, agent_message = _messages_for_result(
+            run,
+            input_data,
+            graph_result,
+            created_at,
+        )
+        save_agent_message(user_message)
+        save_agent_message(agent_message)
+        mark_agent_run_messages_persisted(
+            run.user_id,
+            run.agent_run_id,
+            run.lease_version,
+        )
+
+    return list_agent_messages(user_id)
+
+
+def _lease_lost_execution_error(agent_run_id: str) -> AgentRunExecutionError:
+    return AgentRunExecutionError(
+        "AGENT_RUN_LEASE_LOST",
+        f"Agent run ownership was lost: {agent_run_id}",
     )
 
 
@@ -247,30 +331,81 @@ async def create_agent_reply(
         request_input=_request_input(input_data),
         retry_of_agent_run_id=retry_of_agent_run_id,
     )
-    _active_agent_run_ids.add(request_id)
-    try:
-        save_agent_run(run)
-        graph_result = await run_agent_graph(
-            user_id=input_data.user_id,
-            locale=input_data.locale,
-            message=input_data.message,
-            context=input_data.context,
-            conversation=existing[-10:],
-            provider_router=provider_router,
-            request_id=request_id,
+    leased_run = create_agent_run_with_lease(run, new_lease_owner())
+    if leased_run is None:
+        raise AgentRunExecutionError(
+            "AGENT_RUN_CONFLICT",
+            "Agent run already exists.",
         )
-        return _complete_agent_run(run, input_data, graph_result, started_clock)
-    except LLMError as exc:
-        _fail_agent_run(run, input_data, exc, started_clock)
-        raise
-    except asyncio.CancelledError:
-        _interrupt_agent_run(run, started_clock)
-        raise
-    except Exception:
-        _interrupt_agent_run(run, started_clock)
-        raise
-    finally:
-        _active_agent_run_ids.discard(request_id)
+    token = lease_token_from_run(leased_run)
+    session = AgentLeaseSession(token)
+    try:
+        try:
+            graph_result = await session.run(
+                run_agent_graph(
+                    user_id=input_data.user_id,
+                    locale=input_data.locale,
+                    message=input_data.message,
+                    context=input_data.context,
+                    conversation=existing[-10:],
+                    provider_router=provider_router,
+                    request_id=request_id,
+                    lease_token=token,
+                )
+            )
+            completed_message = _complete_agent_run(
+                leased_run,
+                session.token,
+                input_data,
+                graph_result,
+                started_clock,
+            )
+            if completed_message is None:
+                raise AgentLeaseLostError(request_id)
+            return completed_message
+        except LLMError as exc:
+            _fail_agent_run(
+                leased_run,
+                session.token,
+                input_data,
+                exc,
+                started_clock,
+            )
+            raise
+        except asyncio.CancelledError:
+            _interrupt_agent_run(leased_run, session.token, started_clock)
+            raise
+        except AgentLeaseLostError:
+            raise
+        except Exception:
+            _interrupt_agent_run(leased_run, session.token, started_clock)
+            raise
+    except AgentLeaseLostError as exc:
+        raise _lease_lost_execution_error(request_id) from exc
+
+
+def _fail_missing_checkpoint(
+    run: AgentRun,
+    token: AgentLeaseToken,
+    started_clock: float,
+) -> AgentRun:
+    completed_at = timestamp()
+    failed = transition_agent_run_with_lease(
+        token,
+        run.model_copy(
+            update={
+                "status": "failed",
+                "updated_at": completed_at,
+                "completed_at": completed_at,
+                "duration_ms": _elapsed_duration(run, started_clock),
+                "error_code": "AGENT_CHECKPOINT_MISSING",
+                "retry_input": run.request_input,
+            }
+        ),
+    )
+    if failed is None:
+        raise AgentLeaseLostError(run.agent_run_id)
+    return failed
 
 
 async def resume_agent_run(
@@ -279,94 +414,117 @@ async def resume_agent_run(
     *,
     provider_router: LLMProviderRouter | None = None,
 ) -> AgentMessage | None:
-    runs = list_user_agent_runs(user_id)
+    interrupt_expired_agent_runs(user_id)
+    runs = list_agent_runs(user_id)
     if runs is None:
         return None
     run = next((item for item in runs if item.agent_run_id == agent_run_id), None)
     if run is None:
         return None
-    if agent_run_id in _active_agent_run_ids:
+    if run.status == "running":
         raise AgentRunResumeError("AGENT_RUN_ACTIVE", "Agent run is still active.")
     if run.status != "interrupted":
         raise AgentRunResumeError(
             "AGENT_RUN_NOT_RESUMABLE",
             "Agent run is not interrupted.",
         )
-    if run.request_input is None:
-        completed_at = timestamp()
-        save_agent_run(
-            run.model_copy(
-                update={
-                    "status": "failed",
-                    "updated_at": completed_at,
-                    "completed_at": completed_at,
-                    "error_code": "AGENT_CHECKPOINT_MISSING",
-                }
-            )
-        )
-        raise AgentRunResumeError(
-            "AGENT_CHECKPOINT_MISSING",
-            "Agent checkpoint is missing.",
-        )
 
     _enforce_agent_run_limit(user_id, exclude_run_id=agent_run_id)
-    input_data = AgentChatInput(
-        user_id=user_id,
-        locale=run.request_input.locale,
-        message=run.request_input.message,
-        context=run.request_input.context,
-    )
-    started_clock = perf_counter()
-    running_run = run.model_copy(
-        update={
-            "status": "running",
-            "updated_at": timestamp(),
-            "completed_at": None,
-            "resume_count": run.resume_count + 1,
-        }
-    )
-    _active_agent_run_ids.add(agent_run_id)
-    try:
-        save_agent_run(running_run)
-        graph_result = await resume_agent_graph(
-            agent_run_id,
-            provider_router=provider_router,
+    leased_run = acquire_agent_run_lease(user_id, agent_run_id, new_lease_owner())
+    if leased_run is None:
+        latest_runs = list_agent_runs(user_id) or []
+        latest = next(
+            (item for item in latest_runs if item.agent_run_id == agent_run_id),
+            None,
         )
-        return _complete_agent_run(
-            running_run,
-            input_data,
-            graph_result,
-            started_clock,
-        )
-    except AgentCheckpointMissingError as exc:
-        completed_at = timestamp()
-        save_agent_run(
-            running_run.model_copy(
-                update={
-                    "status": "failed",
-                    "updated_at": completed_at,
-                    "completed_at": completed_at,
-                    "duration_ms": _elapsed_duration(running_run, started_clock),
-                    "error_code": "AGENT_CHECKPOINT_MISSING",
-                    "retry_input": running_run.request_input,
-                }
+        if latest is None:
+            return None
+        if latest.status in {"running", "interrupted"}:
+            raise AgentRunResumeError(
+                "AGENT_RUN_ACTIVE",
+                "Agent run is still active.",
             )
-        )
         raise AgentRunResumeError(
-            "AGENT_CHECKPOINT_MISSING",
-            "Agent checkpoint is missing.",
-        ) from exc
-    except LLMError as exc:
-        _fail_agent_run(running_run, input_data, exc, started_clock)
-        raise
-    except asyncio.CancelledError:
-        _interrupt_agent_run(running_run, started_clock)
-        raise
-    except Exception:
-        _interrupt_agent_run(running_run, started_clock)
-        raise
-    finally:
-        _active_agent_run_ids.discard(agent_run_id)
+            "AGENT_RUN_NOT_RESUMABLE",
+            "Agent run is not interrupted.",
+        )
+
+    token = lease_token_from_run(leased_run)
+    started_clock = perf_counter()
+    try:
+        if leased_run.request_input is None:
+            _fail_missing_checkpoint(leased_run, token, started_clock)
+            raise AgentRunResumeError(
+                "AGENT_CHECKPOINT_MISSING",
+                "Agent checkpoint is missing.",
+            )
+
+        checkpoint_id = get_safe_resume_checkpoint_id(
+            agent_run_id,
+            leased_run.lease_version - 1,
+        )
+        if checkpoint_id is None:
+            _fail_missing_checkpoint(leased_run, token, started_clock)
+            raise AgentRunResumeError(
+                "AGENT_CHECKPOINT_MISSING",
+                "Agent checkpoint is missing.",
+            )
+
+        pinned_run = set_agent_run_resume_checkpoint(token, checkpoint_id)
+        if pinned_run is None:
+            raise AgentLeaseLostError(agent_run_id)
+        token = lease_token_from_run(pinned_run)
+        input_data = AgentChatInput(
+            user_id=user_id,
+            locale=pinned_run.request_input.locale,
+            message=pinned_run.request_input.message,
+            context=pinned_run.request_input.context,
+        )
+        session = AgentLeaseSession(token)
+        try:
+            graph_result = await session.run(
+                resume_agent_graph(
+                    agent_run_id,
+                    checkpoint_id=checkpoint_id,
+                    lease_token=token,
+                    provider_router=provider_router,
+                )
+            )
+            completed_message = _complete_agent_run(
+                pinned_run,
+                session.token,
+                input_data,
+                graph_result,
+                started_clock,
+            )
+            if completed_message is None:
+                raise AgentLeaseLostError(agent_run_id)
+            return completed_message
+        except AgentCheckpointMissingError as exc:
+            _fail_missing_checkpoint(pinned_run, session.token, started_clock)
+            raise AgentRunResumeError(
+                "AGENT_CHECKPOINT_MISSING",
+                "Agent checkpoint is missing.",
+            ) from exc
+        except LLMError as exc:
+            _fail_agent_run(
+                pinned_run,
+                session.token,
+                input_data,
+                exc,
+                started_clock,
+            )
+            raise
+        except asyncio.CancelledError:
+            _interrupt_agent_run(pinned_run, session.token, started_clock)
+            raise
+        except AgentLeaseLostError:
+            raise
+        except Exception:
+            _interrupt_agent_run(pinned_run, session.token, started_clock)
+            raise
+    except AgentLeaseLostError as exc:
+        raise _lease_lost_execution_error(agent_run_id) from exc
 
 
 async def retry_agent_run(
