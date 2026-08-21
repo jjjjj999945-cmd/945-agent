@@ -1,4 +1,7 @@
-from backend.app.core.config import get_settings
+import pytest
+from pydantic import ValidationError
+
+from backend.app.core.config import Settings, get_settings
 
 
 def test_llm_settings_default_to_local_deterministic_mode(monkeypatch):
@@ -45,3 +48,21 @@ def test_deepseek_key_is_stored_as_a_redacted_secret(monkeypatch):
 
     assert settings.deepseek_api_key.get_secret_value() == "deepseek-test-secret"
     assert "deepseek-test-secret" not in repr(settings)
+
+
+def test_agent_lease_settings_require_heartbeat_at_most_one_third_of_ttl():
+    with pytest.raises(
+        ValidationError,
+        match="Agent lease heartbeat must not exceed one third of TTL",
+    ):
+        Settings(
+            agent_lease_ttl_seconds=30,
+            agent_lease_heartbeat_seconds=11,
+        )
+
+
+def test_agent_lease_settings_accept_the_default_ratio():
+    settings = Settings()
+
+    assert settings.agent_lease_ttl_seconds == 60
+    assert settings.agent_lease_heartbeat_seconds == 15

@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, computed_field
@@ -420,6 +421,12 @@ class AgentRun(ApiModel):
     retry_of_agent_run_id: str | None = None
     resume_count: int = 0
     trace_steps: list[AgentTraceStep] = []
+    lease_owner: str | None = None
+    lease_version: int = 0
+    lease_expires_at: datetime | None = None
+    last_heartbeat_at: datetime | None = None
+    resume_checkpoint_id: str | None = None
+    messages_persisted: bool = True
 
 
 class AgentRunMetrics(ApiModel):
