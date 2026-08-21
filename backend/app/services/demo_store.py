@@ -1,4 +1,6 @@
 from copy import deepcopy
+from datetime import UTC, datetime, timedelta
+from threading import RLock
 
 from backend.app.core.config import get_settings as get_app_settings
 from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_USER_ID, create_today_response
@@ -29,6 +31,7 @@ from backend.app.models.domain import (
     WorkoutLogInput,
 )
 from backend.app.repositories.mongo import create_mongo_repository
+from backend.app.services.agent_run_lease import AgentLeaseToken
 from backend.app.services.demo_seed import INITIAL_PROFILE, INITIAL_WEEKLY_ADVICE, timestamp
 from backend.app.services.repository_store import RepositoryBackedStore
 
@@ -46,6 +49,7 @@ agent_runs: list[AgentRun] = []
 user_memory_summaries: list[UserMemorySummary] = []
 _repository_store_override: RepositoryBackedStore | None = None
 _repository_store: RepositoryBackedStore | None = None
+_agent_run_lock = RLock()
 
 
 def set_repository_store_for_tests(store: RepositoryBackedStore | None) -> None:
@@ -67,6 +71,33 @@ def _active_repository_store() -> RepositoryBackedStore | None:
     return _repository_store
 
 
+def _agent_lease_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _demo_run_for_token(token: AgentLeaseToken) -> AgentRun | None:
+    now = _agent_lease_now()
+    return next(
+        (
+            run
+            for run in agent_runs
+            if run.user_id == token.user_id
+            and run.agent_run_id == token.agent_run_id
+            and run.status == "running"
+            and run.lease_owner == token.owner
+            and run.lease_version == token.version
+            and run.lease_expires_at is not None
+            and run.lease_expires_at > now
+        ),
+        None,
+    )
+
+
+def _replace_agent_run(existing: AgentRun, updated: AgentRun) -> AgentRun:
+    agent_runs[agent_runs.index(existing)] = updated
+    return updated
+
+
 def reset_demo_store() -> None:
     global current_user, current_profile, advice_items, plans
 
@@ -78,8 +109,9 @@ def reset_demo_store() -> None:
     meal_logs.clear()
     body_metrics.clear()
     daily_checkins.clear()
-    agent_messages.clear()
-    agent_runs.clear()
+    with _agent_run_lock:
+        agent_messages.clear()
+        agent_runs.clear()
     user_memory_summaries.clear()
 
 
@@ -255,14 +287,15 @@ def save_agent_message(message: AgentMessage) -> AgentMessage:
     store = _active_repository_store()
     if store:
         return store.save_agent_message(message)
-    existing = next(
-        (item for item in agent_messages if item.message_id == message.message_id),
-        None,
-    )
-    if existing is None:
-        agent_messages.append(message)
-    else:
-        agent_messages[agent_messages.index(existing)] = message
+    with _agent_run_lock:
+        existing = next(
+            (item for item in agent_messages if item.message_id == message.message_id),
+            None,
+        )
+        if existing is None:
+            agent_messages.append(message)
+        else:
+            agent_messages[agent_messages.index(existing)] = message
     return message
 
 
@@ -273,22 +306,228 @@ def list_agent_messages(user_id: str) -> list[AgentMessage] | None:
     if not is_demo_user(user_id):
         return None
 
-    return [message for message in agent_messages if message.user_id == user_id]
+    with _agent_run_lock:
+        return [message for message in agent_messages if message.user_id == user_id]
 
 
 def save_agent_run(run: AgentRun) -> AgentRun:
     store = _active_repository_store()
     if store:
         return store.save_agent_run(run)
-    existing = next(
-        (item for item in agent_runs if item.agent_run_id == run.agent_run_id),
-        None,
-    )
-    if existing is None:
-        agent_runs.append(run)
-    else:
-        agent_runs[agent_runs.index(existing)] = run
+    with _agent_run_lock:
+        existing = next(
+            (item for item in agent_runs if item.agent_run_id == run.agent_run_id),
+            None,
+        )
+        if existing is None:
+            agent_runs.append(run)
+        else:
+            _replace_agent_run(existing, run)
     return run
+
+
+def create_agent_run_with_lease(run: AgentRun, owner: str) -> AgentRun | None:
+    store = _active_repository_store()
+    if store:
+        return store.create_agent_run_with_lease(run, owner)
+
+    with _agent_run_lock:
+        if any(item.agent_run_id == run.agent_run_id for item in agent_runs):
+            return None
+        now = _agent_lease_now()
+        leased = run.model_copy(
+            update={
+                "status": "running",
+                "lease_owner": owner,
+                "lease_version": 1,
+                "last_heartbeat_at": now,
+                "lease_expires_at": now
+                + timedelta(seconds=get_app_settings().agent_lease_ttl_seconds),
+            }
+        )
+        agent_runs.append(leased)
+        return leased
+
+
+def acquire_agent_run_lease(
+    user_id: str,
+    agent_run_id: str,
+    owner: str,
+) -> AgentRun | None:
+    store = _active_repository_store()
+    if store:
+        return store.acquire_agent_run_lease(user_id, agent_run_id, owner)
+
+    with _agent_run_lock:
+        existing = next(
+            (
+                run
+                for run in agent_runs
+                if run.user_id == user_id
+                and run.agent_run_id == agent_run_id
+                and run.status == "interrupted"
+            ),
+            None,
+        )
+        if existing is None:
+            return None
+        now = _agent_lease_now()
+        leased = existing.model_copy(
+            update={
+                "status": "running",
+                "lease_owner": owner,
+                "lease_version": existing.lease_version + 1,
+                "last_heartbeat_at": now,
+                "lease_expires_at": now
+                + timedelta(seconds=get_app_settings().agent_lease_ttl_seconds),
+                "resume_count": existing.resume_count + 1,
+                "completed_at": None,
+                "error_code": None,
+            }
+        )
+        return _replace_agent_run(existing, leased)
+
+
+def renew_agent_run_lease(token: AgentLeaseToken) -> AgentRun | None:
+    store = _active_repository_store()
+    if store:
+        return store.renew_agent_run_lease(token)
+
+    with _agent_run_lock:
+        existing = _demo_run_for_token(token)
+        if existing is None:
+            return None
+        now = _agent_lease_now()
+        renewed = existing.model_copy(
+            update={
+                "last_heartbeat_at": now,
+                "lease_expires_at": now
+                + timedelta(seconds=get_app_settings().agent_lease_ttl_seconds),
+            }
+        )
+        return _replace_agent_run(existing, renewed)
+
+
+def agent_run_lease_is_valid(token: AgentLeaseToken) -> bool:
+    store = _active_repository_store()
+    if store:
+        return store.agent_run_lease_is_valid(token)
+
+    with _agent_run_lock:
+        return _demo_run_for_token(token) is not None
+
+
+def interrupt_expired_agent_runs(user_id: str) -> int:
+    store = _active_repository_store()
+    if store:
+        return store.interrupt_expired_agent_runs(user_id)
+
+    interrupted = 0
+    with _agent_run_lock:
+        now = _agent_lease_now()
+        for index, run in enumerate(agent_runs):
+            if run.user_id != user_id or run.status != "running":
+                continue
+            has_valid_lease = (
+                run.lease_owner is not None
+                and run.lease_version > 0
+                and run.lease_expires_at is not None
+                and run.lease_expires_at > now
+            )
+            if has_valid_lease:
+                continue
+            agent_runs[index] = run.model_copy(
+                update={
+                    "status": "interrupted",
+                    "lease_owner": None,
+                    "lease_expires_at": None,
+                }
+            )
+            interrupted += 1
+    return interrupted
+
+
+def set_agent_run_resume_checkpoint(
+    token: AgentLeaseToken,
+    checkpoint_id: str,
+) -> AgentRun | None:
+    store = _active_repository_store()
+    if store:
+        return store.set_agent_run_resume_checkpoint(token, checkpoint_id)
+
+    with _agent_run_lock:
+        existing = _demo_run_for_token(token)
+        if existing is None:
+            return None
+        pinned = existing.model_copy(
+            update={"resume_checkpoint_id": checkpoint_id}
+        )
+        return _replace_agent_run(existing, pinned)
+
+
+def transition_agent_run_with_lease(
+    token: AgentLeaseToken,
+    updated_run: AgentRun,
+) -> AgentRun | None:
+    store = _active_repository_store()
+    if store:
+        return store.transition_agent_run_with_lease(token, updated_run)
+
+    if updated_run.status not in {"completed", "failed", "interrupted"}:
+        return None
+    if (
+        updated_run.user_id != token.user_id
+        or updated_run.agent_run_id != token.agent_run_id
+    ):
+        return None
+    with _agent_run_lock:
+        existing = _demo_run_for_token(token)
+        if existing is None:
+            return None
+        transitioned = updated_run.model_copy(
+            update={
+                "lease_owner": None,
+                "lease_version": existing.lease_version,
+                "lease_expires_at": None,
+                "last_heartbeat_at": existing.last_heartbeat_at,
+                "resume_checkpoint_id": existing.resume_checkpoint_id,
+            }
+        )
+        return _replace_agent_run(existing, transitioned)
+
+
+def mark_agent_run_messages_persisted(
+    user_id: str,
+    agent_run_id: str,
+    lease_version: int,
+) -> bool:
+    store = _active_repository_store()
+    if store:
+        return store.mark_agent_run_messages_persisted(
+            user_id,
+            agent_run_id,
+            lease_version,
+        )
+
+    with _agent_run_lock:
+        existing = next(
+            (
+                run
+                for run in agent_runs
+                if run.user_id == user_id
+                and run.agent_run_id == agent_run_id
+                and run.status == "completed"
+                and run.lease_version == lease_version
+            ),
+            None,
+        )
+        if existing is None:
+            return False
+        _replace_agent_run(
+            existing,
+            existing.model_copy(update={"messages_persisted": True}),
+        )
+        return True
 
 
 def list_agent_runs(user_id: str) -> list[AgentRun] | None:
@@ -297,7 +536,8 @@ def list_agent_runs(user_id: str) -> list[AgentRun] | None:
         return store.list_agent_runs(user_id)
     if not is_demo_user(user_id):
         return None
-    return [run for run in agent_runs if run.user_id == user_id]
+    with _agent_run_lock:
+        return [run for run in agent_runs if run.user_id == user_id]
 
 
 def get_current_plan(user_id: str) -> Plan | None:
