@@ -1,5 +1,5 @@
 from backend.app.core.config import get_settings
-from backend.app.models.domain import WorkoutLog
+from backend.app.models.domain import AgentRun, WorkoutLog
 from backend.app.repositories.mongo import MongoRepository, mongo_document_to_model, model_to_mongo_document
 
 
@@ -31,6 +31,23 @@ class FakeCollection:
 
     def find_one(self, filter_doc):
         return next(iter(self.find(filter_doc)), None)
+
+    def find_one_and_update(
+        self,
+        filter_doc,
+        update_doc,
+        *,
+        upsert=False,
+        return_document=None,
+    ):
+        existing = self.find_one(filter_doc)
+        if existing is None:
+            if not upsert:
+                return None
+            existing = dict(filter_doc)
+            self.documents.append(existing)
+        existing.update(update_doc["$set"])
+        return existing
 
 
 class FakeDatabase(dict):
@@ -115,3 +132,26 @@ def test_repository_upserts_and_lists_models_by_user():
 
     assert len(logs) == 1
     assert logs[0].notes == "已更新"
+
+
+def test_repository_find_one_and_update_returns_the_updated_model():
+    database = FakeDatabase()
+    repository = MongoRepository(database)
+    run = AgentRun(
+        agent_run_id="run-atomic",
+        user_id="demo-user-945",
+        status="interrupted",
+        started_at="2026-08-21T12:00:00Z",
+    )
+    repository.upsert_model("agent_runs", run, id_field="agent_run_id")
+
+    updated = repository.find_one_and_update_model(
+        "agent_runs",
+        AgentRun,
+        {"_id": "run-atomic", "status": "interrupted"},
+        {"$set": {"status": "running", "lease_version": 1}},
+    )
+
+    assert updated is not None
+    assert updated.status == "running"
+    assert updated.lease_version == 1
