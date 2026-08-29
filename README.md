@@ -4,6 +4,26 @@
 
 945 不是一个单纯的 Chatbot，也不是一次性生成训练计划的小工具。它的目标是做成一个长期使用的个人健身与饮食工作台，把计划生成、每日执行、数据记录、趋势分析、Agent 建议和计划调整串成闭环。
 
+## 当前阶段
+
+项目当前已经完成 LangGraph Agent、DeepSeek Provider、白名单工具与草稿确认写入，并具备 MongoDB 多用户隔离与持久化、Agent checkpoint、run/trace/token/延迟指标、可选 LangSmith、确定性 Eval、真实 HTTP/Mongo QA 和本机 Docker Compose 生产配置。
+
+项目已经完成 **Lv4 验收收口**：统一命令和机器报告能够验证上述能力。前端视觉系统保持冻结，本阶段没有修改颜色、字体、图标、导航、玻璃效果或组件视觉样式。
+
+完整离线验收不调用真实模型：
+
+```powershell
+npm run qa:lv4
+```
+
+离线检查全部通过后，可显式运行 5 条真实 DeepSeek 小样本：
+
+```powershell
+npm run qa:lv4:deepseek
+```
+
+报告默认写入 `output/lv4-acceptance.json` 和 `output/lv4-acceptance.md`；付费模式写入带 `-deepseek` 后缀的报告。`output/` 是本机产物，不提交 Git。
+
 ## 1. 一句话理解 945
 
 945 的产品形态是：
@@ -90,13 +110,27 @@ MongoDB、真实模型和云部署仍需按环境接入。本项目已具备 Mon
 
 ### 本地生产化容器运行
 
-仓库根目录提供 `docker-compose.yml`、`Dockerfile.backend`、`Dockerfile.frontend` 和 `.env.production.example`。复制示例环境文件为 `.env.production`，填入高强度 `945_AUTH_SECRET` 后执行：
+仓库根目录提供 `docker-compose.yml`、`Dockerfile.backend`、`Dockerfile.frontend` 和 `.env.production.example`。启动前请打开 Docker Desktop，并复制示例环境文件：
+
+```powershell
+Copy-Item .env.production.example .env.production
+```
+
+在 `.env.production` 中替换高强度 `945_AUTH_SECRET` 和真实的 `DEEPSEEK_API_KEY`。该文件包含密钥，仅在本机保留，绝不能提交到 Git。需要 LangSmith 追踪时，再填入 `LANGSMITH_API_KEY` 并将 `945_LANGSMITH_TRACING=true`。然后执行：
 
 ```powershell
 docker compose up --build -d
 ```
 
-前端默认暴露在 `http://127.0.0.1:8080`，同源 `/api` 请求经 Nginx 转发给 FastAPI，MongoDB 数据保存在 Docker 命名卷中。
+前端默认暴露在 `http://127.0.0.1:8080`，健康检查为 `http://127.0.0.1:8080/health`；同源 `/api` 请求经 Nginx 转发给 FastAPI。可用以下命令查看运行状态和日志：
+
+```powershell
+docker compose ps
+docker compose logs backend
+docker compose logs frontend
+```
+
+停止服务使用 `docker compose down`，数据会保留在 MongoDB 命名卷 `mongo_data` 中。不要使用 `docker compose down -v`，该命令会删除本机 MongoDB 数据。
 
 ## 4. 当前前端代码结构
 
@@ -457,36 +491,10 @@ Agent 聊天只能返回 `RecordDraft`。用户确认训练草稿后，前端才
 
 ## 14. 下一步开发方向
 
-桌面客户端 P0 已经补齐后，接下来有两条主线：
+Lv4 验收收口完成后，再单独确认下一阶段，不在当前工作中自动扩展：
 
-### 主线 A：继续前端业务页面
+1. Agent 同一任务的暂停与恢复产品流程。
+2. Redis 分布式限流、refresh token、密码重置等 Lv5 基础设施。
+3. 公网部署与生产告警。
 
-把以下页面从原型或规划推进成真实业务页面：
-
-- 训练页
-- 饮食页
-- 身体数据页
-- 建议页
-- Agent 页
-- 设置页
-
-这条线不依赖真实后端，继续使用 `mockApi`。
-
-### 主线 B：开始真实后端和 Agent
-
-开始搭建：
-
-- FastAPI 项目
-- MongoDB 数据访问层
-- Pydantic request / response model
-- LangGraph Agent orchestrator
-- 多 Agent 节点
-- 与前端 API contract 对齐的接口
-
-这条线会把当前 mock API 替换成真实 API。详细顺序见：
-
-```text
-docs/AGENT_BACKEND_RAG_ARCHITECTURE.md
-```
-
-当前更推荐先做主线 B 的前半段：先搭 FastAPI 空壳和结构化 API，再接 MongoDB。RAG 和 LangGraph Agent 应该排在结构化数据闭环之后，避免把训练记录、饮食记录、身体数据这些精确事实错误地塞进向量库。
+这些方向都不能改变现有“模型只生成草稿，用户确认后由结构化 API 写入”的安全边界。

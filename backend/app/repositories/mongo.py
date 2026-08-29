@@ -1,6 +1,8 @@
 from typing import Any, TypeVar
 
 from pydantic import BaseModel
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 from backend.app.core.config import get_settings
 
@@ -30,6 +32,50 @@ class MongoRepository:
             {"$set": document},
             upsert=True
         )
+
+    def insert_model(
+        self,
+        collection_name: str,
+        model: BaseModel,
+        id_field: str,
+    ) -> bool:
+        document = model_to_mongo_document(model, id_field=id_field)
+        try:
+            self.database[collection_name].insert_one(document)
+        except DuplicateKeyError:
+            return False
+        return True
+
+    def find_one_and_update_model(
+        self,
+        collection_name: str,
+        model_type: type[ModelT],
+        filter_doc: dict[str, Any],
+        update_doc: dict[str, Any] | list[dict[str, Any]],
+        *,
+        upsert: bool = False,
+    ) -> ModelT | None:
+        try:
+            document = self.database[collection_name].find_one_and_update(
+                filter_doc,
+                update_doc,
+                upsert=upsert,
+                return_document=ReturnDocument.AFTER,
+            )
+        except DuplicateKeyError:
+            return None
+        if document is None:
+            return None
+        return mongo_document_to_model(document, model_type)
+
+    def update_one(
+        self,
+        collection_name: str,
+        filter_doc: dict[str, Any],
+        update_doc: dict[str, Any] | list[dict[str, Any]],
+    ) -> bool:
+        result = self.database[collection_name].update_one(filter_doc, update_doc)
+        return result.matched_count == 1
 
     def list_models(
         self,

@@ -144,12 +144,12 @@ POST /api/agent/runs/{agent_run_id}/retry
 - demo 用户固定为 `demo-user-945`。
 - 结构化事实保存在 `backend/app/services/demo_store.py` 的进程内 store 中。
 - 服务重启后，训练记录、饮食记录、身体数据、打卡、设置修改和 Agent 消息会重置。
-- `backend/app/repositories/mongo.py` 已提供 MongoDB repository 边界，用于后续把 demo store 的读写迁移到 MongoDB。
+- `backend/app/repositories/mongo.py` 提供 MongoDB repository 边界；设置 `945_STORAGE_BACKEND=mongo` 后，业务数据和 Agent run 会持久化到 MongoDB。
 - `backend/app/services/repository_store.py` 已把结构化集合映射到 repository-backed store。
 - `backend/app/agents/tool_registry.py` 提供 Agent 白名单工具注册、严格参数校验和显式分派；关键写入仍只生成草稿。
 - `backend/app/rag/retriever.py` 提供本地关键词 RAG 检索，不保存主业务事实。
-- `backend/app/agents/graph.py` 使用 LangGraph `StateGraph` 编排安全检查、上下文构建、RAG 检索、Provider 调用、单轮工具执行和草稿校验，并使用 `MemorySaver` 保存进程内 checkpoint。
-- 当前 checkpoint 仅支持同一后端进程存活期间的回放和调试；跨进程重启恢复需要后续接入 MongoDB 或 Postgres saver，当前不将其视为已完成的生产级恢复能力。
+- `backend/app/agents/graph.py` 使用 LangGraph `StateGraph` 编排安全检查、上下文构建、RAG 检索、Provider 调用、单轮工具执行和草稿校验；demo 模式使用 `MemorySaver`，Mongo 模式使用 `MongoDBSaver`。
+- 两种 checkpointer 都经过 Agent run 租约校验。Mongo 模式支持跨 Worker 的持久化 checkpoint 和用户手动恢复；旧租约不能写入新执行采用的 checkpoint。
 - `backend/app/llm/factory.py` 提供 Provider Router：开发环境 OpenAI 失败会降级到 deterministic，生产环境会返回稳定错误。
 - `backend/app/llm/openai_provider.py` 已接入 OpenAI Responses API，显式 `store=False`、`parallel_tool_calls=False`，并关闭 SDK 内部重试。
 - `backend/app/services/memory_service.py` 可以从结构化记录生成每周长期记忆摘要。
@@ -241,15 +241,17 @@ $env:LANGSMITH_PROJECT="945"
 $env:945_STORAGE_BACKEND="demo"
 ```
 
-后续切换 MongoDB repository 时使用这些环境变量：
+切换到 MongoDB repository 模式时使用这些环境变量：
 
 ```powershell
 $env:945_STORAGE_BACKEND="mongo"
 $env:945_MONGODB_URI="mongodb://127.0.0.1:27017"
 $env:945_MONGODB_DATABASE="945"
+$env:945_AGENT_LEASE_TTL_SECONDS="60"
+$env:945_AGENT_LEASE_HEARTBEAT_SECONDS="15"
 ```
 
-当前已完成 MongoDB 文档转换、按集合 upsert、按条件查询、Pydantic model 还原、demo seed 和 repository-backed store 委托测试。默认 demo 模式仍不需要 MongoDB 进程。
+`945_AGENT_LEASE_TTL_SECONDS` 必须为正数；heartbeat 必须为正数且不能超过 TTL 的三分之一。Mongo 使用数据库服务端时间判断到期和续租，避免多个后端 Worker 的本机时钟差异。默认 demo 模式仍不需要 MongoDB 进程，但使用相同的租约状态机。
 
 本机便携版已部署在 `D:\MongoDB`。启动命令：
 
@@ -268,9 +270,9 @@ agent_checkpoints
 agent_checkpoint_writes
 ```
 
-这两个集合保存 LangGraph 的节点状态和中间写入，用于服务重启后的运行状态读取、排障与后续的恢复能力；不会保存模型推理过程或对用户展示的思维链。训练、饮食和计划变更仍然只能通过用户确认后的结构化 API 写入。
+这两个集合保存 LangGraph 的节点状态和中间写入，用于服务重启后的运行状态读取、排障与手动恢复；不会保存模型推理过程或对用户展示的思维链。训练、饮食和计划变更仍然只能通过用户确认后的结构化 API 写入。
 
-当前 `/api/agent/chat` 每次请求仍会生成新的 Agent run 和新的 `thread_id`，因此它已具备 durable checkpoint 基础，但尚未开放“暂停后从同一 run 继续”的客户端恢复操作。该能力需要后续产品流程和权限边界一起设计，不能仅凭保存 checkpoint 自动启用。
+`/api/agent/chat` 每次请求会生成新的 Agent run 和同名 `thread_id`。执行租约过期时，读取 run 或用户请求恢复只会先把任务标记为 `interrupted`，不会自动调用模型；用户显式调用 `POST /api/agent/runs/{agent_run_id}/resume` 后，服务才会竞争新租约，并从同一 `agent_run_id/thread_id` 的固定安全 checkpoint 恢复。只有当前租约能续租、更新 checkpoint、写终态和发布消息。
 
 本机验证 Mongo checkpoint：
 
@@ -415,15 +417,27 @@ python -m uvicorn backend.app.main:app --reload
 
 ## Docker 部署
 
-1. 安装 Docker Desktop，并将 `.env.production.example` 复制为 `.env.production`。
-2. 为 `945_AUTH_SECRET` 设置至少 32 字符的随机值，不能使用示例值。
-3. 在仓库根目录执行：
+1. 启动 Docker Desktop，并将 `.env.production.example` 复制为 `.env.production`。
+2. 为 `945_AUTH_SECRET` 设置至少 32 字符的随机值，并填入真实的 `DEEPSEEK_API_KEY`；该文件仅在本机保存，不能提交到 Git。
+3. 需要 LangSmith 追踪时，填入 `LANGSMITH_API_KEY` 并将 `945_LANGSMITH_TRACING=true`。
+4. 在仓库根目录执行：
 
 ```powershell
 docker compose up --build -d
 ```
 
-客户端服务默认在 `http://127.0.0.1:8080`，Nginx 会将 `/api/*` 和 `/health` 转发到 FastAPI。MongoDB 使用命名卷 `mongo_data` 持久化数据。当前机器没有安装 Docker CLI，因此本轮只完成静态配置和应用测试，尚未执行真实容器启动验证。
+客户端服务默认在 `http://127.0.0.1:8080`，健康检查为 `http://127.0.0.1:8080/health`。Nginx 会将 `/api/*` 和 `/health` 转发到 FastAPI。生产模式必须先登录取得 Bearer token，MongoDB 使用命名卷 `mongo_data` 持久化数据。
+
+查看运行状态、排查日志和停止服务：
+
+```powershell
+docker compose ps
+docker compose logs backend
+docker compose logs frontend
+docker compose down
+```
+
+普通 `docker compose down` 会保留 `mongo_data` 中的数据；`docker compose down -v` 会删除本机 MongoDB 数据，除非明确要清空数据，否则不要使用。
 
 ## 验证
 
@@ -432,3 +446,35 @@ python -m pytest backend/tests -q
 npm run build
 npm run qa:app
 ```
+
+### Lv4 统一验收
+
+默认完整验收为零模型费用，会串行运行后端测试、50 条确定性 Agent Eval、前端构建、真实 HTTP QA 和 Mongo QA；该命令不会调用 DeepSeek：
+
+```powershell
+npm run qa:lv4
+```
+
+只有离线检查全部通过后，才可显式运行 5 条真实 DeepSeek 样本：
+
+```powershell
+npm run qa:lv4:deepseek
+```
+
+真实样本固定覆盖训练草稿、饮食草稿、计划调整草稿、训练知识问答和高风险安全输入。硬门槛为至少 `4/5`、安全用例必须通过、结构化写入必须为 `0`。缺少 `DEEPSEEK_API_KEY` 时会在付费调用前失败；离线检查失败时会直接跳过 DeepSeek。
+
+默认报告：
+
+```text
+output/lv4-acceptance.json
+output/lv4-acceptance.md
+```
+
+付费模式报告：
+
+```text
+output/lv4-acceptance-deepseek.json
+output/lv4-acceptance-deepseek.md
+```
+
+JSON 和中文 Markdown 报告包含完成度矩阵、稳定失败分类、耗时、token、逻辑生成次数和 HTTP 尝试次数，不包含 Key、Authorization、聊天正文、模型完整输出或思维链。DeepSeek 平均单例耗时超过 `10000 ms`、平均单例总 token 超过 `2000`，或 HTTP 尝试次数高于逻辑生成次数时只产生工程提醒，不作为硬阻断；实际金额以 DeepSeek 控制台账单为准。

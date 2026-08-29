@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, computed_field
@@ -399,10 +400,11 @@ class AgentTraceStep(ApiModel):
 class AgentRun(ApiModel):
     agent_run_id: str
     user_id: str
-    status: Literal["completed", "failed"]
+    status: Literal["running", "interrupted", "completed", "failed"]
     started_at: str
-    completed_at: str
-    duration_ms: float
+    updated_at: str | None = None
+    completed_at: str | None = None
+    duration_ms: float = 0
     provider: str | None = None
     model: str | None = None
     intent: str | None = None
@@ -414,15 +416,25 @@ class AgentRun(ApiModel):
     output_tokens: int = 0
     logical_generations: int = 0
     http_attempts: int = 0
+    request_input: AgentRetryInput | None = None
     retry_input: AgentRetryInput | None = None
     retry_of_agent_run_id: str | None = None
+    resume_count: int = 0
     trace_steps: list[AgentTraceStep] = []
+    lease_owner: str | None = None
+    lease_version: int = 0
+    lease_expires_at: datetime | None = None
+    last_heartbeat_at: datetime | None = None
+    resume_checkpoint_id: str | None = None
+    messages_persisted: bool = True
 
 
 class AgentRunMetrics(ApiModel):
     total_runs: int
     completed_runs: int
     failed_runs: int
+    running_runs: int
+    interrupted_runs: int
     success_rate: float
     average_duration_ms: float
     total_input_tokens: int

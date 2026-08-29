@@ -173,6 +173,15 @@ test.describe.serial("945 real HTTP integration", () => {
       foods: [],
       notes: "我中午吃了鸡胸肉饭，可以帮我记录吗？"
     });
+    const runs = await (await request.get(`${API_BASE_URL}/api/agent/runs?user_id=demo-user-945`)).json();
+    const run = runs.data[0];
+    expect(run.status).toBe("completed");
+    expect(run).not.toHaveProperty("lease_owner");
+    expect(run).not.toHaveProperty("lease_version");
+    expect(run).not.toHaveProperty("lease_expires_at");
+    expect(run).not.toHaveProperty("last_heartbeat_at");
+    expect(run).not.toHaveProperty("resume_checkpoint_id");
+    expect(run).not.toHaveProperty("messages_persisted");
   });
 
   test("generates a plan draft and activates it only after acceptance", async ({ page, request }) => {

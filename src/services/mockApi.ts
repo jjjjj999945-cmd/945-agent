@@ -500,5 +500,13 @@ export const api = {
     return fail("NOT_FOUND", "Failed Agent run not found or cannot be retried.", {
       agent_run_id: input.agent_run_id
     });
+  },
+
+  async resumeAgentRun(input: { user_id: string; agent_run_id: string }): Promise<ApiResponse<AgentMessage>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    return fail("NOT_FOUND", "Interrupted Agent run not found or cannot be resumed.", {
+      agent_run_id: input.agent_run_id
+    });
   }
 };

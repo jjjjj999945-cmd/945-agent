@@ -1,5 +1,7 @@
 from copy import deepcopy
+from typing import Any
 
+from backend.app.core.config import get_settings
 from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_USER_ID, NOW, create_today_response
 from backend.app.models.domain import (
     AdvicePageData,
@@ -28,7 +30,8 @@ from backend.app.models.domain import (
     WorkoutLog,
     WorkoutLogInput,
 )
-from backend.app.repositories.mongo import MongoRepository
+from backend.app.repositories.mongo import MongoRepository, model_to_mongo_document
+from backend.app.services.agent_run_lease import AgentLeaseToken
 from backend.app.services.demo_seed import INITIAL_PROFILE, INITIAL_WEEKLY_ADVICE, timestamp
 
 
@@ -46,6 +49,27 @@ COLLECTION_IDS = {
     "user_memory_summaries": "summary_id",
     "auth_credentials": "email",
 }
+
+
+def _lease_filter(token: AgentLeaseToken) -> dict[str, Any]:
+    return {
+        "_id": token.agent_run_id,
+        "user_id": token.user_id,
+        "status": "running",
+        "lease_owner": token.owner,
+        "lease_version": token.version,
+        "$expr": {"$gt": ["$lease_expires_at", "$$NOW"]},
+    }
+
+
+def _lease_expiration_expression() -> dict[str, Any]:
+    return {
+        "$dateAdd": {
+            "startDate": "$$NOW",
+            "unit": "second",
+            "amount": get_settings().agent_lease_ttl_seconds,
+        }
+    }
 
 
 class RepositoryBackedStore:
@@ -343,6 +367,195 @@ class RepositoryBackedStore:
     def save_agent_run(self, run: AgentRun) -> AgentRun:
         self.repository.upsert_model("agent_runs", run, id_field=COLLECTION_IDS["agent_runs"])
         return run
+
+    def create_agent_run_with_lease(
+        self,
+        run: AgentRun,
+        owner: str,
+    ) -> AgentRun | None:
+        leased = run.model_copy(
+            update={
+                "status": "running",
+                "lease_owner": owner,
+                "lease_version": 1,
+                "lease_expires_at": None,
+                "last_heartbeat_at": None,
+            }
+        )
+        document = model_to_mongo_document(
+            leased,
+            id_field=COLLECTION_IDS["agent_runs"],
+        )
+        return self.repository.find_one_and_update_model(
+            "agent_runs",
+            AgentRun,
+            {
+                "_id": run.agent_run_id,
+                "agent_run_id": {"$exists": False},
+            },
+            [
+                {
+                    "$replaceWith": {
+                        "$mergeObjects": [
+                            {"$literal": document},
+                            {
+                                "last_heartbeat_at": "$$NOW",
+                                "lease_expires_at": _lease_expiration_expression(),
+                            },
+                        ]
+                    }
+                }
+            ],
+            upsert=True,
+        )
+
+    def acquire_agent_run_lease(
+        self,
+        user_id: str,
+        agent_run_id: str,
+        owner: str,
+    ) -> AgentRun | None:
+        return self.repository.find_one_and_update_model(
+            "agent_runs",
+            AgentRun,
+            {
+                "_id": agent_run_id,
+                "user_id": user_id,
+                "status": "interrupted",
+            },
+            [
+                {
+                    "$set": {
+                        "status": "running",
+                        "lease_owner": owner,
+                        "lease_version": {
+                            "$add": [{"$ifNull": ["$lease_version", 0]}, 1]
+                        },
+                        "last_heartbeat_at": "$$NOW",
+                        "lease_expires_at": _lease_expiration_expression(),
+                        "resume_count": {
+                            "$add": [{"$ifNull": ["$resume_count", 0]}, 1]
+                        },
+                        "completed_at": None,
+                        "error_code": None,
+                    }
+                }
+            ],
+        )
+
+    def renew_agent_run_lease(
+        self,
+        token: AgentLeaseToken,
+    ) -> AgentRun | None:
+        return self.repository.find_one_and_update_model(
+            "agent_runs",
+            AgentRun,
+            _lease_filter(token),
+            [
+                {
+                    "$set": {
+                        "last_heartbeat_at": "$$NOW",
+                        "lease_expires_at": _lease_expiration_expression(),
+                    }
+                }
+            ],
+        )
+
+    def agent_run_lease_is_valid(self, token: AgentLeaseToken) -> bool:
+        return (
+            self.repository.get_model(
+                "agent_runs",
+                AgentRun,
+                _lease_filter(token),
+            )
+            is not None
+        )
+
+    def interrupt_expired_agent_runs(self, user_id: str) -> int:
+        interrupted = 0
+        while True:
+            run = self.repository.find_one_and_update_model(
+                "agent_runs",
+                AgentRun,
+                {
+                    "user_id": user_id,
+                    "status": "running",
+                    "$or": [
+                        {"lease_expires_at": {"$exists": False}},
+                        {"lease_expires_at": None},
+                        {"$expr": {"$lte": ["$lease_expires_at", "$$NOW"]}},
+                    ],
+                },
+                {
+                    "$set": {
+                        "status": "interrupted",
+                        "lease_owner": None,
+                        "lease_expires_at": None,
+                    }
+                },
+            )
+            if run is None:
+                return interrupted
+            interrupted += 1
+
+    def set_agent_run_resume_checkpoint(
+        self,
+        token: AgentLeaseToken,
+        checkpoint_id: str,
+    ) -> AgentRun | None:
+        return self.repository.find_one_and_update_model(
+            "agent_runs",
+            AgentRun,
+            _lease_filter(token),
+            {"$set": {"resume_checkpoint_id": checkpoint_id}},
+        )
+
+    def transition_agent_run_with_lease(
+        self,
+        token: AgentLeaseToken,
+        updated_run: AgentRun,
+    ) -> AgentRun | None:
+        if updated_run.status not in {"completed", "failed", "interrupted"}:
+            return None
+        if (
+            updated_run.user_id != token.user_id
+            or updated_run.agent_run_id != token.agent_run_id
+        ):
+            return None
+
+        update_fields = updated_run.model_dump(exclude_computed_fields=True)
+        update_fields.pop("last_heartbeat_at", None)
+        update_fields.pop("resume_checkpoint_id", None)
+        update_fields.update(
+            {
+                "lease_owner": None,
+                "lease_version": token.version,
+                "lease_expires_at": None,
+            }
+        )
+        return self.repository.find_one_and_update_model(
+            "agent_runs",
+            AgentRun,
+            _lease_filter(token),
+            {"$set": update_fields},
+        )
+
+    def mark_agent_run_messages_persisted(
+        self,
+        user_id: str,
+        agent_run_id: str,
+        lease_version: int,
+    ) -> bool:
+        return self.repository.update_one(
+            "agent_runs",
+            {
+                "_id": agent_run_id,
+                "user_id": user_id,
+                "status": "completed",
+                "lease_version": lease_version,
+            },
+            {"$set": {"messages_persisted": True}},
+        )
 
     def list_agent_runs(self, user_id: str) -> list[AgentRun] | None:
         if self.get_user(user_id) is None:

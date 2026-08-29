@@ -17,7 +17,18 @@ from backend.app.llm.models import AgentModelRequest, AgentModelResponse, Conver
 from backend.app.models.domain import AgentMessage, AgentTraceStep, RecordDraft, TodayResponseData
 from backend.app.observability.langsmith import agent_trace_metadata, configure_langsmith_tracing
 from backend.app.rag.retriever import KnowledgeChunk
+from backend.app.services.agent_run_lease import (
+    AgentLeaseLostError,
+    AgentLeaseToken,
+    lease_config,
+    lease_token_from_config,
+)
+from backend.app.services.demo_store import agent_run_lease_is_valid
 from backend.app.services.memory_service import list_user_memory_summaries
+
+
+class AgentCheckpointMissingError(Exception):
+    pass
 
 
 class AgentGraphResult(BaseModel):
@@ -57,6 +68,12 @@ class AgentWorkflowState(TypedDict, total=False):
     result: AgentGraphResult
 
 
+def _assert_graph_lease(config: RunnableConfig) -> None:
+    token = lease_token_from_config(config)
+    if token is not None and not agent_run_lease_is_valid(token):
+        raise AgentLeaseLostError(token.agent_run_id)
+
+
 def _safety_reply(locale: str) -> str:
     return (
         "你提到了可能的高风险身体信号。请先暂停训练，不要继续冲重量，并尽快咨询医生或合格专业人士。"
@@ -92,33 +109,44 @@ def _without_dsml_tool_markup(reply: str, locale: str) -> str:
     return "已生成可确认的草稿，请确认后保存。" if locale == "zh-CN" else "I created a confirmation-required draft. Please review it before saving."
 
 
-async def _safety_node(state: AgentWorkflowState) -> dict[str, Any]:
+async def _safety_node(
+    state: AgentWorkflowState,
+    config: RunnableConfig,
+) -> dict[str, Any]:
+    _assert_graph_lease(config)
     if not safety_guard(state["message"]):
-        return {"date": str(state["context"].get("date", TODAY_DATE))}
-    return {
-        "result": AgentGraphResult(
-            intent="safety_warning",
-            reply=_safety_reply(state["locale"]),
-            record_draft=None,
-            today_context=None,
-            rag_chunks=[],
-            provider="local_safety",
-            trace_steps=[
-                AgentTraceStep(
-                    name="safety_guard",
-                    status="completed",
-                    metadata={"risk_detected": True},
-                )
-            ],
-        )
-    }
+        output = {"date": str(state["context"].get("date", TODAY_DATE))}
+    else:
+        output = {
+            "result": AgentGraphResult(
+                intent="safety_warning",
+                reply=_safety_reply(state["locale"]),
+                record_draft=None,
+                today_context=None,
+                rag_chunks=[],
+                provider="local_safety",
+                trace_steps=[
+                    AgentTraceStep(
+                        name="safety_guard",
+                        status="completed",
+                        metadata={"risk_detected": True},
+                    )
+                ],
+            )
+        }
+    _assert_graph_lease(config)
+    return output
 
 
 def _after_safety(state: AgentWorkflowState) -> str:
     return "finalize" if "result" in state else "context"
 
 
-async def _context_node(state: AgentWorkflowState) -> dict[str, Any]:
+async def _context_node(
+    state: AgentWorkflowState,
+    config: RunnableConfig,
+) -> dict[str, Any]:
+    _assert_graph_lease(config)
     today_context = context_builder(state["user_id"], state["date"])
     rag_chunks = rag_retriever(state["message"], state["locale"])
     memory = [
@@ -127,7 +155,7 @@ async def _context_node(state: AgentWorkflowState) -> dict[str, Any]:
     ]
     request_context = dict(state["context"])
     request_context["memory_summaries"] = memory
-    return {
+    output = {
         "today_context": today_context,
         "rag_chunks": rag_chunks,
         "memory": memory,
@@ -143,9 +171,12 @@ async def _context_node(state: AgentWorkflowState) -> dict[str, Any]:
             tools=get_agent_tool_definitions(),
         ),
     }
+    _assert_graph_lease(config)
+    return output
 
 
 async def _model_node(state: AgentWorkflowState, config: RunnableConfig) -> dict[str, Any]:
+    _assert_graph_lease(config)
     router = config["configurable"].get("provider_router") or get_llm_provider_router()
     request = state["request"]
     first = await router.generate(request)
@@ -203,7 +234,7 @@ async def _model_node(state: AgentWorkflowState, config: RunnableConfig) -> dict
                 update={"reply": _without_dsml_tool_markup(final.reply, state["locale"])}
             )
 
-    return {
+    output = {
         "first": first,
         "final": final,
         "draft": draft,
@@ -211,15 +242,22 @@ async def _model_node(state: AgentWorkflowState, config: RunnableConfig) -> dict
         "tool_status": tool_status,
         "tool_metadata": tool_metadata,
     }
+    _assert_graph_lease(config)
+    return output
 
 
-async def _finalize_node(state: AgentWorkflowState) -> dict[str, Any]:
+async def _finalize_node(
+    state: AgentWorkflowState,
+    config: RunnableConfig,
+) -> dict[str, Any]:
+    _assert_graph_lease(config)
     if "result" in state:
+        _assert_graph_lease(config)
         return {}
     first = state["first"]
     final = state["final"]
     draft = state["draft"]
-    return {
+    output = {
         "result": AgentGraphResult(
             intent=state["resolved_intent"],
             reply=final.reply or first.reply,
@@ -242,6 +280,8 @@ async def _finalize_node(state: AgentWorkflowState) -> dict[str, Any]:
             ],
         )
     }
+    _assert_graph_lease(config)
+    return output
 
 
 @lru_cache
@@ -269,9 +309,16 @@ async def run_agent_graph(
     conversation: list[AgentMessage] | None = None,
     provider_router: LLMProviderRouter | None = None,
     request_id: str | None = None,
+    lease_token: AgentLeaseToken | None = None,
 ) -> AgentGraphResult:
     request_id = request_id or uuid4().hex
     settings = get_settings()
+    configurable: dict[str, Any] = {
+        "thread_id": request_id,
+        "provider_router": provider_router,
+    }
+    if lease_token is not None:
+        configurable.update(lease_config(lease_token))
     state = await get_agent_graph().ainvoke(
         {
             "user_id": user_id,
@@ -282,7 +329,7 @@ async def run_agent_graph(
             "request_id": request_id,
         },
         config={
-            "configurable": {"thread_id": request_id, "provider_router": provider_router},
+            "configurable": configurable,
             "metadata": agent_trace_metadata(
                 request_id=request_id,
                 user_id=user_id,
@@ -292,3 +339,81 @@ async def run_agent_graph(
         },
     )
     return state["result"]
+
+
+def get_safe_resume_checkpoint_id(
+    request_id: str,
+    before_version: int,
+) -> str | None:
+    config = {"configurable": {"thread_id": request_id}}
+    for saved in get_agent_checkpointer().list(config):
+        metadata = saved.metadata or {}
+        if int(metadata.get("lease_version", 0)) > before_version:
+            continue
+        checkpoint_id = saved.config.get("configurable", {}).get("checkpoint_id")
+        if checkpoint_id is not None:
+            return str(checkpoint_id)
+    return None
+
+
+def load_completed_agent_graph_result(
+    request_id: str,
+    lease_version: int,
+) -> AgentGraphResult | None:
+    config = {"configurable": {"thread_id": request_id}}
+    for saved in get_agent_checkpointer().list(config):
+        metadata = saved.metadata or {}
+        if int(metadata.get("lease_version", 0)) != lease_version:
+            continue
+        result = saved.checkpoint.get("channel_values", {}).get("result")
+        if result is not None:
+            return AgentGraphResult.model_validate(result)
+    return None
+
+
+async def resume_agent_graph(
+    request_id: str,
+    *,
+    checkpoint_id: str,
+    lease_token: AgentLeaseToken,
+    provider_router: LLMProviderRouter | None = None,
+) -> AgentGraphResult:
+    graph = get_agent_graph()
+    configurable = {
+        "thread_id": request_id,
+        "checkpoint_ns": "",
+        "checkpoint_id": checkpoint_id,
+        "provider_router": provider_router,
+        **lease_config(lease_token),
+    }
+    snapshot = graph.get_state({"configurable": configurable})
+    values = dict(snapshot.values or {})
+    saved_result = values.get("result")
+    if saved_result is not None:
+        await graph.aupdate_state(
+            {"configurable": configurable},
+            {"result": saved_result},
+        )
+        return AgentGraphResult.model_validate(saved_result)
+    if not values or not snapshot.next:
+        raise AgentCheckpointMissingError(request_id)
+
+    user_id = str(values["user_id"])
+    locale = str(values["locale"])
+    settings = get_settings()
+    state = await graph.ainvoke(
+        None,
+        config={
+            "configurable": configurable,
+            "metadata": agent_trace_metadata(
+                request_id=request_id,
+                user_id=user_id,
+                locale=locale,
+                provider=settings.llm_provider,
+            ),
+        },
+    )
+    result = state.get("result")
+    if result is None:
+        raise AgentCheckpointMissingError(request_id)
+    return AgentGraphResult.model_validate(result)

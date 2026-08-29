@@ -241,9 +241,10 @@ export type AgentMessage = {
 export type AgentRun = {
   agent_run_id: string;
   user_id: string;
-  status: "completed" | "failed";
+  status: "running" | "interrupted" | "completed" | "failed";
   started_at: string;
-  completed_at: string;
+  updated_at?: string | null;
+  completed_at?: string | null;
   duration_ms: number;
   provider?: string;
   model?: string;
@@ -257,6 +258,7 @@ export type AgentRun = {
   logical_generations: number;
   http_attempts: number;
   retry_of_agent_run_id?: string;
+  resume_count: number;
 };
 
 export type TodayResponseData = {

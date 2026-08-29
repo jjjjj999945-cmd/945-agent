@@ -2,7 +2,7 @@ import os
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, SecretStr
+from pydantic import BaseModel, ConfigDict, SecretStr, model_validator
 
 
 StorageBackend = Literal["demo", "mongo"]
@@ -30,11 +30,25 @@ class Settings(BaseModel):
     agent_max_runs_per_hour: int = 30
     agent_max_tokens_per_day: int = 200000
     agent_max_logical_generations_per_day: int = 100
+    agent_lease_ttl_seconds: int = 60
+    agent_lease_heartbeat_seconds: int = 15
     auth_secret: SecretStr = SecretStr("945-development-secret-change-before-production")
     auth_token_ttl_seconds: int = 604800
     auth_required: bool = False
     auth_login_max_attempts: int = 5
     auth_login_window_seconds: int = 900
+
+    @model_validator(mode="after")
+    def validate_agent_lease_intervals(self):
+        if self.agent_lease_ttl_seconds <= 0:
+            raise ValueError("Agent lease TTL must be positive.")
+        if self.agent_lease_heartbeat_seconds <= 0:
+            raise ValueError("Agent lease heartbeat must be positive.")
+        if self.agent_lease_heartbeat_seconds * 3 > self.agent_lease_ttl_seconds:
+            raise ValueError(
+                "Agent lease heartbeat must not exceed one third of TTL."
+            )
+        return self
 
 
 @lru_cache
@@ -58,6 +72,10 @@ def get_settings() -> Settings:
         agent_max_tokens_per_day=int(os.getenv("945_AGENT_MAX_TOKENS_PER_DAY", "200000")),
         agent_max_logical_generations_per_day=int(
             os.getenv("945_AGENT_MAX_LOGICAL_GENERATIONS_PER_DAY", "100")
+        ),
+        agent_lease_ttl_seconds=int(os.getenv("945_AGENT_LEASE_TTL_SECONDS", "60")),
+        agent_lease_heartbeat_seconds=int(
+            os.getenv("945_AGENT_LEASE_HEARTBEAT_SECONDS", "15")
         ),
         auth_secret=os.getenv("945_AUTH_SECRET", "945-development-secret-change-before-production"),
         auth_token_ttl_seconds=int(os.getenv("945_AUTH_TOKEN_TTL_SECONDS", "604800")),

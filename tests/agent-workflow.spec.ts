@@ -96,3 +96,168 @@ test("takes an active-plan user from the coach workspace to today's execution pa
   await page.getByRole("button", { name: "查看今日执行" }).click();
   await expect(page).toHaveURL("/today");
 });
+
+test("manually resumes an interrupted run exactly once", async ({ page }) => {
+  let status: "interrupted" | "completed" = "interrupted";
+  let resumeCalls = 0;
+  await page.route("**/api/agent/runs?*", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [{
+          agent_run_id: "run-interrupted",
+          user_id: "demo-user-945",
+          status,
+          started_at: "2026-07-11T09:00:00Z",
+          updated_at: "2026-07-11T09:00:01Z",
+          completed_at: status === "completed" ? "2026-07-11T09:00:02Z" : null,
+          duration_ms: 1000,
+          degraded: false,
+          input_tokens: 0,
+          output_tokens: 0,
+          logical_generations: 0,
+          http_attempts: 0,
+          resume_count: status === "completed" ? 1 : 0
+        }],
+        error: null
+      })
+    })
+  );
+  await page.route("**/api/agent/runs/run-interrupted/resume", async (route) => {
+    resumeCalls += 1;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    status = "completed";
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          message_id: "msg-agent-run-interrupted",
+          user_id: "demo-user-945",
+          role: "agent",
+          content: "恢复后的回复",
+          locale: "zh-CN",
+          created_at: "2026-07-11T09:00:02Z"
+        },
+        error: null
+      })
+    });
+  });
+
+  await page.goto("/agent");
+  const requestStatus = page.getByRole("status").filter({ hasText: "本次请求" });
+  const resume = page.getByRole("button", { name: "继续任务" });
+  await expect(requestStatus).toContainText("任务中断");
+  const click = resume.click();
+  await expect(page.getByRole("button", { name: "恢复中" })).toBeDisabled();
+  await click;
+  await expect(page.getByText("恢复后的回复")).toBeVisible();
+  await expect(requestStatus).toContainText("已完成");
+  expect(resumeCalls).toBe(1);
+});
+
+test("polls a running request until completion and restores only its new draft", async ({ page }) => {
+  let runReads = 0;
+  await page.route("**/api/agent/runs?*", (route) => {
+    runReads += 1;
+    const completed = runReads >= 3;
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [{
+          agent_run_id: "run-polling",
+          user_id: "demo-user-945",
+          status: completed ? "completed" : "running",
+          started_at: "2026-07-11T09:00:00Z",
+          updated_at: "2026-07-11T09:00:02Z",
+          completed_at: completed ? "2026-07-11T09:00:02Z" : null,
+          duration_ms: completed ? 2000 : 0,
+          degraded: false,
+          input_tokens: 0,
+          output_tokens: 0,
+          logical_generations: completed ? 1 : 0,
+          http_attempts: 0,
+          resume_count: 0
+        }],
+        error: null
+      })
+    });
+  });
+  await page.route("**/api/agent/messages?*", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: runReads >= 3 ? [{
+          message_id: "msg-agent-run-polling",
+          user_id: "demo-user-945",
+          role: "agent",
+          content: "轮询完成",
+          locale: "zh-CN",
+          record_draft: {
+            type: "workout_log",
+            requires_confirmation: true,
+            payload: { exercise_name: "深蹲", sets: 4, reps: 8 }
+          },
+          created_at: "2026-07-11T09:00:02Z"
+        }] : [],
+        error: null
+      })
+    })
+  );
+
+  await page.goto("/agent");
+  const requestStatus = page.getByRole("status").filter({ hasText: "本次请求" });
+  await expect(requestStatus).toContainText("执行中");
+  await expect(requestStatus).toContainText("已完成", { timeout: 5000 });
+  await expect(page.getByText("轮询完成")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+  const completedReadCount = runReads;
+  await page.waitForTimeout(2300);
+  expect(runReads).toBe(completedReadCount);
+});
+
+test("shows a resume error and moves a missing checkpoint to retry", async ({ page }) => {
+  let status: "interrupted" | "failed" = "interrupted";
+  await page.route("**/api/agent/runs?*", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [{
+          agent_run_id: "run-resume-error",
+          user_id: "demo-user-945",
+          status,
+          started_at: "2026-07-11T09:00:00Z",
+          updated_at: "2026-07-11T09:00:01Z",
+          duration_ms: 0,
+          degraded: false,
+          input_tokens: 0,
+          output_tokens: 0,
+          logical_generations: 0,
+          http_attempts: 0,
+          resume_count: 0
+        }],
+        error: null
+      })
+    })
+  );
+  await page.route("**/api/agent/runs/run-resume-error/resume", (route) => {
+    status = "failed";
+    return route.fulfill({
+      status: 409,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: null,
+        error: {
+          code: "AGENT_CHECKPOINT_MISSING",
+          message: "Agent checkpoint is missing.",
+          details: { agent_run_id: "run-resume-error" }
+        }
+      })
+    });
+  });
+
+  await page.goto("/agent");
+  await page.getByRole("button", { name: "继续任务" }).click();
+
+  await expect(page.getByText("Agent checkpoint is missing.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "重试此请求" })).toBeVisible();
+});
