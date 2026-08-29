@@ -4,23 +4,30 @@ import type { ApiResponse } from "./apiTypes";
 const API_BASE_URL = import.meta.env.VITE_945_API_BASE_URL ?? "http://127.0.0.1:8000";
 const TOKEN_KEY = "945.auth.token";
 const USER_KEY = "945.auth.user_id";
+let accessToken: string | null = null;
+let currentUserId: string | null = null;
+let refreshRequest: Promise<ApiResponse<AuthSession>> | null = null;
 
-export type AuthSession = { access_token: string; token_type: "bearer"; user: User };
+export type AuthSession = { access_token: string; session_id: string; token_type: "bearer"; user: User };
 
-export function getAccessToken() { return window.localStorage.getItem(TOKEN_KEY); }
+export function getAccessToken() { return accessToken; }
 export function getCurrentUserId(fallbackUserId: string) {
   if (import.meta.env.VITE_945_AUTH_ENABLED === "false") return fallbackUserId;
-  return window.localStorage.getItem(USER_KEY) ?? fallbackUserId;
+  return currentUserId ?? fallbackUserId;
 }
 export function saveCurrentUserId(userId: string) {
-  window.localStorage.setItem(USER_KEY, userId);
+  currentUserId = userId;
 }
 export function hasSession() { return Boolean(getAccessToken()); }
 export function saveSession(session: AuthSession) {
-  window.localStorage.setItem(TOKEN_KEY, session.access_token);
-  window.localStorage.setItem(USER_KEY, session.user.user_id);
+  accessToken = session.access_token;
+  currentUserId = session.user.user_id;
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(USER_KEY);
 }
 export function clearSession() {
+  accessToken = null;
+  currentUserId = null;
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(USER_KEY);
 }
@@ -29,6 +36,7 @@ async function authRequest<T>(path: string, init?: RequestInit): Promise<ApiResp
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
+      credentials: "include",
       headers: { "Content-Type": "application/json", ...init?.headers }
     });
     return await response.json() as ApiResponse<T>;
@@ -43,6 +51,12 @@ export const authApi = {
   },
   login(input: { email: string; password: string }) {
     return authRequest<AuthSession>("/api/auth/login", { method: "POST", body: JSON.stringify(input) });
+  },
+  refresh() {
+    if (refreshRequest) return refreshRequest;
+    refreshRequest = authRequest<AuthSession>("/api/auth/refresh", { method: "POST" })
+      .finally(() => { refreshRequest = null; });
+    return refreshRequest;
   },
   me() {
     const token = getAccessToken();

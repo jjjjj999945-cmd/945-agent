@@ -14,7 +14,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { PlanProvider, usePlanContext } from "./contexts/PlanContext";
 import { getRouteByPath, isPrototypePath, type RouteId } from "./routes";
 import type { Locale, RecordDraft } from "./types/domain";
-import { authApi, clearSession, getCurrentUserId, hasSession, saveCurrentUserId } from "./services/authSession";
+import { authApi, clearSession, getCurrentUserId, saveSession } from "./services/authSession";
 
 export function App() {
   const [locale, setLocale] = useState<Locale>("zh-CN");
@@ -22,7 +22,7 @@ export function App() {
   const [agentDraft, setAgentDraft] = useState<RecordDraft | null>(null);
   const httpMode = import.meta.env.VITE_945_API_MODE === "http" && import.meta.env.VITE_945_AUTH_ENABLED !== "false";
   const [sessionReady, setSessionReady] = useState(!httpMode);
-  const [authenticated, setAuthenticated] = useState(!httpMode || hasSession());
+  const [authenticated, setAuthenticated] = useState(!httpMode);
 
   useEffect(() => {
     const onPopState = () => setPath(window.location.pathname);
@@ -32,18 +32,18 @@ export function App() {
 
   useEffect(() => {
     if (!httpMode) return;
-    if (!hasSession()) {
-      setAuthenticated(false);
-      setSessionReady(true);
-      return;
-    }
-    authApi.me().then((result) => {
+    authApi.refresh().then((result) => {
       if (result.error) {
         clearSession();
         setAuthenticated(false);
       } else {
-        saveCurrentUserId(result.data.user_id);
+        saveSession(result.data);
+        setAuthenticated(true);
       }
+      setSessionReady(true);
+    }).catch(() => {
+      clearSession();
+      setAuthenticated(false);
       setSessionReady(true);
     });
   }, [httpMode]);
