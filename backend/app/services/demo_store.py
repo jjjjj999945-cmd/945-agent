@@ -147,6 +147,14 @@ def get_auth_device_session(user_id: str, session_id: str) -> AuthDeviceSession 
     )
 
 
+def list_auth_device_sessions(user_id: str) -> list[AuthDeviceSession]:
+    return [
+        item
+        for item in auth_device_sessions
+        if item.user_id == user_id and item.revoked_at is None
+    ]
+
+
 def rotate_auth_device_session(
     session_id: str,
     old_refresh_token_hash: str,

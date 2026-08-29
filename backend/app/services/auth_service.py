@@ -6,7 +6,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from backend.app.core.config import get_settings
-from backend.app.models.domain import AuthCredential, AuthDeviceSession, AuthSession, LoginInput, PasswordChangeInput, RegisterInput, User
+from backend.app.models.domain import AuthCredential, AuthDeviceSession, AuthDeviceSessionSummary, AuthSession, LoginInput, PasswordChangeInput, RegisterInput, User
 from backend.app.services import demo_store
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import _active_repository_store
@@ -232,7 +232,7 @@ def revoke_current_device_session(user_id: str, session_id: str) -> bool:
     return store.revoke_auth_device_session(user_id, session_id) if store else demo_store.revoke_auth_device_session(user_id, session_id)
 
 
-def get_session(token: str) -> User | None:
+def _validated_token_payload(token: str) -> dict[str, object] | None:
     try:
         encoded, signature = token.split(".", 1)
         expected = hmac.new(get_settings().auth_secret.get_secret_value().encode(), encoded.encode(), hashlib.sha256).digest()
@@ -241,13 +241,44 @@ def get_session(token: str) -> User | None:
         payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
         if payload["exp"] < int(datetime.now(UTC).timestamp()):
             return None
+        if not isinstance(payload.get("sub"), str) or not isinstance(payload.get("sid"), str):
+            return None
         credential = _find_credential_by_user_id(payload["sub"])
         if credential is None or payload.get("ver") != credential.session_version:
             return None
         device_session = _get_device_session(payload["sub"], payload["sid"])
         if device_session is None or _is_expired(device_session.expires_at):
             return None
-        store = _active_repository_store()
-        return store.get_user(payload["sub"]) if store else _users.get(payload["sub"])
+        return payload
     except (KeyError, ValueError, json.JSONDecodeError):
         return None
+
+
+def get_authenticated_session(token: str) -> AuthSession | None:
+    payload = _validated_token_payload(token)
+    if payload is None:
+        return None
+    store = _active_repository_store()
+    user = store.get_user(payload["sub"]) if store else _users.get(payload["sub"])
+    credential = _find_credential_by_user_id(payload["sub"])
+    if user is None or credential is None:
+        return None
+    return AuthSession(
+        access_token=token,
+        session_id=payload["sid"],
+        user=user,
+    )
+
+
+def get_session(token: str) -> User | None:
+    session = get_authenticated_session(token)
+    return session.user if session else None
+
+
+def list_device_sessions(user_id: str, current_session_id: str) -> list[AuthDeviceSessionSummary]:
+    store = _active_repository_store()
+    sessions = store.list_auth_device_sessions(user_id) if store else demo_store.list_auth_device_sessions(user_id)
+    return [
+        AuthDeviceSessionSummary.from_session(item, current_session_id=current_session_id)
+        for item in sessions
+    ]
