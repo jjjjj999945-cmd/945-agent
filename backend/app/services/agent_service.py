@@ -198,13 +198,17 @@ def _complete_agent_run(
         graph_result,
         completed_at,
     )
-    save_agent_message(user_message)
-    save_agent_message(agent_message)
-    mark_agent_run_messages_persisted(
-        completed.user_id,
-        completed.agent_run_id,
-        completed.lease_version,
-    )
+    try:
+        save_agent_message(user_message)
+        save_agent_message(agent_message)
+        mark_agent_run_messages_persisted(
+            completed.user_id,
+            completed.agent_run_id,
+            completed.lease_version,
+        )
+    except Exception:
+        # The completed run remains authoritative; message reads repair this turn.
+        pass
     return agent_message
 
 

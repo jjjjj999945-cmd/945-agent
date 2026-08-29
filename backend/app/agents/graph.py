@@ -381,6 +381,7 @@ async def resume_agent_graph(
     graph = get_agent_graph()
     configurable = {
         "thread_id": request_id,
+        "checkpoint_ns": "",
         "checkpoint_id": checkpoint_id,
         "provider_router": provider_router,
         **lease_config(lease_token),
@@ -389,6 +390,10 @@ async def resume_agent_graph(
     values = dict(snapshot.values or {})
     saved_result = values.get("result")
     if saved_result is not None:
+        await graph.aupdate_state(
+            {"configurable": configurable},
+            {"result": saved_result},
+        )
         return AgentGraphResult.model_validate(saved_result)
     if not values or not snapshot.next:
         raise AgentCheckpointMissingError(request_id)

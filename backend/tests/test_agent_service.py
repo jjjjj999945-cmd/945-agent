@@ -449,6 +449,48 @@ def test_message_repair_reads_the_final_checkpoint_without_running_the_graph(
     assert repaired.messages_persisted is True
 
 
+def test_completed_run_repairs_messages_after_persistence_failure(monkeypatch):
+    input_data = AgentChatInput(
+        user_id="demo-user-945",
+        locale="zh-CN",
+        message="如何热身？",
+    )
+    real_save_agent_message = agent_service.save_agent_message
+
+    def fail_message_persistence(message):
+        raise RuntimeError("simulated message persistence failure")
+
+    monkeypatch.setattr(
+        agent_service,
+        "save_agent_message",
+        fail_message_persistence,
+    )
+
+    reply = asyncio.run(agent_service.create_agent_reply(input_data))
+
+    assert reply is not None
+    runs = demo_store.list_agent_runs(input_data.user_id)
+    assert runs is not None
+    assert runs[0].status == "completed"
+    assert runs[0].messages_persisted is False
+    assert demo_store.list_agent_messages(input_data.user_id) == []
+
+    monkeypatch.setattr(
+        agent_service,
+        "save_agent_message",
+        real_save_agent_message,
+    )
+    messages = agent_service.list_user_agent_messages(input_data.user_id)
+
+    assert messages is not None
+    assert [message.content for message in messages] == [
+        "如何热身？",
+        reply.content,
+    ]
+    repaired = demo_store.list_agent_runs(input_data.user_id)[0]
+    assert repaired.messages_persisted is True
+
+
 @pytest.mark.parametrize("status", ["completed", "failed"])
 def test_agent_service_rejects_resuming_a_terminal_run_without_messages(status):
     now = timestamp()

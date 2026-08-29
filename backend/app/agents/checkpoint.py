@@ -44,8 +44,30 @@ class LeaseFencedCheckpointer(BaseCheckpointSaver):
             raise AgentLeaseLostError(token.agent_run_id)
         return token
 
+    @staticmethod
+    def _without_previous_lease_writes(
+        config: RunnableConfig,
+        saved: CheckpointTuple | None,
+    ) -> CheckpointTuple | None:
+        token = lease_token_from_config(config)
+        if saved is None or token is None:
+            return saved
+        checkpoint_version = int((saved.metadata or {}).get("lease_version", 0))
+        if checkpoint_version == token.version:
+            return saved
+        return CheckpointTuple(
+            saved.config,
+            saved.checkpoint,
+            saved.metadata,
+            saved.parent_config,
+            [],
+        )
+
     def get_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
-        return self.delegate.get_tuple(config)
+        return self._without_previous_lease_writes(
+            config,
+            self.delegate.get_tuple(config),
+        )
 
     def list(
         self,
@@ -99,7 +121,10 @@ class LeaseFencedCheckpointer(BaseCheckpointSaver):
         self,
         config: RunnableConfig,
     ) -> CheckpointTuple | None:
-        return await self.delegate.aget_tuple(config)
+        return self._without_previous_lease_writes(
+            config,
+            await self.delegate.aget_tuple(config),
+        )
 
     async def alist(
         self,

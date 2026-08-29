@@ -144,12 +144,12 @@ POST /api/agent/runs/{agent_run_id}/retry
 - demo 用户固定为 `demo-user-945`。
 - 结构化事实保存在 `backend/app/services/demo_store.py` 的进程内 store 中。
 - 服务重启后，训练记录、饮食记录、身体数据、打卡、设置修改和 Agent 消息会重置。
-- `backend/app/repositories/mongo.py` 已提供 MongoDB repository 边界，用于后续把 demo store 的读写迁移到 MongoDB。
+- `backend/app/repositories/mongo.py` 提供 MongoDB repository 边界；设置 `945_STORAGE_BACKEND=mongo` 后，业务数据和 Agent run 会持久化到 MongoDB。
 - `backend/app/services/repository_store.py` 已把结构化集合映射到 repository-backed store。
 - `backend/app/agents/tool_registry.py` 提供 Agent 白名单工具注册、严格参数校验和显式分派；关键写入仍只生成草稿。
 - `backend/app/rag/retriever.py` 提供本地关键词 RAG 检索，不保存主业务事实。
-- `backend/app/agents/graph.py` 使用 LangGraph `StateGraph` 编排安全检查、上下文构建、RAG 检索、Provider 调用、单轮工具执行和草稿校验，并使用 `MemorySaver` 保存进程内 checkpoint。
-- 当前 checkpoint 仅支持同一后端进程存活期间的回放和调试；跨进程重启恢复需要后续接入 MongoDB 或 Postgres saver，当前不将其视为已完成的生产级恢复能力。
+- `backend/app/agents/graph.py` 使用 LangGraph `StateGraph` 编排安全检查、上下文构建、RAG 检索、Provider 调用、单轮工具执行和草稿校验；demo 模式使用 `MemorySaver`，Mongo 模式使用 `MongoDBSaver`。
+- 两种 checkpointer 都经过 Agent run 租约校验。Mongo 模式支持跨 Worker 的持久化 checkpoint 和用户手动恢复；旧租约不能写入新执行采用的 checkpoint。
 - `backend/app/llm/factory.py` 提供 Provider Router：开发环境 OpenAI 失败会降级到 deterministic，生产环境会返回稳定错误。
 - `backend/app/llm/openai_provider.py` 已接入 OpenAI Responses API，显式 `store=False`、`parallel_tool_calls=False`，并关闭 SDK 内部重试。
 - `backend/app/services/memory_service.py` 可以从结构化记录生成每周长期记忆摘要。
@@ -241,15 +241,17 @@ $env:LANGSMITH_PROJECT="945"
 $env:945_STORAGE_BACKEND="demo"
 ```
 
-后续切换 MongoDB repository 时使用这些环境变量：
+切换到 MongoDB repository 模式时使用这些环境变量：
 
 ```powershell
 $env:945_STORAGE_BACKEND="mongo"
 $env:945_MONGODB_URI="mongodb://127.0.0.1:27017"
 $env:945_MONGODB_DATABASE="945"
+$env:945_AGENT_LEASE_TTL_SECONDS="60"
+$env:945_AGENT_LEASE_HEARTBEAT_SECONDS="15"
 ```
 
-当前已完成 MongoDB 文档转换、按集合 upsert、按条件查询、Pydantic model 还原、demo seed 和 repository-backed store 委托测试。默认 demo 模式仍不需要 MongoDB 进程。
+`945_AGENT_LEASE_TTL_SECONDS` 必须为正数；heartbeat 必须为正数且不能超过 TTL 的三分之一。Mongo 使用数据库服务端时间判断到期和续租，避免多个后端 Worker 的本机时钟差异。默认 demo 模式仍不需要 MongoDB 进程，但使用相同的租约状态机。
 
 本机便携版已部署在 `D:\MongoDB`。启动命令：
 
@@ -268,9 +270,9 @@ agent_checkpoints
 agent_checkpoint_writes
 ```
 
-这两个集合保存 LangGraph 的节点状态和中间写入，用于服务重启后的运行状态读取、排障与后续的恢复能力；不会保存模型推理过程或对用户展示的思维链。训练、饮食和计划变更仍然只能通过用户确认后的结构化 API 写入。
+这两个集合保存 LangGraph 的节点状态和中间写入，用于服务重启后的运行状态读取、排障与手动恢复；不会保存模型推理过程或对用户展示的思维链。训练、饮食和计划变更仍然只能通过用户确认后的结构化 API 写入。
 
-当前 `/api/agent/chat` 每次请求仍会生成新的 Agent run 和新的 `thread_id`，因此它已具备 durable checkpoint 基础，但尚未开放“暂停后从同一 run 继续”的客户端恢复操作。该能力需要后续产品流程和权限边界一起设计，不能仅凭保存 checkpoint 自动启用。
+`/api/agent/chat` 每次请求会生成新的 Agent run 和同名 `thread_id`。执行租约过期时，读取 run 或用户请求恢复只会先把任务标记为 `interrupted`，不会自动调用模型；用户显式调用 `POST /api/agent/runs/{agent_run_id}/resume` 后，服务才会竞争新租约，并从同一 `agent_run_id/thread_id` 的固定安全 checkpoint 恢复。只有当前租约能续租、更新 checkpoint、写终态和发布消息。
 
 本机验证 Mongo checkpoint：
 
@@ -447,7 +449,7 @@ npm run qa:app
 
 ### Lv4 统一验收
 
-默认完整验收为零模型费用，会串行运行后端测试、50 条确定性 Agent Eval、前端构建、真实 HTTP QA 和 Mongo QA：
+默认完整验收为零模型费用，会串行运行后端测试、50 条确定性 Agent Eval、前端构建、真实 HTTP QA 和 Mongo QA；该命令不会调用 DeepSeek：
 
 ```powershell
 npm run qa:lv4

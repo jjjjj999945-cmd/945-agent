@@ -110,7 +110,16 @@ def test_agent_graph_resumes_the_same_thread_from_the_failed_node(monkeypatch):
     assert len(router.requests) == 2
 
 
-def test_agent_graph_returns_completed_snapshot_without_provider_call():
+def test_agent_graph_returns_completed_snapshot_without_provider_call(monkeypatch):
+    monkeypatch.setattr(
+        "backend.app.agents.checkpoint.agent_run_lease_is_valid",
+        lambda token: True,
+    )
+    monkeypatch.setattr(
+        agent_graph_module,
+        "agent_run_lease_is_valid",
+        lambda token: True,
+    )
     first = StubRouter(
         [AgentModelResponse(intent="ask_question", reply="已经完成", provider="stub")]
     )
@@ -121,12 +130,13 @@ def test_agent_graph_returns_completed_snapshot_without_provider_call():
             message="如何热身？",
             provider_router=first,
             request_id="graph-resume-completed",
+            lease_token=_lease_token("graph-resume-completed", version=1),
         )
     )
     never_called = StubRouter([RuntimeError("provider must not be called")])
     checkpoint_id = agent_graph_module.get_safe_resume_checkpoint_id(
         "graph-resume-completed",
-        before_version=0,
+        before_version=1,
     )
     assert checkpoint_id is not None
 
@@ -134,13 +144,19 @@ def test_agent_graph_returns_completed_snapshot_without_provider_call():
         agent_graph_module.resume_agent_graph(
             "graph-resume-completed",
             checkpoint_id=checkpoint_id,
-            lease_token=_lease_token("graph-resume-completed"),
+            lease_token=_lease_token("graph-resume-completed", version=2),
             provider_router=never_called,
         )
     )
 
     assert result.reply == "已经完成"
     assert never_called.requests == []
+    repaired = agent_graph_module.load_completed_agent_graph_result(
+        "graph-resume-completed",
+        lease_version=2,
+    )
+    assert repaired is not None
+    assert repaired.reply == "已经完成"
 
 
 def test_agent_graph_rejects_a_missing_checkpoint():
@@ -195,6 +211,58 @@ def test_fenced_checkpointer_rejects_a_stale_lease(monkeypatch):
 
     with pytest.raises(AgentLeaseLostError):
         saver.put(config, checkpoint, {}, {})
+
+
+def test_fenced_checkpointer_drops_pending_writes_from_a_previous_lease(monkeypatch):
+    from backend.app.agents.checkpoint import LeaseFencedCheckpointer
+    from backend.app.services.agent_run_lease import lease_config
+
+    monkeypatch.setattr(
+        "backend.app.agents.checkpoint.agent_run_lease_is_valid",
+        lambda token: True,
+    )
+    saver = LeaseFencedCheckpointer(MemorySaver())
+    first_token = _lease_token("run-pending-writes", version=1)
+    first_config = {
+        "configurable": {
+            "thread_id": first_token.agent_run_id,
+            "checkpoint_ns": "",
+            **lease_config(first_token),
+        }
+    }
+    checkpoint = {
+        "v": 1,
+        "id": "checkpoint-pending-v1",
+        "ts": "2026-08-21T12:00:00+00:00",
+        "channel_values": {},
+        "channel_versions": {},
+        "versions_seen": {},
+        "pending_sends": [],
+    }
+    saved_config = saver.put(first_config, checkpoint, {}, {})
+    write_config = {
+        "configurable": {
+            **saved_config["configurable"],
+            **lease_config(first_token),
+        }
+    }
+    saver.put_writes(
+        write_config,
+        [("result", {"reply": "旧租约结果"})],
+        "task-old-owner",
+    )
+    second_token = _lease_token("run-pending-writes", version=2)
+    resume_config = {
+        "configurable": {
+            **saved_config["configurable"],
+            **lease_config(second_token),
+        }
+    }
+
+    restored = saver.get_tuple(resume_config)
+
+    assert restored is not None
+    assert restored.pending_writes == []
 
 
 def test_fenced_checkpoint_metadata_selects_only_the_matching_lease_result(
@@ -286,6 +354,10 @@ def test_resume_agent_graph_reads_the_pinned_checkpoint(monkeypatch):
             captured.update(config)
             return SimpleNamespace(values={"result": result}, next=())
 
+        async def aupdate_state(self, config, values):
+            captured["update_config"] = config
+            captured["update_values"] = values
+
     monkeypatch.setattr(agent_graph_module, "get_agent_graph", lambda: StubGraph())
     token = AgentLeaseToken(
         user_id="demo-user-945",
@@ -305,6 +377,11 @@ def test_resume_agent_graph_reads_the_pinned_checkpoint(monkeypatch):
 
     assert restored.reply == "固定检查点结果"
     assert captured["configurable"]["checkpoint_id"] == "checkpoint-v1-safe"
+    assert (
+        captured["update_config"]["configurable"]["checkpoint_id"]
+        == "checkpoint-v1-safe"
+    )
+    assert captured["update_values"] == {"result": result}
 
 
 def test_agent_graph_configures_langsmith_before_compiling(monkeypatch):
