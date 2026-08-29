@@ -288,6 +288,7 @@ class PasswordChangeInput(ApiModel):
 
 class AuthSession(ApiModel):
     access_token: str
+    session_id: str
     token_type: Literal["bearer"] = "bearer"
     user: User
 

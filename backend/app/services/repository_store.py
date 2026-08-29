@@ -135,6 +135,13 @@ class RepositoryBackedStore:
             {"refresh_token_hash": refresh_token_hash, "revoked_at": None},
         )
 
+    def get_auth_device_session(self, user_id: str, session_id: str) -> AuthDeviceSession | None:
+        return self.repository.get_model(
+            "auth_device_sessions",
+            AuthDeviceSession,
+            {"user_id": user_id, "session_id": session_id, "revoked_at": None},
+        )
+
     def list_auth_device_sessions(self, user_id: str) -> list[AuthDeviceSession]:
         return self.repository.list_models(
             "auth_device_sessions",
