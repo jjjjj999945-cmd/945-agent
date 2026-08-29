@@ -48,6 +48,16 @@ export function App() {
     });
   }, [httpMode]);
 
+  useEffect(() => {
+    if (!httpMode) return;
+    const onAuthExpired = () => {
+      setAuthenticated(false);
+      setSessionReady(true);
+    };
+    window.addEventListener("945:auth-expired", onAuthExpired);
+    return () => window.removeEventListener("945:auth-expired", onAuthExpired);
+  }, [httpMode]);
+
   function navigate(nextPath: string) {
     window.history.pushState({}, "", nextPath);
     setPath(nextPath);
