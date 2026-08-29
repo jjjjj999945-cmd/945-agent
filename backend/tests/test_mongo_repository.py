@@ -4,8 +4,9 @@ from datetime import UTC, datetime, timedelta
 from pymongo.errors import DuplicateKeyError
 
 from backend.app.core.config import get_settings
-from backend.app.models.domain import AgentRun, WorkoutLog
-from backend.app.repositories.mongo import MongoRepository, mongo_document_to_model, model_to_mongo_document
+from backend.app.models.domain import AgentRun, AuthDeviceSession, WorkoutLog
+from backend.app.repositories.mongo import MongoRepository, create_mongo_repository, mongo_document_to_model, model_to_mongo_document
+from backend.app.services.repository_store import RepositoryBackedStore
 
 
 class FakeUpdateResult:
@@ -97,6 +98,15 @@ def _apply_update(document, update_doc, now):
 class FakeCollection:
     def __init__(self):
         self.documents = []
+        self.indexes = []
+
+    def create_index(self, keys, **kwargs):
+        self.indexes.append((keys, kwargs))
+
+    def insert_one(self, document):
+        if any(existing.get("_id") == document.get("_id") for existing in self.documents):
+            raise DuplicateKeyError("duplicate _id")
+        self.documents.append(deepcopy(document))
 
     def update_one(self, filter_doc, update_doc, upsert=False):
         now = datetime.now(UTC)
@@ -273,3 +283,57 @@ def test_repository_find_one_and_update_returns_the_updated_model():
     assert updated is not None
     assert updated.status == "running"
     assert updated.lease_version == 1
+
+
+def test_device_session_rotation_rejects_the_old_refresh_hash():
+    store = RepositoryBackedStore(MongoRepository(FakeDatabase()))
+    session = AuthDeviceSession(
+        session_id="session-1",
+        user_id="user-1",
+        refresh_token_hash="old-hash",
+        device_name="Chrome on Windows",
+        created_at="2026-08-29T00:00:00Z",
+        last_used_at="2026-08-29T00:00:00Z",
+        expires_at="2026-09-28T00:00:00Z",
+    )
+
+    assert store.create_auth_device_session(session) == session
+    assert store.rotate_auth_device_session("session-1", "old-hash", "new-hash") is not None
+    assert store.get_auth_device_session_by_hash("old-hash") is None
+    assert store.get_auth_device_session_by_hash("new-hash").session_id == "session-1"
+
+
+def test_device_session_list_and_revoke_are_scoped_to_the_user():
+    store = RepositoryBackedStore(MongoRepository(FakeDatabase()))
+    first = AuthDeviceSession(
+        session_id="session-1", user_id="user-1", refresh_token_hash="hash-1",
+        device_name="Chrome on Windows", created_at="2026-08-29T00:00:00Z",
+        last_used_at="2026-08-29T00:00:00Z", expires_at="2026-09-28T00:00:00Z",
+    )
+    second = first.model_copy(update={"session_id": "session-2", "user_id": "user-2", "refresh_token_hash": "hash-2"})
+    store.create_auth_device_session(first)
+    store.create_auth_device_session(second)
+
+    assert [item.session_id for item in store.list_auth_device_sessions("user-1")] == ["session-1"]
+    assert store.revoke_auth_device_session("user-2", "session-1") is False
+    assert store.revoke_auth_device_session("user-1", "session-1") is True
+    assert store.list_auth_device_sessions("user-1") == []
+    assert store.revoke_all_auth_device_sessions("user-2") == 1
+
+
+def test_mongo_repository_creates_device_session_query_indexes(monkeypatch):
+    database = FakeDatabase()
+
+    class FakeClient:
+        def __getitem__(self, _database_name):
+            return database
+
+    import pymongo
+
+    monkeypatch.setattr(pymongo, "MongoClient", lambda *_args, **_kwargs: FakeClient())
+
+    create_mongo_repository()
+
+    indexes = database["auth_device_sessions"].indexes
+    assert (("refresh_token_hash", 1),) in [keys for keys, _kwargs in indexes]
+    assert (("user_id", 1), ("revoked_at", 1)) in [keys for keys, _kwargs in indexes]

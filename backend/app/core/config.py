@@ -34,6 +34,8 @@ class Settings(BaseModel):
     agent_lease_heartbeat_seconds: int = 15
     auth_secret: SecretStr = SecretStr("945-development-secret-change-before-production")
     auth_token_ttl_seconds: int = 604800
+    auth_access_token_ttl_seconds: int = 900
+    auth_refresh_token_ttl_seconds: int = 2592000
     auth_required: bool = False
     auth_login_max_attempts: int = 5
     auth_login_window_seconds: int = 900
@@ -79,6 +81,8 @@ def get_settings() -> Settings:
         ),
         auth_secret=os.getenv("945_AUTH_SECRET", "945-development-secret-change-before-production"),
         auth_token_ttl_seconds=int(os.getenv("945_AUTH_TOKEN_TTL_SECONDS", "604800")),
+        auth_access_token_ttl_seconds=int(os.getenv("945_AUTH_ACCESS_TOKEN_TTL_SECONDS", "900")),
+        auth_refresh_token_ttl_seconds=int(os.getenv("945_AUTH_REFRESH_TOKEN_TTL_SECONDS", "2592000")),
         auth_required=os.getenv("945_AUTH_REQUIRED", "true" if os.getenv("945_APP_ENV") == "production" else "false").lower() == "true",
         auth_login_max_attempts=int(os.getenv("945_AUTH_LOGIN_MAX_ATTEMPTS", "5")),
         auth_login_window_seconds=int(os.getenv("945_AUTH_LOGIN_WINDOW_SECONDS", "900")),

@@ -234,6 +234,42 @@ class AuthCredential(ApiModel):
     session_version: int = 1
 
 
+class AuthDeviceSession(ApiModel):
+    session_id: str
+    user_id: str
+    refresh_token_hash: str
+    device_name: str
+    created_at: str
+    last_used_at: str
+    expires_at: str
+    revoked_at: str | None = None
+
+
+class AuthDeviceSessionSummary(ApiModel):
+    session_id: str
+    device_name: str
+    created_at: str
+    last_used_at: str
+    expires_at: str
+    current: bool
+
+    @classmethod
+    def from_session(
+        cls,
+        session: AuthDeviceSession,
+        *,
+        current_session_id: str,
+    ) -> "AuthDeviceSessionSummary":
+        return cls(
+            session_id=session.session_id,
+            device_name=session.device_name,
+            created_at=session.created_at,
+            last_used_at=session.last_used_at,
+            expires_at=session.expires_at,
+            current=session.session_id == current_session_id,
+        )
+
+
 class RegisterInput(ApiModel):
     display_name: str
     email: str

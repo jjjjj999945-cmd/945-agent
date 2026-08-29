@@ -6,6 +6,7 @@ from backend.app.data.demo_data import DEMO_ADVICE, DEMO_PLAN, DEMO_USER, DEMO_U
 from backend.app.models.domain import (
     AdvicePageData,
     AuthCredential,
+    AuthDeviceSession,
     AdviceStatus,
     AgentAdvice,
     AgentMessage,
@@ -48,6 +49,7 @@ COLLECTION_IDS = {
     "agent_runs": "agent_run_id",
     "user_memory_summaries": "summary_id",
     "auth_credentials": "email",
+    "auth_device_sessions": "session_id",
 }
 
 
@@ -117,6 +119,59 @@ class RepositoryBackedStore:
 
     def save_credential(self, credential: AuthCredential) -> None:
         self.repository.upsert_model("auth_credentials", credential, id_field=COLLECTION_IDS["auth_credentials"])
+
+    def create_auth_device_session(self, session: AuthDeviceSession) -> AuthDeviceSession | None:
+        created = self.repository.insert_model(
+            "auth_device_sessions",
+            session,
+            id_field=COLLECTION_IDS["auth_device_sessions"],
+        )
+        return session if created else None
+
+    def get_auth_device_session_by_hash(self, refresh_token_hash: str) -> AuthDeviceSession | None:
+        return self.repository.get_model(
+            "auth_device_sessions",
+            AuthDeviceSession,
+            {"refresh_token_hash": refresh_token_hash, "revoked_at": None},
+        )
+
+    def list_auth_device_sessions(self, user_id: str) -> list[AuthDeviceSession]:
+        return self.repository.list_models(
+            "auth_device_sessions",
+            AuthDeviceSession,
+            {"user_id": user_id, "revoked_at": None},
+        )
+
+    def rotate_auth_device_session(
+        self,
+        session_id: str,
+        old_refresh_token_hash: str,
+        new_refresh_token_hash: str,
+    ) -> AuthDeviceSession | None:
+        return self.repository.find_one_and_update_model(
+            "auth_device_sessions",
+            AuthDeviceSession,
+            {
+                "session_id": session_id,
+                "refresh_token_hash": old_refresh_token_hash,
+                "revoked_at": None,
+            },
+            {"$set": {"refresh_token_hash": new_refresh_token_hash, "last_used_at": timestamp()}},
+        )
+
+    def revoke_auth_device_session(self, user_id: str, session_id: str) -> bool:
+        return self.repository.update_one(
+            "auth_device_sessions",
+            {"user_id": user_id, "session_id": session_id, "revoked_at": None},
+            {"$set": {"revoked_at": timestamp()}},
+        )
+
+    def revoke_all_auth_device_sessions(self, user_id: str) -> int:
+        active_sessions = self.list_auth_device_sessions(user_id)
+        return sum(
+            self.revoke_auth_device_session(user_id, session.session_id)
+            for session in active_sessions
+        )
 
     def get_profile(self, user_id: str) -> UserProfile | None:
         return self.repository.get_model("user_profiles", UserProfile, {"user_id": user_id})
