@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { PageLoadState } from "../components/business/PageLoadState";
+import { ConfirmDialog } from "../components/business/ConfirmDialog";
 import { DEMO_USER_ID } from "../data/demoData";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
 import { usePlanContext } from "../contexts/PlanContext";
-import { authApi, hasSession } from "../services/authSession";
+import { authApi, clearSession, hasSession, type DeviceSession } from "../services/authSession";
 import type { Goal, Locale, Plan, SettingsData, UnitSystem, UserProfile } from "../types/domain";
 
 export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLocaleChange: (locale: Locale) => void }) {
@@ -20,10 +21,18 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [securityNotice, setSecurityNotice] = useState("");
+  const [deviceSessions, setDeviceSessions] = useState<DeviceSession[]>([]);
+  const [showLogoutAllDialog, setShowLogoutAllDialog] = useState(false);
 
   useEffect(() => {
     void loadSettings();
+    if (hasSession()) void loadDeviceSessions();
   }, []);
+
+  async function loadDeviceSessions() {
+    const response = await authApi.sessions();
+    if (!response.error) setDeviceSessions(response.data);
+  }
 
   async function loadSettings() {
     const response = await api.getSettings(DEMO_USER_ID);
@@ -141,7 +150,8 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
     }
     setCurrentPassword("");
     setNewPassword("");
-    setSecurityNotice(isChinese ? "密码已更新。" : "Password updated.");
+    clearSession();
+    window.dispatchEvent(new Event("945:auth-expired"));
   }
 
   if (!data || !profileDraft) return <PageLoadState message={notice || t("status.loading")} />;
@@ -229,6 +239,18 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
           {securityNotice ? <p className="form-error">{securityNotice}</p> : null}
           <small>{isChinese ? "忘记密码需要验证邮箱服务，当前版本暂未开放。" : "Forgot-password requires a verified email service and is not available yet."}</small>
         </article> : null}
+        {hasSession() ? <article className="business-panel compact account-security-panel">
+          <div className="section-heading"><h2>{isChinese ? "已登录设备" : "Signed-in devices"}</h2><strong>{deviceSessions.length}</strong></div>
+          {deviceSessions.map((session) => <div className="settings-boundary-copy" key={session.session_id}>
+            <strong>{session.current ? (isChinese ? "当前设备" : "Current device") : session.device_name}</strong>
+            <span>{isChinese ? "最近使用" : "Last used"}：{new Date(session.last_used_at).toLocaleString()}</span>
+            {!session.current ? <button onClick={() => void authApi.revokeSession(session.session_id).then((response) => {
+              if (response.error) setSecurityNotice(response.error.message);
+              else { setSecurityNotice(isChinese ? "设备已退出。" : "Device signed out."); void loadDeviceSessions(); }
+            })} type="button">{isChinese ? "退出此设备" : "Sign out device"}</button> : null}
+          </div>)}
+          <button className="ghost" onClick={() => setShowLogoutAllDialog(true)} type="button">{isChinese ? "退出所有设备" : "Sign out all devices"}</button>
+        </article> : null}
         <article className="business-panel compact">
           <div className="section-heading"><h2>{isChinese ? "偏好设置" : "Preferences"}</h2><strong>{isChinese ? "已可用" : "Available"}</strong></div>
           <label>
@@ -271,6 +293,14 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
         </article>
         </div>
       </section>
+      <ConfirmDialog
+        cancelLabel={isChinese ? "取消" : "Cancel"}
+        confirmLabel={isChinese ? "退出所有设备" : "Sign out all devices"}
+        onCancel={() => setShowLogoutAllDialog(false)}
+        onConfirm={() => void authApi.logoutAll().then(() => { clearSession(); window.dispatchEvent(new Event("945:auth-expired")); })}
+        open={showLogoutAllDialog}
+        title={isChinese ? "退出所有设备" : "Sign out all devices"}
+      >{isChinese ? "这会让所有设备重新登录。" : "Every device will need to sign in again."}</ConfirmDialog>
     </div>
   );
 }

@@ -9,6 +9,14 @@ let currentUserId: string | null = null;
 let refreshRequest: Promise<ApiResponse<AuthSession>> | null = null;
 
 export type AuthSession = { access_token: string; session_id: string; token_type: "bearer"; user: User };
+export type DeviceSession = {
+  session_id: string;
+  device_name: string;
+  created_at: string;
+  last_used_at: string;
+  expires_at: string;
+  current: boolean;
+};
 
 export function getAccessToken() { return accessToken; }
 export function getCurrentUserId(fallbackUserId: string) {
@@ -73,6 +81,26 @@ export const authApi = {
   logout() {
     const token = getAccessToken();
     return authRequest<{ logged_out: true }>("/api/auth/logout", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+  },
+  sessions() {
+    const token = getAccessToken();
+    return authRequest<DeviceSession[]>("/api/auth/sessions", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+  },
+  revokeSession(sessionId: string) {
+    const token = getAccessToken();
+    return authRequest<{ revoked: true }>(`/api/auth/sessions/${sessionId}`, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+  },
+  logoutAll() {
+    const token = getAccessToken();
+    return authRequest<{ logged_out: true }>("/api/auth/logout-all", {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
