@@ -103,4 +103,8 @@ def create_mongo_repository() -> MongoRepository:
 
     settings = get_settings()
     client = MongoClient(settings.mongodb_uri)
-    return MongoRepository(client[settings.mongodb_database])
+    database = client[settings.mongodb_database]
+    device_sessions = database["auth_device_sessions"]
+    device_sessions.create_index((("refresh_token_hash", 1),))
+    device_sessions.create_index((("user_id", 1), ("revoked_at", 1)))
+    return MongoRepository(database)

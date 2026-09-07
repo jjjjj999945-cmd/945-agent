@@ -25,7 +25,7 @@ import type {
   WorkoutLog
 } from "../types/domain";
 import { fail, type ApiResponse } from "./apiTypes";
-import { getAccessToken, getCurrentUserId } from "./authSession";
+import { authApi, clearSession, getAccessToken, getCurrentUserId } from "./authSession";
 
 type DailyCheckinInput = Omit<DailyCheckin, "checkin_id" | "created_at" | "updated_at">;
 type WorkoutLogInput = Omit<WorkoutLog, "workout_log_id" | "created_at" | "updated_at">;
@@ -58,19 +58,32 @@ function hasValidationDetail(value: unknown): value is { detail: unknown[] } {
   );
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse<T>> {
+function expireSession() {
+  clearSession();
+  window.dispatchEvent(new Event("945:auth-expired"));
+}
+
+async function request<T>(path: string, init?: RequestInit, refreshed = false): Promise<ApiResponse<T>> {
   const currentUserId = AUTH_ENABLED ? getCurrentUserId(DEMO_USER_ID) : DEMO_USER_ID;
   const requestPath = replaceDemoUserId(path, currentUserId);
   const requestInit = replaceDemoUserIdInBody(init, currentUserId);
   try {
     const response = await fetch(`${API_BASE_URL}${requestPath}`, {
       ...requestInit,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(AUTH_ENABLED && getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
         ...requestInit?.headers
       }
     });
+    const isAuthRequest = requestPath.startsWith("/api/auth/");
+    if (AUTH_ENABLED && response.status === 401 && !isAuthRequest && !refreshed) {
+      const refreshedSession = await authApi.refresh();
+      if (!refreshedSession.error) return request<T>(path, init, true);
+      expireSession();
+    }
+    if (AUTH_ENABLED && response.status === 401 && !isAuthRequest) expireSession();
     let body: unknown;
     try {
       body = await response.json();

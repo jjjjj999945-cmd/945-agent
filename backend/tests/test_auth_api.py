@@ -51,6 +51,47 @@ def test_logout_revokes_current_token():
     assert client.get("/api/auth/me", headers=headers).status_code == 401
 
 
+def test_login_sets_http_only_refresh_cookie_and_refresh_rotates_it():
+    email = "refresh-cookie@example.com"
+    assert client.post(
+        "/api/auth/register",
+        json={"display_name": "Refresh Cookie", "email": email, "password": "secure-pass-945"},
+    ).status_code == 200
+
+    login_response = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": "secure-pass-945"},
+    )
+
+    assert login_response.status_code == 200
+    assert "httponly" in login_response.headers["set-cookie"].lower()
+    assert "samesite=lax" in login_response.headers["set-cookie"].lower()
+    assert "path=/api/auth" in login_response.headers["set-cookie"].lower()
+    first_refresh = login_response.cookies.get("945_refresh_token")
+    refreshed = client.post("/api/auth/refresh")
+
+    assert refreshed.status_code == 200
+    assert refreshed.cookies.get("945_refresh_token") != first_refresh
+
+
+def test_foreign_device_revoke_returns_not_found():
+    alice = client.post(
+        "/api/auth/register",
+        json={"display_name": "Alice Devices", "email": "alice-devices@example.com", "password": "secure-pass-945"},
+    ).json()["data"]
+    bob = client.post(
+        "/api/auth/register",
+        json={"display_name": "Bob Devices", "email": "bob-devices@example.com", "password": "secure-pass-945"},
+    ).json()["data"]
+
+    response = client.delete(
+        f"/api/auth/sessions/{bob['session_id']}",
+        headers={"Authorization": f"Bearer {alice['access_token']}"},
+    )
+
+    assert response.status_code == 404
+
+
 def test_login_rate_limit_and_production_auth_requirement(monkeypatch):
     email = "rate-limit@example.com"
     for _ in range(5):

@@ -405,15 +405,19 @@ python -m uvicorn backend.app.main:app --reload
 ## 认证与多用户边界
 
 - `POST /api/auth/register`：创建邮箱密码账号；密码使用 PBKDF2-HMAC-SHA256 哈希保存，绝不通过 API 返回。
-- `POST /api/auth/login`、`GET /api/auth/me`：获取与恢复 Bearer 会话。
-- `POST /api/auth/change-password`：已登录用户校验当前密码后修改密码；新密码至少 8 位。
-- `POST /api/auth/logout`：撤销该账号当前全部会话；旧 Bearer token 会立即失效。
+- `POST /api/auth/register`、`POST /api/auth/login`：返回 15 分钟 access token，并通过同源 `HttpOnly` Cookie 写入 30 天 refresh token。
+- `POST /api/auth/refresh`：轮换 refresh token 并返回新的 access token；旧 refresh token 不可重放。
+- `GET /api/auth/me`、`GET /api/auth/sessions`：读取当前用户与已登录设备摘要；摘要不包含 refresh token 或其摘要。
+- `DELETE /api/auth/sessions/{session_id}`、`POST /api/auth/logout`、`POST /api/auth/logout-all`：分别撤销其他设备、当前设备或全部设备；已撤销设备的 access token 会立即失效。
+- `POST /api/auth/change-password`：已登录用户校验当前密码后修改密码，并撤销全部设备会话；新密码至少 8 位。
 - 已携带 Bearer token 的业务请求只能访问 token 所属的 `user_id`，跨用户请求返回 `403 FORBIDDEN`。
 - 生产环境默认强制所有业务接口带 token；开发和 demo 环境可设置 `945_AUTH_REQUIRED=false` 保持兼容。
 - 登录失败会按邮箱在单进程内限流，默认 15 分钟内 5 次失败后返回 `429 LOGIN_RATE_LIMITED`。可通过 `945_AUTH_LOGIN_MAX_ATTEMPTS` 和 `945_AUTH_LOGIN_WINDOW_SECONDS` 调整。
 - 多用户持久化只在 Mongo 模式可用。demo 模式仍是固定的本地演示用户，进程重启后会恢复初始状态。
 
-当前 token 为有时效的 HMAC token，通过用户会话版本支持退出登录和修改密码后的立即撤销，但没有 refresh token、设备级会话管理或分布式 token 黑名单。上线生产前仍需设置高强度 `945_AUTH_SECRET`，并接入 Redis 限流、邮箱验证和密码重置流程。
+access token 使用 HMAC 并包含设备 session ID；每次业务鉴权都会校验用户会话版本与该设备会话。refresh token 仅以 `945_AUTH_SECRET` 派生的 HMAC-SHA256 摘要保存，绝不进入日志、响应或前端状态。上线生产前仍需设置高强度 `945_AUTH_SECRET`，并接入 Redis 限流、邮箱验证和密码重置流程。
+
+可选配置：`945_AUTH_ACCESS_TOKEN_TTL_SECONDS=900`、`945_AUTH_REFRESH_TOKEN_TTL_SECONDS=2592000`。前端仅在内存保存 access token；页面刷新时通过同源 Cookie 调用 `/api/auth/refresh` 恢复会话。
 
 ## Docker 部署
 

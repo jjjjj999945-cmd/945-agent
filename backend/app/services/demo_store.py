@@ -10,6 +10,7 @@ from backend.app.models.domain import (
     AgentAdvice,
     AgentMessage,
     AgentRun,
+    AuthDeviceSession,
     BodyMetric,
     BodyMetricInput,
     ConfirmPlannedMealInput,
@@ -47,6 +48,7 @@ daily_checkins: list[DailyCheckin] = []
 agent_messages: list[AgentMessage] = []
 agent_runs: list[AgentRun] = []
 user_memory_summaries: list[UserMemorySummary] = []
+auth_device_sessions: list[AuthDeviceSession] = []
 _repository_store_override: RepositoryBackedStore | None = None
 _repository_store: RepositoryBackedStore | None = None
 _agent_run_lock = RLock()
@@ -113,6 +115,87 @@ def reset_demo_store() -> None:
         agent_messages.clear()
         agent_runs.clear()
     user_memory_summaries.clear()
+    auth_device_sessions.clear()
+
+
+def create_auth_device_session(session: AuthDeviceSession) -> AuthDeviceSession | None:
+    if any(item.session_id == session.session_id for item in auth_device_sessions):
+        return None
+    auth_device_sessions.append(session)
+    return session
+
+
+def get_auth_device_session_by_hash(refresh_token_hash: str) -> AuthDeviceSession | None:
+    return next(
+        (
+            item
+            for item in auth_device_sessions
+            if item.refresh_token_hash == refresh_token_hash and item.revoked_at is None
+        ),
+        None,
+    )
+
+
+def get_auth_device_session(user_id: str, session_id: str) -> AuthDeviceSession | None:
+    return next(
+        (
+            item
+            for item in auth_device_sessions
+            if item.user_id == user_id and item.session_id == session_id and item.revoked_at is None
+        ),
+        None,
+    )
+
+
+def list_auth_device_sessions(user_id: str) -> list[AuthDeviceSession]:
+    return [
+        item
+        for item in auth_device_sessions
+        if item.user_id == user_id and item.revoked_at is None
+    ]
+
+
+def rotate_auth_device_session(
+    session_id: str,
+    old_refresh_token_hash: str,
+    new_refresh_token_hash: str,
+) -> AuthDeviceSession | None:
+    session = next(
+        (
+            item
+            for item in auth_device_sessions
+            if item.session_id == session_id
+            and item.refresh_token_hash == old_refresh_token_hash
+            and item.revoked_at is None
+        ),
+        None,
+    )
+    if session is None:
+        return None
+    updated = session.model_copy(
+        update={"refresh_token_hash": new_refresh_token_hash, "last_used_at": timestamp()}
+    )
+    auth_device_sessions[auth_device_sessions.index(session)] = updated
+    return updated
+
+
+def revoke_auth_device_session(user_id: str, session_id: str) -> bool:
+    session = get_auth_device_session(user_id, session_id)
+    if session is None:
+        return False
+    auth_device_sessions[auth_device_sessions.index(session)] = session.model_copy(
+        update={"revoked_at": timestamp()}
+    )
+    return True
+
+
+def revoke_all_auth_device_sessions(user_id: str) -> int:
+    sessions = [item for item in auth_device_sessions if item.user_id == user_id and item.revoked_at is None]
+    for session in sessions:
+        auth_device_sessions[auth_device_sessions.index(session)] = session.model_copy(
+            update={"revoked_at": timestamp()}
+        )
+    return len(sessions)
 
 
 def is_demo_user(user_id: str) -> bool:
