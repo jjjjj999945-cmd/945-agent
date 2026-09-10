@@ -29,6 +29,40 @@ def test_register_login_and_read_current_session():
     assert login_response.json()["data"]["user"]["user_id"] == session["user"]["user_id"]
 
 
+def test_registered_demo_user_can_read_own_settings():
+    registered = client.post(
+        "/api/auth/register",
+        json={"display_name": "Demo Settings", "email": "demo-settings@example.com", "password": "secure-pass-945"},
+    ).json()["data"]
+    user_id = registered["user"]["user_id"]
+
+    response = client.get(
+        f"/api/settings?user_id={user_id}",
+        headers={"Authorization": f"Bearer {registered['access_token']}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["user"]["user_id"] == user_id
+    assert response.json()["data"]["profile"]["user_id"] == user_id
+    assert response.json()["data"]["profile"]["safety_confirmed"] is False
+
+
+def test_registered_demo_user_does_not_inherit_the_seed_plan():
+    registered = client.post(
+        "/api/auth/register",
+        json={"display_name": "No Seed Plan", "email": "no-seed-plan@example.com", "password": "secure-pass-945"},
+    ).json()["data"]
+    user_id = registered["user"]["user_id"]
+
+    response = client.get(
+        f"/api/plans/current?user_id={user_id}",
+        headers={"Authorization": f"Bearer {registered['access_token']}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {"plan": None, "coverage_status": "none"}
+
+
 def test_auth_rejects_invalid_credentials_and_invalid_session():
     assert client.post("/api/auth/login", json={"email": "missing@example.com", "password": "secure-pass-945"}).status_code == 401
     assert client.get("/api/auth/me", headers={"Authorization": "Bearer invalid"}).status_code == 401

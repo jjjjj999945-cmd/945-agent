@@ -118,6 +118,19 @@ def reset_demo_store() -> None:
     auth_device_sessions.clear()
 
 
+def register_demo_user(user: User) -> None:
+    global current_user, current_profile
+
+    current_user = deepcopy(user)
+    current_profile = deepcopy(INITIAL_PROFILE).model_copy(update={
+        "profile_id": f"profile-{user.user_id}",
+        "user_id": user.user_id,
+        "safety_confirmed": False,
+        "safety_confirmed_at": None,
+        "updated_at": user.updated_at,
+    })
+
+
 def create_auth_device_session(session: AuthDeviceSession) -> AuthDeviceSession | None:
     if any(item.session_id == session.session_id for item in auth_device_sessions):
         return None
@@ -202,7 +215,7 @@ def is_demo_user(user_id: str) -> bool:
     store = _active_repository_store()
     if store:
         return store.is_demo_user(user_id)
-    return user_id == DEMO_USER_ID
+    return user_id == current_user.user_id
 
 
 def get_current_user() -> User:
@@ -626,7 +639,7 @@ def list_agent_runs(user_id: str) -> list[AgentRun] | None:
 def get_current_plan(user_id: str) -> Plan | None:
     if not is_demo_user(user_id):
         return None
-    return next((plan for plan in reversed(plans) if plan.status == "active"), None)
+    return next((plan for plan in reversed(plans) if plan.user_id == user_id and plan.status == "active"), None)
 
 
 def list_plans(user_id: str) -> list[Plan] | None:

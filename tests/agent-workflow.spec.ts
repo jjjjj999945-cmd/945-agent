@@ -100,6 +100,14 @@ test("takes an active-plan user from the coach workspace to today's execution pa
 test("manually resumes an interrupted run exactly once", async ({ page }) => {
   let status: "interrupted" | "completed" = "interrupted";
   let resumeCalls = 0;
+  let markResumeRequested = () => {};
+  const resumeRequested = new Promise<void>((resolve) => {
+    markResumeRequested = resolve;
+  });
+  let releaseResumeResponse = () => {};
+  const resumeResponseReleased = new Promise<void>((resolve) => {
+    releaseResumeResponse = resolve;
+  });
   await page.route("**/api/agent/runs?*", (route) =>
     route.fulfill({
       contentType: "application/json",
@@ -125,7 +133,8 @@ test("manually resumes an interrupted run exactly once", async ({ page }) => {
   );
   await page.route("**/api/agent/runs/run-interrupted/resume", async (route) => {
     resumeCalls += 1;
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    markResumeRequested();
+    await resumeResponseReleased;
     status = "completed";
     await route.fulfill({
       contentType: "application/json",
@@ -148,7 +157,9 @@ test("manually resumes an interrupted run exactly once", async ({ page }) => {
   const resume = page.getByRole("button", { name: "继续任务" });
   await expect(requestStatus).toContainText("任务中断");
   const click = resume.click();
+  await resumeRequested;
   await expect(page.getByRole("button", { name: "恢复中" })).toBeDisabled();
+  releaseResumeResponse();
   await click;
   await expect(page.getByText("恢复后的回复")).toBeVisible();
   await expect(requestStatus).toContainText("已完成");
