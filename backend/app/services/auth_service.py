@@ -130,6 +130,7 @@ def register_with_refresh(
     else:
         _credentials[email] = credential
         _users[user.user_id] = user
+        demo_store.register_demo_user(user)
     return _create_authenticated_session(user, credential, device_name)
 
 
