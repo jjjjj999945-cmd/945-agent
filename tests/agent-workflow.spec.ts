@@ -168,10 +168,10 @@ test("manually resumes an interrupted run exactly once", async ({ page }) => {
 
 test("polls a running request until completion and restores only its new draft", async ({ page }) => {
   let runReads = 0;
-  await page.route("**/api/agent/runs?*", (route) => {
+  let completed = false;
+  await page.route("**/api/agent/runs?*", async (route) => {
     runReads += 1;
-    const completed = runReads >= 3;
-    return route.fulfill({
+    await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
         data: [{
@@ -197,7 +197,7 @@ test("polls a running request until completion and restores only its new draft",
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        data: runReads >= 3 ? [{
+        data: completed ? [{
           message_id: "msg-agent-run-polling",
           user_id: "demo-user-945",
           role: "agent",
@@ -215,14 +215,17 @@ test("polls a running request until completion and restores only its new draft",
     })
   );
 
+  await page.clock.install();
   await page.goto("/agent");
   const requestStatus = page.getByRole("status").filter({ hasText: "本次请求" });
   await expect(requestStatus).toContainText("执行中");
+  completed = true;
+  await page.clock.fastForward(2000);
   await expect(requestStatus).toContainText("已完成", { timeout: 5000 });
   await expect(page.getByText("轮询完成")).toBeVisible();
   await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
   const completedReadCount = runReads;
-  await page.waitForTimeout(2300);
+  await page.clock.fastForward(2300);
   expect(runReads).toBe(completedReadCount);
 });
 
