@@ -4,8 +4,8 @@ from fastapi.responses import JSONResponse
 from backend.app.api.responses import error, ok
 from backend.app.api.auth import authorize_user
 from backend.app.data.demo_data import DEMO_USER_ID
-from backend.app.models.domain import PlanAcceptInput, PlanAdjustmentInput, PlanGenerateInput
-from backend.app.services.plan_service import ProfileIncompleteError, accept_plan, adjust_plan, generate_plan, get_current_plan_response
+from backend.app.models.domain import PlanAcceptInput, PlanAdjustmentInput, PlanGenerateInput, TodayWorkoutReplaceInput
+from backend.app.services.plan_service import ProfileIncompleteError, accept_plan, adjust_plan, generate_plan, get_current_plan_response, replace_today_workout
 
 
 router = APIRouter(prefix="/api/plans", tags=["plans"])
@@ -53,4 +53,16 @@ def adjust(plan_id: str, input_data: PlanAdjustmentInput, authorization: str | N
     plan = adjust_plan(plan_id, input_data)
     if plan is None:
         return JSONResponse(status_code=404, content=error("NOT_FOUND", "Active plan not found.", {"plan_id": plan_id}))
+    return ok(plan.model_dump())
+
+
+@router.post("/{plan_id}/replace-today-workout")
+def replace_today_workout_route(plan_id: str, input_data: TodayWorkoutReplaceInput, authorization: str | None = Header(default=None)) -> object:
+    if denied := authorize_user(input_data.user_id, authorization): return denied
+    try:
+        plan = replace_today_workout(plan_id, input_data)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content=error("VALIDATION_ERROR", str(exc)))
+    if plan is None:
+        return JSONResponse(status_code=404, content=error("NOT_FOUND", "Active plan or today workout not found.", {"plan_id": plan_id}))
     return ok(plan.model_dump())

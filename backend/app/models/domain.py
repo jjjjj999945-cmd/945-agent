@@ -316,6 +316,12 @@ class PlanAdjustmentInput(ApiModel):
     replacement_name: str | None = None
 
 
+class TodayWorkoutReplaceInput(ApiModel):
+    user_id: str
+    confirmed: Literal[True]
+    workout_day: WorkoutPlanDay
+
+
 class DailyCheckin(ApiModel):
     checkin_id: str
     user_id: str
@@ -395,7 +401,7 @@ class FeedbackGenerateInput(ApiModel):
 
 
 class RecordDraft(ApiModel):
-    type: Literal["workout_log", "meal_log", "daily_checkin", "plan_adjustment"]
+    type: Literal["workout_log", "meal_log", "daily_checkin", "plan_adjustment", "today_workout_plan"]
     requires_confirmation: Literal[True]
     payload: dict[str, Any]
 

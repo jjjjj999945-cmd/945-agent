@@ -97,6 +97,98 @@ test("takes an active-plan user from the coach workspace to today's execution pa
   await expect(page).toHaveURL("/today");
 });
 
+test("saves a today workout draft once without starting another agent chat", async ({ page }) => {
+  let saveCalls = 0;
+  let chatCalls = 0;
+  const workoutDay = {
+    date: "2026-07-11",
+    name: "背部训练",
+    focus: "back",
+    duration_minutes: 50,
+    exercises: [{
+      exercise_id: "agent-row",
+      name: "杠铃划船",
+      target_muscles: ["背部"],
+      sets: 4,
+      reps: "8-10",
+      target_weight: null,
+      rest_seconds: 90,
+      notes: null
+    }]
+  };
+  await page.route("**/api/plans/current?*", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ data: { plan: { plan_id: "plan-active" }, coverage_status: "active_today" }, error: null })
+  }));
+  await page.route("**/api/agent/chat", (route) => {
+    chatCalls += 1;
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ data: {
+        message_id: "today-workout-draft",
+        user_id: "demo-user-945",
+        role: "agent",
+        locale: "zh-CN",
+        content: "已整理今天的训练安排。",
+        created_at: "2026-07-11T09:00:00Z",
+        record_draft: { type: "today_workout_plan", requires_confirmation: true, payload: { workout_day: workoutDay } }
+      }, error: null })
+    });
+  });
+  await page.route("**/api/plans/*/replace-today-workout", (route) => {
+    saveCalls += 1;
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ data: { plan_id: "plan-replaced" }, error: null })
+    });
+  });
+
+  await page.goto("/agent");
+  await page.getByPlaceholder(/深蹲/).fill("帮我生成今天的训练安排");
+  await page.getByRole("button", { name: "发送" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "确认保存" }).click();
+
+  expect(saveCalls).toBe(1);
+  expect(chatCalls).toBe(1);
+});
+
+test("cancelling a today workout draft does not write or send another chat message", async ({ page }) => {
+  let writeCalls = 0;
+  let chatCalls = 0;
+  const workoutDay = { date: "2026-07-11", name: "背部训练", focus: "back", duration_minutes: 50, exercises: [] };
+  await page.route("**/api/plans/current?*", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ data: { plan: { plan_id: "plan-active" }, coverage_status: "active_today" }, error: null })
+  }));
+  await page.route("**/api/agent/chat", (route) => {
+    chatCalls += 1;
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ data: {
+        message_id: "today-workout-cancel",
+        user_id: "demo-user-945",
+        role: "agent",
+        locale: "zh-CN",
+        content: "已整理今天的训练安排。",
+        created_at: "2026-07-11T09:00:00Z",
+        record_draft: { type: "today_workout_plan", requires_confirmation: true, payload: { workout_day: workoutDay } }
+      }, error: null })
+    });
+  });
+  await page.route("**/api/plans/*/replace-today-workout", (route) => {
+    writeCalls += 1;
+    return route.abort();
+  });
+
+  await page.goto("/agent");
+  await page.getByPlaceholder(/深蹲/).fill("帮我生成今天的训练安排");
+  await page.getByRole("button", { name: "发送" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "取消" }).click();
+
+  expect(writeCalls).toBe(0);
+  expect(chatCalls).toBe(1);
+});
+
 test("manually resumes an interrupted run exactly once", async ({ page }) => {
   let status: "interrupted" | "completed" = "interrupted";
   let resumeCalls = 0;

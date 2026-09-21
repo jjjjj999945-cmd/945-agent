@@ -220,7 +220,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
     }
     setDraft(null);
     onDraftHandled?.();
-    if (draft.type === "plan_adjustment") await refreshPlanState();
+    if (draft.type === "plan_adjustment" || draft.type === "today_workout_plan") await refreshPlanState();
     setNotice(t("status.agentDraftConfirmed"));
     await loadTodayContext();
   }
@@ -232,7 +232,8 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       workout_log: "训练记录",
       meal_log: "饮食记录",
       daily_checkin: "每日打卡",
-      plan_adjustment: "计划调整"
+      plan_adjustment: "计划调整",
+      today_workout_plan: "今日训练安排"
     };
     const payload = recordDraft.payload;
     const rows = [
@@ -245,6 +246,8 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       ["调整类型", payload.adjustment_type],
       ["目标日期", payload.target_date],
       ["替换名称", payload.replacement_name],
+      ["训练名称", (payload.workout_day as { name?: unknown } | undefined)?.name],
+      ["训练时长", typeof (payload.workout_day as { duration_minutes?: unknown } | undefined)?.duration_minutes === "number" ? `${(payload.workout_day as { duration_minutes: number }).duration_minutes} 分钟` : undefined],
       ["备注", payload.effort_note ?? payload.note ?? payload.reason]
     ].filter(([, value]) => value !== undefined && value !== "");
     return rows.map(([label, value]) => `${label}: ${value}`).join("\n");
@@ -351,7 +354,7 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       <ConfirmDialog
         cancelLabel={t("actions.cancel")}
         confirmDisabled={savingDraft}
-        confirmLabel={t("actions.confirm")}
+        confirmLabel={draft?.type === "today_workout_plan" ? (isChinese ? "确认保存" : "Confirm and save") : t("actions.confirm")}
         onCancel={() => { setDraft(null); onDraftHandled?.(); }}
         onConfirm={confirmDraft}
         open={Boolean(draft)}

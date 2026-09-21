@@ -1,4 +1,4 @@
-import type { MealLog, Plan, RecordDraft, WorkoutLog } from "../types/domain";
+import type { MealLog, Plan, RecordDraft, WorkoutLog, WorkoutPlanDay } from "../types/domain";
 import { api } from "./apiClient";
 import { fail, type ApiResponse } from "./apiTypes";
 
@@ -22,6 +22,16 @@ function optionalWeight(payload: Record<string, unknown>) {
     return { valid: false, value: undefined } as const;
   }
   return { valid: true, value } as const;
+}
+
+function todayWorkoutDay(payload: Record<string, unknown>, date: string): WorkoutPlanDay | null {
+  const workoutDay = payload.workout_day;
+  if (!workoutDay || typeof workoutDay !== "object" || Array.isArray(workoutDay)) return null;
+  const day = workoutDay as Record<string, unknown>;
+  if (day.date !== date || typeof day.name !== "string" || !day.name.trim() || typeof day.focus !== "string" || !day.focus.trim()) return null;
+  if (typeof day.duration_minutes !== "number" || !Number.isInteger(day.duration_minutes) || day.duration_minutes <= 0) return null;
+  if (!Array.isArray(day.exercises) || day.exercises.length === 0) return null;
+  return day as unknown as WorkoutPlanDay;
 }
 
 export async function saveRecordDraft(
@@ -81,6 +91,17 @@ export async function saveRecordDraft(
       target_exercise_id: typeof payload.target_exercise_id === "string" ? payload.target_exercise_id : undefined,
       target_meal_id: typeof payload.target_meal_id === "string" ? payload.target_meal_id : undefined,
       replacement_name: typeof payload.replacement_name === "string" ? payload.replacement_name : undefined
+    });
+  }
+
+  if (draft.type === "today_workout_plan") {
+    if (!context.plan_id) return fail("PLAN_UNAVAILABLE", "Current plan does not cover today.");
+    const workoutDay = todayWorkoutDay(payload, context.date);
+    if (!workoutDay) return fail("INVALID_DRAFT", "Today workout draft is invalid.");
+    return api.replaceTodayWorkout({
+      user_id: context.user_id,
+      plan_id: context.plan_id,
+      workout_day: workoutDay
     });
   }
 

@@ -26,6 +26,7 @@ import type {
   User,
   UserProfile,
   WorkoutPageData,
+  WorkoutPlanDay,
   WorkoutLog
 } from "../types/domain";
 import { fail, ok, type ApiResponse } from "./apiTypes";
@@ -139,6 +140,24 @@ export const api = {
     if (user.error) return user;
     if (input.plan_id !== currentPlan.plan_id) return fail("NOT_FOUND", "Active plan not found.", { plan_id: input.plan_id });
     currentPlan = { ...currentPlan, plan_id: `plan-adjusted-${Date.now()}`, generated_by: "agent", updated_at: timestamp() };
+    return ok(currentPlan);
+  },
+
+  async replaceTodayWorkout(input: { user_id: string; plan_id: string; workout_day: WorkoutPlanDay }): Promise<ApiResponse<Plan>> {
+    const user = ensureDemoUser(input.user_id);
+    if (user.error) return user;
+    if (input.plan_id !== currentPlan.plan_id) return fail("NOT_FOUND", "Active plan not found.", { plan_id: input.plan_id });
+    if (input.workout_day.date !== appToday) return fail("VALIDATION_ERROR", "Today workout date must match the current application date.");
+    if (!currentPlan.workout_plan.days.some((day) => day.date === appToday)) return fail("NOT_FOUND", "Today workout was not found.");
+    currentPlan = {
+      ...currentPlan,
+      plan_id: `plan-today-workout-${Date.now()}`,
+      generated_by: "agent",
+      workout_plan: {
+        days: currentPlan.workout_plan.days.map((day) => day.date === appToday ? input.workout_day : day)
+      },
+      updated_at: timestamp()
+    };
     return ok(currentPlan);
   },
   async getDemoUser(): Promise<ApiResponse<User>> {

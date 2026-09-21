@@ -4,7 +4,7 @@ import re
 
 from backend.app.core.dates import app_date as current_date
 from backend.app.data.demo_data import DEMO_PLAN, DEMO_USER_ID, TODAY_DATE
-from backend.app.models.domain import CurrentPlanResponse, MacroTargets, MealPlan, MealPlanDay, Plan, PlanAdjustmentInput, PlanGenerateInput, PlannedFood, PlannedMeal, UserProfile, WorkoutPlan, WorkoutPlanDay
+from backend.app.models.domain import CurrentPlanResponse, MacroTargets, MealPlan, MealPlanDay, Plan, PlanAdjustmentInput, PlanGenerateInput, PlannedFood, PlannedMeal, TodayWorkoutReplaceInput, UserProfile, WorkoutPlan, WorkoutPlanDay
 from backend.app.services.demo_seed import timestamp
 from backend.app.services.demo_store import _active_repository_store, get_current_plan as get_demo_current_plan, get_profile, list_plans, save_plan
 from backend.app.services.plan_lifecycle import current_plan_state
@@ -301,3 +301,31 @@ def adjust_plan(plan_id: str, input_data: PlanAdjustmentInput) -> Plan | None:
     writer = store.save_plan if store else save_plan
     writer(current.model_copy(update={"status": "archived", "updated_at": now}))
     return writer(adjusted)
+
+
+def replace_today_workout(plan_id: str, input_data: TodayWorkoutReplaceInput) -> Plan | None:
+    current = get_current_plan(input_data.user_id)
+    if current is None or current.plan_id != plan_id:
+        return None
+    if input_data.workout_day.date != current_date():
+        raise ValueError("Today workout date must match the current application date.")
+
+    days = deepcopy(current.workout_plan.days)
+    existing_day = next((day for day in days if day.date == input_data.workout_day.date), None)
+    if existing_day is None:
+        return None
+    days[days.index(existing_day)] = input_data.workout_day
+
+    now = timestamp()
+    replacement = current.model_copy(update={
+        "plan_id": _plan_id("today-workout"),
+        "status": "active",
+        "workout_plan": WorkoutPlan(days=days),
+        "generated_by": "agent",
+        "created_at": now,
+        "updated_at": now,
+    })
+    store = _active_repository_store()
+    writer = store.save_plan if store else save_plan
+    writer(current.model_copy(update={"status": "archived", "updated_at": now}))
+    return writer(replacement)

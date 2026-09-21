@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
-  testMatch: ["auth-session.spec.ts"],
+  testMatch: ["auth-session.spec.ts", "auth-page.spec.ts"],
   timeout: 60_000,
   retries: 1,
   expect: { timeout: 10_000 },
@@ -18,7 +18,7 @@ export default defineConfig({
     {
       command: "python backend/scripts/run_http_qa_server.py",
       url: "http://127.0.0.1:8000/health",
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 60_000
     },
     {
@@ -29,7 +29,7 @@ export default defineConfig({
         VITE_945_AUTH_ENABLED: "true",
         VITE_945_REFERENCE_DATE: "2026-07-11"
       },
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 60_000
     }
   ]

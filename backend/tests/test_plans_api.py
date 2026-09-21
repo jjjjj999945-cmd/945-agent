@@ -223,3 +223,57 @@ def test_plan_adjustment_requires_explicit_confirmation():
 
     assert response.status_code == 422
     assert client.get("/api/plans/current").json()["data"]["plan"]["plan_id"] == plan["plan_id"]
+
+
+def test_confirmed_today_workout_replacement_creates_a_new_active_plan_and_preserves_future_days():
+    original = client.get("/api/plans/current").json()["data"]["plan"]
+    replacement = {
+        "date": "2026-07-11",
+        "name": "背部训练",
+        "focus": "back",
+        "duration_minutes": 50,
+        "exercises": [{
+            "exercise_id": "agent-row",
+            "name": "杠铃划船",
+            "target_muscles": ["背部"],
+            "sets": 4,
+            "reps": "8-10",
+            "target_weight": None,
+            "rest_seconds": 90,
+            "notes": None,
+        }],
+    }
+
+    response = client.post(
+        f"/api/plans/{original['plan_id']}/replace-today-workout",
+        json={"user_id": "demo-user-945", "confirmed": True, "workout_day": replacement},
+    )
+
+    assert response.status_code == 200
+    replacement_plan = response.json()["data"]
+    assert replacement_plan["plan_id"] != original["plan_id"]
+    assert replacement_plan["status"] == "active"
+    assert replacement_plan["workout_plan"]["days"][0] == replacement
+    assert replacement_plan["workout_plan"]["days"][1:] == original["workout_plan"]["days"][1:]
+    assert replacement_plan["meal_plan"] == original["meal_plan"]
+
+
+def test_today_workout_replacement_rejects_a_non_current_date_without_changing_active_plan():
+    original = client.get("/api/plans/current").json()["data"]["plan"]
+    response = client.post(
+        f"/api/plans/{original['plan_id']}/replace-today-workout",
+        json={
+            "user_id": "demo-user-945",
+            "confirmed": True,
+            "workout_day": {
+                "date": "2026-07-12",
+                "name": "背部训练",
+                "focus": "back",
+                "duration_minutes": 50,
+                "exercises": [],
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    assert client.get("/api/plans/current").json()["data"]["plan"]["plan_id"] == original["plan_id"]

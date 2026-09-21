@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.app.models.domain import Locale, RecordDraft, TodayResponseData
 
 
-AgentIntent = Literal["safety_warning", "log_workout", "log_meal", "adjust_plan", "ask_question"]
+AgentIntent = Literal["safety_warning", "log_workout", "log_meal", "adjust_plan", "generate_today_workout", "ask_question"]
 
 
 class LLMModel(BaseModel):

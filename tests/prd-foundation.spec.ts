@@ -52,6 +52,7 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。").fill("今天深蹲做了 4 组，每组 8 次，80kg。");
     await page.getByRole("button", { name: "发送" }).click();
     await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCSS("color", "rgb(28, 39, 52)");
     await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
     await expect(page.getByText("智能教练草稿已确认")).toBeVisible();
 
@@ -79,8 +80,9 @@ test.describe("PRD-driven frontend foundation", () => {
     await page.getByLabel("体重 kg").fill("68.5");
     await page.getByLabel("目标").selectOption("muscle_gain");
     await page.getByLabel("每周训练天数").fill("3");
-    await page.getByLabel("gym").uncheck();
-    await page.getByLabel("bodyweight").check();
+    await page.getByLabel("健身房").uncheck();
+    await page.getByLabel("徒手").check();
+    await page.getByLabel("我已了解健康与训练安全提示").check();
     await page.getByRole("button", { name: "创建并启用我的计划" }).click();
 
     await expect(page).toHaveURL(/\/$/);

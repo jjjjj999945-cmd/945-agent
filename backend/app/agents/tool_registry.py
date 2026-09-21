@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from backend.app.agents.tools import (
     build_meal_log_draft,
     build_plan_adjustment_draft,
+    build_today_workout_plan_draft,
     build_workout_log_draft,
     get_current_plan_tool,
     get_profile_tool,
@@ -14,7 +15,7 @@ from backend.app.agents.tools import (
 )
 from backend.app.llm.errors import LLMOutputInvalidError
 from backend.app.llm.models import AgentToolDefinition, ToolCallProposal, ToolExecutionResult
-from backend.app.models.domain import Locale, RecordDraft
+from backend.app.models.domain import Locale, PlannedExercise, RecordDraft, WorkoutPlanDay
 
 
 class ToolArguments(BaseModel):
@@ -55,6 +56,14 @@ class PlanAdjustmentArguments(ToolArguments):
     replacement_name: str | None = Field(default=None, min_length=1, max_length=100)
 
 
+class TodayWorkoutPlanDraftArguments(ToolArguments):
+    date: str = Field(min_length=10, max_length=10)
+    name: str = Field(min_length=1, max_length=100)
+    focus: str = Field(min_length=1, max_length=100)
+    duration_minutes: int = Field(ge=1, le=300)
+    exercises: list[PlannedExercise] = Field(min_length=1, max_length=20)
+
+
 class AgentToolContext(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -73,6 +82,7 @@ TOOL_ARGUMENT_MODELS: dict[str, type[ToolArguments]] = {
     "create_workout_log_draft": WorkoutDraftArguments,
     "create_meal_log_draft": MealDraftArguments,
     "create_plan_adjustment_draft": PlanAdjustmentArguments,
+    "create_today_workout_plan_draft": TodayWorkoutPlanDraftArguments,
 }
 
 
@@ -85,6 +95,7 @@ TOOL_DESCRIPTIONS = {
     "create_workout_log_draft": "Create a workout log preview that requires user confirmation and does not save data.",
     "create_meal_log_draft": "Create a meal log preview that requires user confirmation and does not save data.",
     "create_plan_adjustment_draft": "Create a plan adjustment preview that requires user confirmation and does not modify the plan.",
+    "create_today_workout_plan_draft": "Create a today workout-plan preview that requires user confirmation and does not save or modify the plan.",
 }
 
 
@@ -158,5 +169,8 @@ def execute_agent_tool(
         return _result(proposal, draft, draft)
     if proposal.name == "create_plan_adjustment_draft":
         draft = build_plan_adjustment_draft(**arguments.model_dump())
+        return _result(proposal, draft, draft)
+    if proposal.name == "create_today_workout_plan_draft":
+        draft = build_today_workout_plan_draft(WorkoutPlanDay(**arguments.model_dump()))
         return _result(proposal, draft, draft)
     raise LLMOutputInvalidError(f"Tool '{proposal.name}' is not allowed.")

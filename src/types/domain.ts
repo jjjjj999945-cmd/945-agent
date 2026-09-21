@@ -29,6 +29,8 @@ export type UserProfile = {
   dietary_preferences: string[];
   allergies: string[];
   constraints: string[];
+  safety_confirmed: boolean;
+  safety_confirmed_at?: string;
   updated_at: string;
 };
 
@@ -223,7 +225,7 @@ export type AgentAdvice = {
 };
 
 export type RecordDraft = {
-  type: "workout_log" | "meal_log" | "daily_checkin" | "plan_adjustment";
+  type: "workout_log" | "meal_log" | "daily_checkin" | "plan_adjustment" | "today_workout_plan";
   requires_confirmation: true;
   payload: Record<string, unknown>;
 };

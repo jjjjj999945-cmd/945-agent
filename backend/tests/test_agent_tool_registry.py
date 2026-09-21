@@ -20,7 +20,7 @@ def _context() -> AgentToolContext:
     )
 
 
-def test_registry_exports_only_the_eight_read_and_draft_tools():
+def test_registry_exports_only_the_nine_read_and_draft_tools():
     definitions = get_agent_tool_definitions()
 
     assert [item.name for item in definitions] == [
@@ -32,6 +32,7 @@ def test_registry_exports_only_the_eight_read_and_draft_tools():
         "create_workout_log_draft",
         "create_meal_log_draft",
         "create_plan_adjustment_draft",
+        "create_today_workout_plan_draft",
     ]
     assert all(item.to_openai_tool()["strict"] is True for item in definitions)
     assert "accept_advice" not in [item.name for item in definitions]
@@ -110,6 +111,41 @@ def test_registry_builds_plan_adjustment_draft_without_writing():
     assert result.record_draft.type == "plan_adjustment"
     assert result.record_draft.requires_confirmation is True
     assert result.record_draft.payload["adjustment_type"] == "reduce_intensity"
+    assert get_current_plan("demo-user-945").model_dump() == plan_before
+
+
+def test_registry_builds_today_workout_draft_without_writing():
+    plan_before = get_current_plan("demo-user-945").model_dump()
+
+    result = execute_agent_tool(
+        ToolCallProposal(
+            call_id="call-today-workout",
+            name="create_today_workout_plan_draft",
+            arguments={
+                "date": "2026-07-11",
+                "name": "背部训练",
+                "focus": "back",
+                "duration_minutes": 50,
+                "exercises": [
+                    {
+                        "exercise_id": "agent-row",
+                        "name": "杠铃划船",
+                        "target_muscles": ["背部"],
+                        "sets": 4,
+                        "reps": "8-10",
+                        "target_weight": None,
+                        "rest_seconds": 90,
+                        "notes": None,
+                    }
+                ],
+            },
+        ),
+        _context(),
+    )
+
+    assert result.record_draft.type == "today_workout_plan"
+    assert result.record_draft.requires_confirmation is True
+    assert result.record_draft.payload["workout_day"]["date"] == "2026-07-11"
     assert get_current_plan("demo-user-945").model_dump() == plan_before
 
 

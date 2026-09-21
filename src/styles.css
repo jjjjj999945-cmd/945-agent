@@ -1034,13 +1034,23 @@ button {
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
 }
 
+.confirm-dialog {
+  color: #1c2734;
+}
+
 .confirm-dialog h2 {
+  color: #1c2734;
   margin: 0;
 }
 
 .confirm-content {
   display: grid;
   gap: 12px;
+}
+
+.confirm-content p {
+  color: #4f5865;
+  margin: 0;
 }
 
 .confirm-content pre {
@@ -1051,6 +1061,24 @@ button {
   background: #171c1f;
   color: #f6fafe;
   font-size: 12px;
+}
+
+.confirm-dialog .button-row {
+  display: flex;
+  gap: 10px;
+}
+
+.confirm-dialog .button-row button {
+  border: 1px solid rgba(31, 88, 216, 0.16);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 10px 14px;
+}
+
+.confirm-dialog .button-row button.ghost {
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--accent);
 }
 
 .business-brand-wordmark,
@@ -4549,6 +4577,72 @@ select {
 .onboarding-form .onboarding-choice { align-items: center; color: #34423a; display: flex; gap: 6px; }
 .onboarding-form .onboarding-choice input { min-height: auto; padding: 0; }
 .form-error { color: #b42318; margin: 0; }
+
+/* Onboarding uses the current dark form surface; choices stay readable at any width. */
+.onboarding-form fieldset {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, max-content));
+  gap: 10px 18px;
+}
+
+.onboarding-form legend {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.onboarding-form .onboarding-choice {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.onboarding-form .onboarding-choice input[type="checkbox"] {
+  -webkit-appearance: auto;
+  appearance: auto;
+  accent-color: rgb(142, 170, 221);
+  box-sizing: border-box;
+  flex: 0 0 16px;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  background: initial !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.onboarding-form .onboarding-safety-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.onboarding-form .onboarding-safety-choice input[type="checkbox"] {
+  flex: 0 0 16px;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 3px 0 0;
+  padding: 0;
+  accent-color: rgb(142, 170, 221);
+  cursor: pointer;
+}
+
+.onboarding-safety-choice span {
+  display: grid;
+  gap: 3px;
+}
+
+.onboarding-safety-choice strong,
+.onboarding-safety-choice small {
+  line-height: 1.5;
+}
 /* Navigation reset: a floating dock, not a full-height side panel. */
 @media (min-width: 901px) {
   .business-sidebar {
@@ -4662,6 +4756,87 @@ select {
 }
 .logout-button { background: transparent; border: 0; border-radius: 10px; color: #405047; cursor: pointer; font: inherit; padding: 7px 10px; }
 .account-security-panel form { display: grid; gap: 10px; }
+
+/* Account access uses the same restrained dark-glass surface as the workbench. */
+.auth-page {
+  align-items: center;
+  display: flex;
+  min-height: 100vh;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: #0d121b;
+  color: #edf3fc;
+}
+
+.auth-panel {
+  width: min(100%, 420px);
+  padding: 34px;
+  border: 1px solid rgba(214, 228, 255, 0.18);
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035) 58%),
+    rgba(18, 24, 35, 0.84);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.12), 0 24px 58px -36px rgba(0, 0, 0, 0.96);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+}
+
+.auth-brand {
+  margin-bottom: 26px;
+  color: #f5f8ff;
+  font: 800 30px/1 Inter, "Noto Sans SC", sans-serif;
+}
+
+.auth-panel h1 {
+  margin: 0 0 24px;
+  color: #f5f8ff;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.auth-panel form { gap: 16px; }
+
+.auth-panel label {
+  gap: 7px;
+  color: #b9c4d2;
+  font-size: 14px;
+}
+
+.auth-panel input {
+  min-height: 42px;
+  box-sizing: border-box;
+  border: 1px solid rgba(214, 228, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(7, 11, 17, 0.42);
+  color: #f4f7fb;
+  padding: 10px 12px;
+}
+
+.auth-panel input:focus {
+  border-color: rgba(165, 187, 232, 0.66);
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(112, 143, 204, 0.16);
+}
+
+.auth-panel form button {
+  border: 1px solid rgba(229, 238, 255, 0.25);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #dbe7ff, #a9bee5);
+  color: #111823;
+  font-weight: 700;
+  padding: 11px 14px;
+}
+
+.auth-panel form button:hover { background: linear-gradient(180deg, #ebf2ff, #b9ccec); }
+.auth-error { margin: 0; color: #ffbbb4; }
+.auth-switch { margin-top: 18px; color: #c4d6fa; }
+.auth-switch:hover { color: #ffffff; }
+
+@media (max-width: 520px) {
+  .auth-page { padding: 16px; }
+  .auth-panel { padding: 28px 22px; }
+}
 .account-security-panel label { color: #536158; display: grid; font-size: 13px; gap: 6px; }
 .account-security-panel input { border: 1px solid #c7d1ca; border-radius: 4px; font: inherit; padding: 8px; }
 .account-security-panel button { margin-top: 4px; }

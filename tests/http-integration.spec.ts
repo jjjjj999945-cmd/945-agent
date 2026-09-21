@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 test.describe.serial("945 real HTTP integration", () => {
   test.beforeEach(({}, testInfo) => {
@@ -182,6 +182,45 @@ test.describe.serial("945 real HTTP integration", () => {
     expect(run).not.toHaveProperty("last_heartbeat_at");
     expect(run).not.toHaveProperty("resume_checkpoint_id");
     expect(run).not.toHaveProperty("messages_persisted");
+  });
+
+  test("persists an Agent today-workout draft once and shows it on Today after refresh", async ({ page, request }) => {
+    const before = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    const futureDays = before.data.plan.workout_plan.days.filter((day: { date: string }) => day.date !== "2026-07-11");
+    const mealPlan = before.data.plan.meal_plan;
+    let chatRequests = 0;
+    page.on("request", (request) => {
+      if (request.url().endsWith("/api/agent/chat")) chatRequests += 1;
+    });
+    if (API_BASE_URL !== "http://127.0.0.1:8000") {
+      await page.route("http://127.0.0.1:8000/**", (route) =>
+        route.continue({ url: route.request().url().replace("http://127.0.0.1:8000", API_BASE_URL) })
+      );
+    }
+
+    await page.goto("/agent");
+    await page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。").fill("帮我生成今天的训练安排");
+    await page.getByRole("button", { name: "发送" }).click();
+    await expect(page.getByRole("dialog").getByRole("button", { name: "确认保存" })).toBeVisible();
+
+    const unconfirmed = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(unconfirmed.data.plan.plan_id).toBe(before.data.plan.plan_id);
+
+    const replacementResponse = page.waitForResponse((response) =>
+      response.url().includes("/replace-today-workout") && response.request().method() === "POST"
+    );
+    await page.getByRole("dialog").getByRole("button", { name: "确认保存" }).click();
+    expect((await replacementResponse).status()).toBe(200);
+    expect(chatRequests).toBe(1);
+
+    const after = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(after.data.plan.plan_id).not.toBe(before.data.plan.plan_id);
+    expect(after.data.plan.workout_plan.days.filter((day: { date: string }) => day.date !== "2026-07-11")).toEqual(futureDays);
+    expect(after.data.plan.meal_plan).toEqual(mealPlan);
+
+    await page.goto("/today");
+    await expect(page.getByText("背部训练")).toBeVisible();
+    await expect(page.getByText("杠铃划船")).toBeVisible();
   });
 
   test("generates a plan draft and activates it only after acceptance", async ({ page, request }) => {

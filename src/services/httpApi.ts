@@ -21,6 +21,7 @@ import type {
   TodayResponseData,
   User,
   UserProfile,
+  WorkoutPlanDay,
   WorkoutPageData,
   WorkoutLog
 } from "../types/domain";
@@ -118,6 +119,9 @@ async function request<T>(path: string, init?: RequestInit, refreshed = false): 
 // request as a cross-user data access attempt.
 function replaceDemoUserId(path: string, currentUserId: string) {
   const url = new URL(path, "http://945.local");
+  if (url.pathname.endsWith(`/${DEMO_USER_ID}`)) {
+    url.pathname = `${url.pathname.slice(0, -DEMO_USER_ID.length)}${currentUserId}`;
+  }
   if (url.searchParams.get("user_id") === DEMO_USER_ID) {
     url.searchParams.set("user_id", currentUserId);
   }
@@ -198,6 +202,14 @@ export const httpApi = {
       target_meal_id: input.target_meal_id,
       replacement_name: input.replacement_name,
       confirmed: true
+    });
+  },
+
+  async replaceTodayWorkout(input: { user_id: string; plan_id: string; workout_day: WorkoutPlanDay }): Promise<ApiResponse<Plan>> {
+    return post<Plan>(`/api/plans/${input.plan_id}/replace-today-workout`, {
+      user_id: input.user_id,
+      confirmed: true,
+      workout_day: input.workout_day
     });
   },
   async getDemoUser(): Promise<ApiResponse<User>> {

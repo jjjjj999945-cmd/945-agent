@@ -1,7 +1,7 @@
 import re
 
 from backend.app.data.demo_data import DEMO_USER_ID, TODAY_DATE
-from backend.app.models.domain import AdviceStatus, AgentAdvice, MealLog, RecordDraft, TodayResponseData, UserProfile, WorkoutLog
+from backend.app.models.domain import AdviceStatus, AgentAdvice, MealLog, RecordDraft, TodayResponseData, UserProfile, WorkoutLog, WorkoutPlanDay
 from backend.app.services.demo_store import (
     get_advice,
     get_profile,
@@ -72,6 +72,41 @@ def create_workout_log_draft(message: str) -> RecordDraft | None:
         reps=int(reps_match.group(1)) if reps_match else 8,
         weight_kg=float(weight_match.group(1)) if weight_match else None,
         effort_note=message,
+    )
+
+
+def build_today_workout_plan_draft(workout_day: WorkoutPlanDay) -> RecordDraft:
+    return RecordDraft(
+        type="today_workout_plan",
+        requires_confirmation=True,
+        payload={"workout_day": workout_day.model_dump(mode="json")},
+    )
+
+
+def create_today_workout_plan_draft(date: str, locale: str = "zh-CN") -> RecordDraft:
+    if locale == "zh-CN":
+        name, exercise_name, muscles = "背部训练", "杠铃划船", ["背部"]
+    else:
+        name, exercise_name, muscles = "Back workout", "Barbell row", ["back"]
+    return build_today_workout_plan_draft(
+        WorkoutPlanDay(
+            date=date,
+            name=name,
+            focus="back",
+            duration_minutes=50,
+            exercises=[
+                {
+                    "exercise_id": "agent-row",
+                    "name": exercise_name,
+                    "target_muscles": muscles,
+                    "sets": 4,
+                    "reps": "8-10",
+                    "target_weight": None,
+                    "rest_seconds": 90,
+                    "notes": None,
+                }
+            ],
+        )
     )
 
 

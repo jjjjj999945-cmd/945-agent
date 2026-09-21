@@ -109,6 +109,20 @@ def _without_dsml_tool_markup(reply: str, locale: str) -> str:
     return "已生成可确认的草稿，请确认后保存。" if locale == "zh-CN" else "I created a confirmation-required draft. Please review it before saving."
 
 
+def _without_unbacked_confirmation_request(reply: str) -> str:
+    def requests_write_confirmation(line: str) -> bool:
+        normalized = line.lower()
+        if "确认" in line and any(term in line for term in ("保存", "写入", "生效", "激活")):
+            return True
+        return "confirm" in normalized and any(
+            term in normalized for term in ("save", "write", "activate")
+        )
+
+    return "\n".join(
+        line for line in reply.splitlines() if not requests_write_confirmation(line)
+    ).strip()
+
+
 async def _safety_node(
     state: AgentWorkflowState,
     config: RunnableConfig,
@@ -233,6 +247,10 @@ async def _model_node(state: AgentWorkflowState, config: RunnableConfig) -> dict
             final = final.model_copy(
                 update={"reply": _without_dsml_tool_markup(final.reply, state["locale"])}
             )
+        else:
+            reply_without_confirmation = _without_unbacked_confirmation_request(final.reply)
+            if reply_without_confirmation != final.reply:
+                final = final.model_copy(update={"reply": reply_without_confirmation})
 
     output = {
         "first": first,

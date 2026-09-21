@@ -16,6 +16,18 @@ const goalOptions: Array<{ value: Goal; zh: string; en: string }> = [
   { value: "maintenance", zh: "维持健康", en: "Maintenance" }
 ];
 
+const equipmentOptions = [
+  { value: "gym", zh: "健身房", en: "Gym" },
+  { value: "dumbbells", zh: "哑铃", en: "Dumbbells" },
+  { value: "bodyweight", zh: "徒手", en: "Bodyweight" }
+];
+
+const dietaryPreferenceOptions = [
+  { value: "high_protein", zh: "高蛋白", en: "High protein" },
+  { value: "vegetarian", zh: "素食", en: "Vegetarian" },
+  { value: "vegan", zh: "纯素", en: "Vegan" }
+];
+
 function toggle(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
@@ -35,6 +47,7 @@ export function OnboardingPage({ embedded = false, locale, onNavigate }: Onboard
   const [dietaryPreferences, setDietaryPreferences] = useState<string[]>(["high_protein"]);
   const [allergies, setAllergies] = useState("");
   const [constraints, setConstraints] = useState<string[]>(["busy_weekdays"]);
+  const [safetyConfirmed, setSafetyConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -54,7 +67,8 @@ export function OnboardingPage({ embedded = false, locale, onNavigate }: Onboard
       equipment,
       dietary_preferences: dietaryPreferences,
       allergies: allergies.split(/[,，]/).map((item) => item.trim()).filter(Boolean),
-      constraints
+      constraints,
+      safety_confirmed: safetyConfirmed
     });
     if (profile.error) {
       setSaving(false);
@@ -88,13 +102,14 @@ export function OnboardingPage({ embedded = false, locale, onNavigate }: Onboard
         <label>{zh ? "训练经验" : "Experience"}<select aria-label={zh ? "训练经验" : "Experience"} value={experience} onChange={(event) => setExperience(event.target.value as ExperienceLevel)}><option value="beginner">{zh ? "初学者" : "Beginner"}</option><option value="novice">{zh ? "入门" : "Novice"}</option><option value="intermediate">{zh ? "中级" : "Intermediate"}</option><option value="advanced">{zh ? "高级" : "Advanced"}</option></select></label>
         <label>{zh ? "每周训练天数" : "Days per week"}<input aria-label={zh ? "每周训练天数" : "Days per week"} min="1" max="7" required type="number" value={days} onChange={(event) => setDays(Number(event.target.value))} /></label>
         <label>{zh ? "每次训练分钟" : "Minutes per session"}<input aria-label={zh ? "每次训练分钟" : "Minutes per session"} min="15" max="240" required step="5" type="number" value={duration} onChange={(event) => setDuration(Number(event.target.value))} /></label>
-      </div><fieldset><legend>{zh ? "可用器械" : "Equipment"}</legend>{["gym", "dumbbells", "bodyweight"].map((item) => <label className="onboarding-choice" key={item}><input checked={equipment.includes(item)} onChange={() => setEquipment(toggle(equipment, item))} type="checkbox" />{item}</label>)}</fieldset></section>
-      <section className="business-panel"><h2>{zh ? "饮食与限制" : "Nutrition and constraints"}</h2><fieldset><legend>{zh ? "饮食偏好" : "Dietary preferences"}</legend>{["high_protein", "vegetarian", "vegan"].map((item) => <label className="onboarding-choice" key={item}><input checked={dietaryPreferences.includes(item)} onChange={() => setDietaryPreferences(toggle(dietaryPreferences, item))} type="checkbox" />{item}</label>)}</fieldset>
+      </div><fieldset><legend>{zh ? "可用器械" : "Equipment"}</legend>{equipmentOptions.map((option) => <label className="onboarding-choice" key={option.value}><input checked={equipment.includes(option.value)} onChange={() => setEquipment(toggle(equipment, option.value))} type="checkbox" />{zh ? option.zh : option.en}</label>)}</fieldset></section>
+      <section className="business-panel"><h2>{zh ? "饮食与限制" : "Nutrition and constraints"}</h2><fieldset><legend>{zh ? "饮食偏好" : "Dietary preferences"}</legend>{dietaryPreferenceOptions.map((option) => <label className="onboarding-choice" key={option.value}><input checked={dietaryPreferences.includes(option.value)} onChange={() => setDietaryPreferences(toggle(dietaryPreferences, option.value))} type="checkbox" />{zh ? option.zh : option.en}</label>)}</fieldset>
         <label>{zh ? "过敏或忌口（用逗号分隔）" : "Allergies or exclusions (comma separated)"}<input aria-label={zh ? "过敏或忌口" : "Allergies or exclusions"} value={allergies} onChange={(event) => setAllergies(event.target.value)} /></label>
         <fieldset><legend>{zh ? "日程限制" : "Schedule constraints"}</legend><label className="onboarding-choice"><input checked={constraints.includes("busy_weekdays")} onChange={() => setConstraints(toggle(constraints, "busy_weekdays"))} type="checkbox" />{zh ? "工作日繁忙" : "Busy weekdays"}</label></fieldset>
+        <label className="onboarding-safety-choice"><input checked={safetyConfirmed} onChange={(event) => setSafetyConfirmed(event.target.checked)} type="checkbox" /><span><strong>{zh ? "我已了解健康与训练安全提示" : "I understand the health and training safety notice"}</strong><small>{zh ? "945 提供一般训练与饮食建议；出现胸痛、眩晕等异常时，应停止训练并及时就医。" : "945 provides general fitness and nutrition guidance. Stop training and seek care for symptoms such as chest pain or dizziness."}</small></span></label>
       </section>
       {error && <p className="form-error">{error}</p>}
-      <div className="button-row"><button disabled={saving} type="submit">{saving ? (zh ? "正在创建计划..." : "Creating plan...") : (zh ? "创建并启用我的计划" : "Create and activate my plan")}</button></div>
+      <div className="button-row"><button disabled={saving || !safetyConfirmed} type="submit">{saving ? (zh ? "正在创建计划..." : "Creating plan...") : (zh ? "创建并启用我的计划" : "Create and activate my plan")}</button></div>
     </form>;
 
   if (embedded) return form;

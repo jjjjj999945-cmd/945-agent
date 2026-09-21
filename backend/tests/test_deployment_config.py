@@ -4,6 +4,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def test_backend_requirements_support_uvicorn_env_files():
+    requirements = (ROOT / "backend" / "requirements.txt").read_text(encoding="utf-8").splitlines()
+
+    assert any(line.startswith("python-dotenv==") for line in requirements)
+
+
 def read_env_template() -> dict[str, str]:
     return {
         key: value

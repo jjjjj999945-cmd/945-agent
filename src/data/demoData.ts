@@ -44,6 +44,8 @@ export const demoProfile: UserProfile = {
   dietary_preferences: ["high_protein"],
   allergies: [],
   constraints: ["busy_weekdays"],
+  safety_confirmed: true,
+  safety_confirmed_at: now,
   updated_at: now
 };
 

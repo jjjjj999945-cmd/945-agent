@@ -685,6 +685,24 @@ def test_agent_graph_generates_workout_draft_without_writing():
     assert router.requests[1].tool_result.call_id == "call-1"
 
 
+def test_agent_graph_returns_today_workout_draft_for_an_explicit_today_workout_request():
+    from backend.app.llm.deterministic import DeterministicProvider
+
+    result = asyncio.run(
+        run_agent_graph(
+            user_id=DEMO_USER_ID,
+            locale="zh-CN",
+            message="帮我生成今天的训练安排",
+            context={"date": "2026-07-11"},
+            provider_router=DeterministicProvider(),
+        )
+    )
+
+    assert result.record_draft.type == "today_workout_plan"
+    assert result.record_draft.requires_confirmation is True
+    assert result.record_draft.payload["workout_day"]["date"] == "2026-07-11"
+
+
 def test_agent_graph_creates_a_local_draft_when_provider_omits_a_record_tool_call():
     router = StubRouter(
         [
@@ -829,6 +847,31 @@ def test_agent_graph_retrieves_knowledge_for_question():
     assert result.record_draft is None
     assert any(chunk.metadata["topic"] == "squat" for chunk in result.rag_chunks)
     assert router.requests[0].rag_chunks
+
+
+def test_agent_graph_removes_unbacked_confirmation_requests_from_a_question_reply():
+    router = StubRouter(
+        [
+            AgentModelResponse(
+                intent="ask_question",
+                reply="今天建议做背部训练。\n\n确认要保存这份计划吗？确认后我再帮你正式写入。",
+                provider="stub",
+            )
+        ]
+    )
+
+    result = asyncio.run(
+        run_agent_graph(
+            user_id=DEMO_USER_ID,
+            locale="zh-CN",
+            message="今天练什么？",
+            context={"date": "2026-07-11"},
+            provider_router=router,
+        )
+    )
+
+    assert result.record_draft is None
+    assert result.reply == "今天建议做背部训练。"
 
 
 def test_agent_graph_rejects_invalid_tool_output_in_production_router():

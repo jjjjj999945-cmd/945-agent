@@ -1,6 +1,7 @@
 from backend.app.agents.tools import (
     create_meal_log_draft,
     create_plan_adjustment_draft,
+    create_today_workout_plan_draft,
     create_workout_log_draft,
     get_today_context,
 )
@@ -48,6 +49,8 @@ def intent_router(message: str) -> AgentIntent:
         return "log_workout"
     if _looks_like_record(message) and ("吃" in normalized or "meal" in normalized or "food" in normalized):
         return "log_meal"
+    if any(term in normalized for term in ("生成今天的训练", "今天的训练安排", "today workout plan")):
+        return "generate_today_workout"
     if _looks_like_question(message):
         return "ask_question"
     if "调整" in normalized or "adjust" in normalized:
@@ -70,6 +73,8 @@ def tool_planner(intent: AgentIntent, message: str, locale: str, date: str | Non
         return create_meal_log_draft(message, locale=locale)
     if intent == "adjust_plan":
         return create_plan_adjustment_draft(message, target_date=date)
+    if intent == "generate_today_workout" and date:
+        return create_today_workout_plan_draft(date, locale=locale)
     return None
 
 

@@ -10,6 +10,7 @@ def _intent_for_draft(draft: RecordDraft | None) -> str:
         "workout_log": "log_workout",
         "meal_log": "log_meal",
         "plan_adjustment": "adjust_plan",
+        "today_workout_plan": "generate_today_workout",
         "daily_checkin": "ask_question",
     }[draft.type]
 
