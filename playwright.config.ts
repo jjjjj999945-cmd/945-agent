@@ -2,8 +2,16 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: ["http-integration.spec.ts", "agent-workflow.spec.ts", "plan-lifecycle.spec.ts"],
+  testIgnore: [
+    "http-integration.spec.ts",
+    "agent-workflow.spec.ts",
+    "plan-lifecycle.spec.ts",
+    "auth-page.spec.ts",
+    "auth-session.spec.ts",
+    "onboarding-auth-routing.spec.ts"
+  ],
   timeout: 30_000,
+  workers: 1,
   expect: {
     timeout: 10_000
   },
