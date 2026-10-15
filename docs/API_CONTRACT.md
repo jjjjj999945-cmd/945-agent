@@ -297,8 +297,9 @@ type AdviceType = "daily_advice" | "weekly_summary" | "plan_adjustment" | "safet
 ```json
 {
   "user_id": "demo-user-945",
-  "advice_id": "advice-2026-07-11-1",
-  "adjustment_type": "reduce_volume",
+  "adjustment_type": "reduce_intensity",
+  "reason": "昨晚睡眠不足，今天降低训练强度。",
+  "target_date": "2026-07-11",
   "confirmed": true
 }
 ```
@@ -560,5 +561,5 @@ Agent 对话。
 - `record_draft` 只是预览草稿，不会自动保存。
 - 训练草稿必须由用户确认后调用 `POST /api/workout-logs`。
 - 饮食草稿必须由用户确认后调用 `POST /api/meal-logs`；计划餐确认使用 `POST /api/meal-logs/confirm-planned-meal`。
-- 计划调整草稿不会改写计划；当前 MVP 尚未实现计划调整结构化 API。
+- 计划调整草稿不会自动改写计划；用户确认后才调用 `POST /api/plans/{plan_id}/adjust`，该接口归档旧 active 计划并创建新的 active 计划版本。
 - 高风险输入优先返回安全提醒，不调用 OpenAI Provider。
