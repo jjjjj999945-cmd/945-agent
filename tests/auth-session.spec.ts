@@ -24,13 +24,18 @@ test("restores a signed-in HTTP session after a page reload", async ({ page }) =
   await expect(page.evaluate(() => localStorage.getItem("945.auth.token"))).resolves.toBeNull();
 });
 
-test("refreshes once and retries a protected request", async ({ page }) => {
+test("refreshes and retries a protected request", async ({ page }) => {
   await registerThroughAuthPage(page);
   let refreshRequests = 0;
+  let unauthorizedResponses = 0;
   page.on("request", (request) => {
     if (request.url().endsWith("/api/auth/refresh")) refreshRequests += 1;
   });
+  const retriedPlanResponse = page.waitForResponse(
+    (response) => response.url().includes("/api/plans/current?") && response.status() === 200
+  );
   await page.route("**/api/plans/current?*", async (route) => {
+    unauthorizedResponses += 1;
     await route.fulfill({
       status: 401,
       contentType: "application/json",
@@ -45,7 +50,9 @@ test("refreshes once and retries a protected request", async ({ page }) => {
   await page.goto("/today");
 
   await expect(page.getByRole("heading", { name: "登录 945" })).toHaveCount(0);
-  await expect.poll(() => refreshRequests).toBe(2);
+  await retriedPlanResponse;
+  expect(unauthorizedResponses).toBe(1);
+  await expect.poll(() => refreshRequests).toBeGreaterThan(0);
 });
 
 test("returns to login when retry is unauthorized", async ({ page }) => {

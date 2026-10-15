@@ -8,6 +8,7 @@
     "dev:http": "vite --host 127.0.0.1 --port 5177 --mode http",
     "build": "tsc && vite build",
     "qa:app": "playwright test",
+    "qa:frontend": "npm run qa:app && npx playwright test --config=playwright.auth.config.ts && npx playwright test --config=playwright.auth-routing.config.ts",
     "qa:http": "playwright test --config=playwright.http.config.ts",
     "qa:mongo": "playwright test --config=playwright.mongo.config.ts",
     "qa:agent": "python -m backend.evals.run_agent_eval",
