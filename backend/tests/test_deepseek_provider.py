@@ -15,9 +15,24 @@ class FakeCompletions:
         return self.response
 
 
+class SequencedFakeCompletions:
+    def __init__(self, responses):
+        self.responses = iter(responses)
+        self.requests = []
+
+    async def create(self, **kwargs):
+        self.requests.append(kwargs)
+        return next(self.responses)
+
+
 class FakeClient:
     def __init__(self, response):
         self.chat = SimpleNamespace(completions=FakeCompletions(response))
+
+
+class SequencedFakeClient:
+    def __init__(self, responses):
+        self.chat = SimpleNamespace(completions=SequencedFakeCompletions(responses))
 
 
 def _request() -> AgentModelRequest:
@@ -65,6 +80,47 @@ def test_deepseek_provider_generates_draft_tool_call_with_thinking_disabled():
     assert payload["extra_body"] == {"thinking": {"type": "disabled"}}
     assert payload["tools"][0]["function"]["name"] == "create_workout_log_draft"
     assert "strict" not in payload["tools"][0]["function"]
+
+
+def test_deepseek_provider_omits_tools_after_a_tool_result():
+    tool_call = SimpleNamespace(
+        id="call-1",
+        function=SimpleNamespace(name="create_workout_log_draft", arguments='{"exercise_name":"squat"}'),
+    )
+    first_response = SimpleNamespace(
+        id="deepseek-first-response",
+        model="deepseek-v4-flash",
+        choices=[SimpleNamespace(message=SimpleNamespace(content=None, tool_calls=[tool_call]))],
+        usage=SimpleNamespace(prompt_tokens=20, completion_tokens=10),
+    )
+    second_response = SimpleNamespace(
+        id="deepseek-second-response",
+        model="deepseek-v4-flash",
+        choices=[SimpleNamespace(message=SimpleNamespace(content="草稿已生成，请确认。", tool_calls=[]))],
+        usage=SimpleNamespace(prompt_tokens=20, completion_tokens=10),
+    )
+    client = SequencedFakeClient([first_response, second_response])
+    provider = DeepSeekProvider(client=client, model="deepseek-v4-flash", retry_delay_seconds=0)
+
+    first_result = asyncio.run(provider.generate(_request()))
+    second_request = _request().model_copy(
+        update={
+            "tool_result": ToolExecutionResult(
+                call_id="call-1",
+                name="create_workout_log_draft",
+                output={"draft_id": "draft-1"},
+            ),
+            "continuation": first_result.continuation,
+        }
+    )
+
+    second_result = asyncio.run(provider.generate(second_request))
+
+    first_payload, second_payload = client.chat.completions.requests
+    assert "tools" in first_payload
+    assert "tools" not in second_payload
+    assert second_payload["tool_choice"] == "none"
+    assert second_result.reply == "草稿已生成，请确认。"
 
 
 def test_deepseek_provider_keeps_the_only_draft_tool_when_model_requests_a_read_and_draft_pair():

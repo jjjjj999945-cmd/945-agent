@@ -50,12 +50,13 @@ class DeepSeekProvider:
             "model": self.model,
             "max_tokens": self.max_tokens,
             "messages": self._build_messages(request),
-            "tools": [self._to_chat_tool(tool) for tool in request.tools],
             "parallel_tool_calls": False,
             # The OpenAI SDK forwards DeepSeek-specific parameters via extra_body.
             "extra_body": {"thinking": {"type": "disabled"}},
         }
-        if request.tool_result is not None:
+        if request.tool_result is None:
+            payload["tools"] = [self._to_chat_tool(tool) for tool in request.tools]
+        else:
             payload["tool_choice"] = "none"
 
         response, attempts = await self._create_completion(payload, request.request_id)
