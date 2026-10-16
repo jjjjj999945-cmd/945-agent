@@ -41,3 +41,4 @@ def test_mongo_qa_server_starts_uvicorn_with_subprocess(monkeypatch):
     assert calls[1][0][1:4] == ["-m", "uvicorn", "backend.app.main:app"]
     assert calls[1][1]["check"] is True
     assert calls[1][1]["env"]["945_STORAGE_BACKEND"] == "mongo"
+    assert calls[1][1]["env"]["945_MONGODB_URI"] == "mongodb://127.0.0.1:27017"

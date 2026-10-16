@@ -10,7 +10,7 @@
     "qa:app": "playwright test",
     "qa:frontend": "npm run qa:app && npx playwright test --config=playwright.auth.config.ts && npx playwright test --config=playwright.auth-routing.config.ts",
     "qa:http": "playwright test --config=playwright.http.config.ts",
-    "qa:mongo": "playwright test --config=playwright.mongo.config.ts",
+    "qa:mongo": "python -m backend.scripts.run_mongo_qa",
     "qa:agent": "python -m backend.evals.run_agent_eval",
     "qa:deepseek": "python -m pytest backend/tests/test_deepseek_smoke.py -q",
     "qa:lv4": "python -m backend.evals.run_lv4_acceptance",

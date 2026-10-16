@@ -365,7 +365,7 @@ Mongo 持久化 HTTP QA：
 npm run qa:mongo
 ```
 
-该命令仅清空专用的 `945_mongo_qa` 数据库，随后以 Mongo repository 跑完整 HTTP 用例；不会删除 `945_integration` 或其他数据库。
+该命令需要可用的 Docker Engine，会启动一个绑定随机本机端口的临时 MongoDB 容器，随后以 Mongo repository 跑完整 HTTP 用例。测试结束会自动删除临时容器；它只清空专用的 `945_mongo_qa` 数据库，不会连接或删除生产 Compose 的 `mongo_data`、`945_integration` 或其他数据库。
 
 ## 前端确认写入契约
 

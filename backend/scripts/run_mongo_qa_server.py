@@ -6,7 +6,6 @@ from pathlib import Path
 
 MONGO_QA_ENVIRONMENT = {
     "945_STORAGE_BACKEND": "mongo",
-    "945_MONGODB_URI": "mongodb://127.0.0.1:27017",
     "945_MONGODB_DATABASE": "945_mongo_qa",
     "945_LLM_PROVIDER": "deterministic",
     "945_APP_ENV": "development",
@@ -15,7 +14,9 @@ MONGO_QA_ENVIRONMENT = {
 
 
 def main() -> None:
-    environment = os.environ | MONGO_QA_ENVIRONMENT
+    environment = os.environ | MONGO_QA_ENVIRONMENT | {
+        "945_MONGODB_URI": os.getenv("945_MONGODB_URI", "mongodb://127.0.0.1:27017")
+    }
     script_path = Path(__file__).with_name("reset_mongo_database.py")
     subprocess.run([sys.executable, str(script_path)], check=True, env=environment)
     subprocess.run(
