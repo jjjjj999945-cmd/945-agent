@@ -33,7 +33,7 @@ test.describe.serial("945 real HTTP integration", () => {
       (response) => response.url().includes("/api/today") && response.request().method() === "GET"
     );
     await page.goto("/today");
-    await expect(page.getByRole("heading", { name: "早上好，Alex。" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "你好，Alex。" })).toBeVisible();
     expect((await todayResponse).status()).toBe(200);
   });
 
@@ -109,25 +109,18 @@ test.describe.serial("945 real HTTP integration", () => {
 
     await page.goto("/workout");
     const workoutLogsBefore = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
-    await page.getByRole("button", { name: "完成训练" }).click();
+    await page.getByLabel("哑铃卧推 第 1 组重量 kg").fill("32.5");
+    await page.getByLabel("哑铃卧推 第 1 组次数").fill("9");
+    await page.getByLabel("哑铃卧推 第 1 组已完成").check();
+    const workoutWrite = page.waitForRequest((request) => request.url() === `${API_BASE_URL}/api/workout-logs` && request.method() === "POST");
+    await page.getByRole("button", { name: "保存训练记录" }).click();
     await expect(page.getByText("训练记录已保存")).toBeVisible();
+    const workoutPayload = (await workoutWrite).postDataJSON();
+    expect(workoutPayload.status).toBe("partially_completed");
+    expect(workoutPayload.exercises[0].sets[0]).toMatchObject({ reps: 9, weight_kg: 32.5, completed: true });
+    expect(workoutPayload.exercises[0].sets[1].completed).toBe(false);
     const workoutLogsAfter = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
     expect(workoutLogsAfter.data).toHaveLength(workoutLogsBefore.data.length + 1);
-  });
-
-  test("persists a completed workout from the Today page", async ({ page, request }) => {
-    await page.goto("/today");
-    const before = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
-    const writeResponse = page.waitForResponse(
-      (response) => response.url() === `${API_BASE_URL}/api/workout-logs` && response.request().method() === "POST"
-    );
-
-    await page.getByRole("button", { name: "完成", exact: true }).click();
-
-    expect((await writeResponse).status()).toBe(200);
-    await expect(page.getByText("训练记录已保存")).toBeVisible();
-    const after = await (await request.get(`${API_BASE_URL}/api/workout-logs?user_id=demo-user-945`)).json();
-    expect(after.data).toHaveLength(before.data.length + 1);
   });
 
   test("writes Agent workout and meal drafts only after confirmation", async ({ page, request }) => {

@@ -1672,10 +1672,15 @@ select:focus {
 
 .set-table {
   display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.workout-set-row {
+  display: grid;
   grid-template-columns: 24px minmax(64px, 1fr) 24px minmax(64px, 1fr) 36px 28px;
   gap: 12px;
   align-items: center;
-  margin-top: 10px;
 }
 
 .set-table span {
@@ -1711,6 +1716,35 @@ select:focus {
   height: 24px;
   place-items: center;
   border-radius: 999px;
+  background: #e7f8d2;
+  color: var(--up);
+}
+
+.set-complete-toggle {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--panel-2);
+  cursor: pointer;
+}
+
+.set-complete-toggle input {
+  position: absolute;
+  opacity: 0;
+}
+
+.set-complete-toggle span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: transparent;
+}
+
+.set-complete-toggle input:checked + span {
   background: #e7f8d2;
   color: var(--up);
 }
@@ -1793,6 +1827,12 @@ select:focus {
 
 .diet-side-panel {
   min-height: 560px;
+}
+
+.manual-macro-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .check-row,

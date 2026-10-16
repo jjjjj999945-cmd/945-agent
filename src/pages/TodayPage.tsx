@@ -58,18 +58,9 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   const isChinese = locale === "zh-CN";
   const coachCopy = {
     eyebrow: isChinese ? "945 今日状态" : "945 Readiness",
-    headline: isChinese ? "早上好，Alex。" : "Good morning, Alex.",
-    intro: isChinese
-      ? "今天更适合恢复驱动训练。智能教练建议保留主计划，但降低最后一组强度，并优先补足蛋白质。"
-      : "Your body is primed for recovery today. The Agent suggests keeping the plan, lowering the final set, and prioritizing protein.",
     start: isChinese ? "开始今日计划" : "Start today",
     review: isChinese ? "查看调整" : "Review adjustment",
     insight: isChinese ? "智能教练" : "Coach Agent",
-    loadDelta: isChinese ? "负荷变化" : "Load delta",
-    effort: isChinese ? "目标强度" : "Target effort",
-    recoveryWindow: isChinese ? "恢复窗口" : "Recovery window",
-    mobility: isChinese ? "灵活性" : "Mobility",
-    strength: isChinese ? "上肢力量" : "Upper strength",
     protein: isChinese ? "蛋白质" : "Protein",
     workouts: isChinese ? "训练" : "Workouts",
     calories: isChinese ? "热量" : "Calories",
@@ -77,13 +68,15 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
   };
   const goalLabel = isChinese && today?.user.goal === "body_recomposition" ? "身体重组" : (today?.user.goal.replace(/_/g, " ") ?? "");
   const recoveryLabel = isChinese && summary?.recovery_status === "normal" ? "正常" : (summary?.recovery_status ?? "");
-  const focusLabel = isChinese && workout?.focus === "chest_back_shoulders" ? "胸部、背部、肩部" : workout?.focus.replace(/_/g, " ");
+  const focusLabel = workout?.focus.replace(/_/g, " ");
   const riskLabel = isChinese && today?.latest_advice?.risk_level === "low" ? "低风险" : today?.latest_advice?.risk_level;
-  const workoutStatusLabels: Record<"completed" | "partial" | "skipped", string> = {
-    completed: isChinese ? "已完成" : "completed",
-    partial: isChinese ? "部分完成" : "partial",
-    skipped: isChinese ? "已跳过" : "skipped"
-  };
+  const headline = today?.user.display_name
+    ? (isChinese ? `你好，${today.user.display_name}。` : `Hello, ${today.user.display_name}.`)
+    : (isChinese ? "今日安排" : "Today");
+  const intro = today?.latest_advice?.content
+    ?? (workout
+      ? (isChinese ? "已为你准备今日训练与饮食计划。" : "Your training and meal plan are ready.")
+      : (isChinese ? "暂时没有今日安排。" : "There is no plan for today."));
 
   const mealTotal = useMemo(
     () =>
@@ -152,39 +145,6 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
     await loadToday();
   }
 
-  async function updateWorkoutStatus(status: "completed" | "partial" | "skipped") {
-    if (!workout) return;
-    setSaving(true);
-    const planId = getActivePlanId();
-    if (!planId) {
-      setSaving(false);
-      return;
-    }
-    const response = await api.saveWorkoutLog({
-      user_id: DEMO_USER_ID,
-      plan_id: planId,
-      date: appToday,
-      status: status === "partial" ? "partially_completed" : status,
-      duration_minutes: workout.duration_minutes,
-      exercises: workout.exercises.map((exercise) => ({
-        exercise_id: exercise.exercise_id,
-        name: exercise.name,
-        sets: Array.from({ length: exercise.sets }, () => ({
-          reps: Number.parseInt(exercise.reps, 10) || 0,
-          completed: status !== "skipped"
-        }))
-      })),
-      notes: `Updated from Today page: ${workoutStatusLabels[status]}`
-    });
-    setSaving(false);
-    if (response.error) {
-      setNotice(response.error.message);
-      return;
-    }
-    setNotice(t("status.workoutSaved"));
-    await loadToday();
-  }
-
   if (!today || !summary) {
     return <PageLoadState message={notice || t("status.loading")} />;
   }
@@ -194,8 +154,8 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
       <header className="today-header today-hero-panel">
         <div className="today-hero-copy">
           <p>{coachCopy.eyebrow}</p>
-          <h1>{coachCopy.headline}</h1>
-          <span>{coachCopy.intro}</span>
+          <h1>{headline}</h1>
+          <span>{intro}</span>
           <div className="hero-action-row">
             <button onClick={() => onNavigate?.("/workout")} type="button">
               {coachCopy.start}
@@ -275,9 +235,9 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
                 ))}
               </div>
               <div className="button-row">
-                <button disabled={saving} onClick={() => void updateWorkoutStatus("completed")} type="button">{t("actions.complete")}</button>
-                <button className="ghost" disabled={saving} onClick={() => void updateWorkoutStatus("partial")} type="button">{t("actions.partial")}</button>
-                <button className="ghost" disabled={saving} onClick={() => void updateWorkoutStatus("skipped")} type="button">{t("actions.skip")}</button>
+                <button onClick={() => onNavigate?.("/workout")} type="button">
+                  {isChinese ? "记录训练" : "Log workout"}
+                </button>
               </div>
             </>
           ) : (
@@ -376,25 +336,6 @@ export function TodayPage({ locale, onNavigate }: TodayPageProps) {
               <h2>{today.latest_advice.title}</h2>
               <p>{today.latest_advice.content}</p>
               <small>{today.latest_advice.reason}</small>
-              <div className="agent-signal-grid" aria-label={isChinese ? "智能教练上下文信号" : "Agent context signals"}>
-                <span>
-                  <b>-18%</b>
-                  {coachCopy.loadDelta}
-                </span>
-                <span>
-                  <b>{isChinese ? "强度 7" : "RPE 7"}</b>
-                  {coachCopy.effort}
-                </span>
-                <span>
-                  <b>{isChinese ? "2 天" : "2 days"}</b>
-                  {coachCopy.recoveryWindow}
-                </span>
-              </div>
-              <div className="agent-timeline" aria-label={isChinese ? "今日计划时间线" : "Today plan timeline"}>
-                <span style={{ width: "28%" }}>{coachCopy.mobility}</span>
-                <span style={{ width: "42%" }}>{coachCopy.strength}</span>
-                <span style={{ width: "30%" }}>{coachCopy.protein}</span>
-              </div>
               <div className="button-row">
                 <button onClick={() => setNotice(t("status.reasonVisible"))} type="button">{t("actions.viewReason")}</button>
                 <button

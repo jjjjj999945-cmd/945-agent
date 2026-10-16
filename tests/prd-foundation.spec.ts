@@ -4,7 +4,7 @@ test.describe("PRD-driven frontend foundation", () => {
   test("renders primary product routes and keeps prototype references accessible", async ({ page }) => {
     const routes = [
       ["/", "945 智能教练"],
-      ["/today", "早上好，Alex。"],
+      ["/today", "你好，Alex。"],
       ["/workout", "训练计划中心"],
       ["/diet", "饮食"],
       ["/body", "身体数据"],
@@ -27,13 +27,20 @@ test.describe("PRD-driven frontend foundation", () => {
 
   test("supports core mock interactions across product pages", async ({ page }) => {
     await page.goto("/workout");
-    await page.getByRole("button", { name: "完成训练" }).click();
+    await page.getByLabel("哑铃卧推 第 1 组重量 kg").fill("32.5");
+    await page.getByLabel("哑铃卧推 第 1 组次数").fill("9");
+    await page.getByLabel("哑铃卧推 第 1 组已完成").check();
+    await page.getByRole("button", { name: "保存训练记录" }).click();
     await expect(page.getByText("训练记录已保存")).toBeVisible();
 
     await page.goto("/diet");
     await page.getByRole("button", { name: "确认计划餐" }).first().click();
     await expect(page.getByText("计划餐已确认")).toBeVisible();
     await page.getByLabel("手动餐食名称").fill("鸡胸肉沙拉");
+    await page.getByLabel("千卡").fill("420");
+    await page.getByLabel("蛋白质 g").fill("38");
+    await page.getByLabel("碳水 g").fill("24");
+    await page.getByLabel("脂肪 g").fill("14");
     await page.getByRole("button", { name: "保存手动餐食" }).click();
     await expect(page.getByText("手动餐食已保存")).toBeVisible();
 
@@ -61,10 +68,12 @@ test.describe("PRD-driven frontend foundation", () => {
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
   });
 
-  test("gives visible feedback for previously static product actions", async ({ page }) => {
+  test("keeps Today focused on current plan and coach navigation", async ({ page }) => {
     await page.goto("/today");
-    await page.getByRole("button", { name: "完成", exact: true }).click();
-    await expect(page.getByText("训练记录已保存")).toBeVisible();
+    await page.getByRole("button", { name: "记录训练" }).click();
+    await expect(page).toHaveURL(/\/workout$/);
+
+    await page.goto("/today");
     await page.getByRole("button", { name: "查看原因" }).click();
     await expect(page.getByText("建议原因已展开在卡片内")).toBeVisible();
     await page.getByRole("button", { name: "调整今日计划" }).click();

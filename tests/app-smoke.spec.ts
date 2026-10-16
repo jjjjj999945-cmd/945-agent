@@ -25,7 +25,7 @@ test.describe("945 business Today page smoke QA", () => {
   test("verifies meal confirmation, daily check-in, and language switching", async ({ page }) => {
     await page.goto("/today");
 
-    await expect(page.getByRole("heading", { name: "早上好，Alex。" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "你好，Alex。" })).toBeVisible();
     await expect(page.getByText("1480 / 2300")).toBeVisible();
 
     const firstMealConfirm = page.getByRole("button", { name: "确认" }).first();
@@ -62,9 +62,13 @@ test.describe("945 business Today page smoke QA", () => {
     await expect(mealInput).toBeFocused();
   });
 
-  test("shows the nutrition-adjustment details when requested", async ({ page }) => {
+  test("uses API data rather than fixed coach and diet suggestions", async ({ page }) => {
+    await page.goto("/today");
+    await expect(page.getByText("-18%")).toHaveCount(0);
+    await expect(page.getByText("强度 7")).toHaveCount(0);
+
     await page.goto("/diet");
-    await page.getByRole("button", { name: "查看详情" }).click();
-    await expect(page.getByText("碳水安排：午餐和晚餐各上调一份主食。")).toBeVisible();
+    await expect(page.getByText("智能饮食调整")).toHaveCount(0);
+    await expect(page.getByText("采购清单")).toHaveCount(0);
   });
 });
