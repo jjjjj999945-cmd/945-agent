@@ -8,7 +8,7 @@
 
 项目当前已经完成 LangGraph Agent、DeepSeek Provider、白名单工具与草稿确认写入，并具备 MongoDB 多用户隔离与持久化、Agent checkpoint、run/trace/token/延迟指标、可选 LangSmith、确定性 Eval、真实 HTTP/Mongo QA 和本机 Docker Compose 生产配置。
 
-项目已完成 **Lv4 离线验收闭环**：统一命令和机器报告能够验证上述离线能力。真实 DeepSeek 五样本与 Docker Compose 健康检查仍是最终 Lv4 收口前必须单独执行的外部环境验收项。前端视觉系统保持冻结，本阶段没有修改颜色、字体、图标、导航、玻璃效果或组件视觉样式。
+项目已具备 **Lv4 验收闭环**：统一命令和机器报告覆盖离线能力，真实 DeepSeek 五样本与 Docker Compose 健康检查作为外部环境验收项单独执行。前端视觉系统保持冻结，本阶段没有修改颜色、字体、图标、导航、玻璃效果或组件视觉样式。
 
 完整离线验收不调用真实模型：
 
