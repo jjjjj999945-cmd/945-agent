@@ -69,11 +69,23 @@ export function AdvicePage({ locale, onNavigate, onAgentDraft }: { locale: Local
   if (!data) return <PageLoadState message={notice || t("status.loading")} />;
   const cards = [data.daily, data.weekly, ...data.adjustments].filter(Boolean) as AgentAdvice[];
   const primaryAdvice = data.daily ?? data.weekly ?? cards[0];
+  const adjustmentAdvice = cards.find((advice) => advice.type === "plan_adjustment") ?? null;
   const adviceTypeLabels: Record<AgentAdvice["type"], string> = {
     daily_advice: isChinese ? "今日建议" : "Daily Advice",
     weekly_summary: isChinese ? "周总结" : "Weekly Summary",
     plan_adjustment: isChinese ? "计划调整" : "Plan Adjustment",
     safety_warning: isChinese ? "安全提醒" : "Safety Warning"
+  };
+  const relatedDataLabels: Record<string, string> = {
+    workout_logs: isChinese ? "训练记录" : "Workout logs",
+    meal_logs: isChinese ? "饮食记录" : "Meal logs",
+    daily_checkins: isChinese ? "每日打卡" : "Daily check-ins",
+    meal_plan: isChinese ? "饮食计划" : "Meal plan",
+    workout_plan: isChinese ? "训练计划" : "Workout plan",
+    plans: isChinese ? "当前计划" : "Current plan",
+    weekly_workouts_completed: isChinese ? "本周训练完成情况" : "Weekly workout completion",
+    fatigue_level: isChinese ? "疲劳记录" : "Fatigue records",
+    soreness_level: isChinese ? "酸痛记录" : "Soreness records"
   };
 
   if (!primaryAdvice) {
@@ -112,51 +124,36 @@ export function AdvicePage({ locale, onNavigate, onAgentDraft }: { locale: Local
           <article className="business-panel analysis-reason-card">
             <div className="section-heading">
               <span>{isChinese ? "为什么建议这次调整" : "Why we suggest this change"}</span>
-              <strong>{isChinese ? "置信度 94%" : "Confidence 94%"}</strong>
+              <strong>{adviceTypeLabels[primaryAdvice.type]}</strong>
             </div>
             <h2>{primaryAdvice.title}</h2>
             <p>{primaryAdvice.content}</p>
             <small>{primaryAdvice.reason}</small>
             <div className="analysis-metrics">
-              <span><b>{isChinese ? "心率变异性趋势" : "HRV Trend"}</b>{isChinese ? "下降 15%" : "-15% drop"}</span>
-              <span><b>{isChinese ? "睡眠评分" : "Sleep Score"}</b>64/100</span>
-              <span><b>{isChinese ? "训练负荷" : "Training Load"}</b>{isChinese ? "峰值日" : "Peak day"}</span>
+              {primaryAdvice.related_data.length === 0 ? <span><b>{isChinese ? "参考数据" : "Reference data"}</b>{isChinese ? "当前记录不足" : "Not enough recorded data"}</span> : primaryAdvice.related_data.map((item) => <span key={item}><b>{relatedDataLabels[item] ?? item}</b>{isChinese ? "已纳入本次建议" : "Included in this recommendation"}</span>)}
             </div>
           </article>
           <article className="business-panel plan-comparison-card">
             <div className="section-heading">
-              <span>{isChinese ? "计划对比" : "Plan Comparison"}</span>
-              <strong>{isChinese ? "45 分钟高强度" : "45 min high intensity"}</strong>
+              <span>{isChinese ? "建议行动" : "Recommended actions"}</span>
+              <strong>{primaryAdvice.risk_level === "high" ? (isChinese ? "高优先级" : "High priority") : primaryAdvice.risk_level === "medium" ? (isChinese ? "需关注" : "Needs attention") : (isChinese ? "可执行" : "Actionable")}</strong>
             </div>
-            <div className="comparison-row muted">
-              <span>{isChinese ? "原计划" : "Original Plan"}</span>
-              <strong>{isChinese ? "HIIT 阈值间歇" : "HIIT Threshold Intervals"}</strong>
-            </div>
-            <div className="comparison-row selected">
-              <span>{isChinese ? "建议计划" : "Suggested Plan"}</span>
-              <strong>{isChinese ? "主动恢复瑜伽 · 30 分钟" : "Active Recovery Yoga · 30 min"}</strong>
-            </div>
+            {primaryAdvice.recommended_actions.length === 0 ? <p>{isChinese ? "当前没有额外行动项。" : "No additional action is needed."}</p> : primaryAdvice.recommended_actions.map((action) => <div className="comparison-row selected" key={action}><strong>{action}</strong></div>)}
           </article>
         </div>
 
         <aside className="advice-side-stack">
           <article className="business-panel compact update-schedule-card">
-            <div className="update-icon"><span className="material-symbols-outlined">published_with_changes</span></div>
-            <h2>{isChinese ? "更新日程？" : "Update Schedule?"}</h2>
-            <p>{isChinese ? "立即把这次调整应用到你的训练日历。" : "Apply this adjustment to your calendar immediately."}</p>
+            <h2>{adjustmentAdvice ? (isChinese ? "确认计划调整" : "Confirm plan adjustment") : (isChinese ? "处理这条建议" : "Respond to this recommendation")}</h2>
+            <p>{adjustmentAdvice ? (isChinese ? "先查看调整草稿，确认后才会更新当前计划。" : "Review the adjustment draft first. Your plan changes only after confirmation.") : (isChinese ? "采纳、暂缓或忽略会保存你对这条建议的反馈。" : "Accept, defer, or dismiss to save your feedback on this recommendation.")}</p>
             <div className="button-row">
-              <button onClick={() => createAdjustmentDraft(primaryAdvice)} type="button">{isChinese ? "生成调整草稿" : "Create adjustment draft"}</button>
-              <button className="ghost" onClick={() => void updateAdvice(primaryAdvice, "dismissed")} type="button">{isChinese ? "保留原计划" : "Keep Original Plan"}</button>
+              {adjustmentAdvice ? <button onClick={() => createAdjustmentDraft(adjustmentAdvice)} type="button">{isChinese ? "生成调整草稿" : "Create adjustment draft"}</button> : null}
+              <button onClick={() => void updateAdvice(primaryAdvice, "accepted")} type="button">{t("actions.acceptAdvice")}</button>
+              <button className="ghost" onClick={() => void updateAdvice(primaryAdvice, "dismissed")} type="button">{t("actions.dismiss")}</button>
             </div>
           </article>
           <article className="business-panel compact">
-            <h2>{isChinese ? "来源指标" : "Source Metrics"}</h2>
-            <div className="source-row"><span>{isChinese ? "静息心率" : "Resting HR"}</span><strong>62 bpm ↑</strong></div>
-            <div className="source-row"><span>{isChinese ? "深睡眠" : "Deep Sleep"}</span><strong>{isChinese ? "1小时12分 ↓" : "1h 12m ↓"}</strong></div>
-            <div className="source-row"><span>{isChinese ? "肌肉准备度" : "Muscle Readiness"}</span><strong>42%</strong></div>
-          </article>
-          <article className="business-panel compact">
-            <h2>{t("page.advice.title")}</h2>
+            <h2>{isChinese ? "建议历史" : "Advice history"}</h2>
             {cards.map((advice) => (
               <div className="compact-advice-row" key={advice.advice_id}>
                 <span>{adviceTypeLabels[advice.type]}</span>

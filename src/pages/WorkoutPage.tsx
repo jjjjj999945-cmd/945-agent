@@ -5,7 +5,7 @@ import { appToday } from "../services/dateContext";
 import { usePlanContext } from "../contexts/PlanContext";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
-import type { Locale, WorkoutPageData, WorkoutPlanDay } from "../types/domain";
+import type { Locale, RecordDraft, WorkoutPageData, WorkoutPlanDay } from "../types/domain";
 
 type SetEntry = { reps: string; weight_kg: string; completed: boolean };
 
@@ -16,7 +16,7 @@ function initialSetEntries(day: WorkoutPlanDay): Record<string, SetEntry> {
   ])));
 }
 
-export function WorkoutPage({ locale }: { locale: Locale }) {
+export function WorkoutPage({ locale, onAgentDraft, onNavigate }: { locale: Locale; onAgentDraft: (draft: RecordDraft) => void; onNavigate: (path: string) => void }) {
   const t = createTranslator(locale);
   const { currentPlan } = usePlanContext();
   const isChinese = locale === "zh-CN";
@@ -24,6 +24,9 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
   const [notice, setNotice] = useState("");
   const [setEntries, setSetEntries] = useState<Record<string, SetEntry>>({});
   const [saving, setSaving] = useState(false);
+  const [replacementTarget, setReplacementTarget] = useState<{ exercise_id: string; name: string } | null>(null);
+  const [replacementName, setReplacementName] = useState("");
+  const [replacementReason, setReplacementReason] = useState("");
 
   useEffect(() => { void loadWorkout(); }, []);
 
@@ -77,6 +80,28 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
     await loadWorkout();
   }
 
+  function createReplacementDraft() {
+    if (!replacementTarget || !replacementName.trim() || !replacementReason.trim()) {
+      setNotice(isChinese ? "请填写替换动作和调整原因。" : "Enter a replacement exercise and reason.");
+      return;
+    }
+    onAgentDraft({
+      type: "plan_adjustment",
+      requires_confirmation: true,
+      payload: {
+        adjustment_type: "swap_exercise",
+        target_date: selectedDay.date,
+        target_exercise_id: replacementTarget.exercise_id,
+        replacement_name: replacementName.trim(),
+        reason: replacementReason.trim()
+      }
+    });
+    setReplacementTarget(null);
+    setReplacementName("");
+    setReplacementReason("");
+    onNavigate("/");
+  }
+
   if (!data) return <PageLoadState message={notice || t("status.loading")} />;
   const selectedDay = data.selected_day;
   const weeklyPlan = data.plan.workout_plan.days;
@@ -101,8 +126,14 @@ export function WorkoutPage({ locale }: { locale: Locale }) {
       <section className="workout-grid">
         {selectedDay.exercises.map((exercise, exerciseIndex) => (
           <article className={exerciseIndex % 2 === 0 ? "business-panel accent-success" : "business-panel accent-primary"} key={exercise.exercise_id}>
-            <div className="section-heading"><span>{exercise.name}</span><strong>{exercise.sets} {isChinese ? "组" : "sets"}</strong></div>
+            <div className="section-heading"><span>{exercise.name}</span><div className="button-row"><strong>{exercise.sets} {isChinese ? "组" : "sets"}</strong><button className="ghost compact-action" onClick={() => setReplacementTarget({ exercise_id: exercise.exercise_id, name: exercise.name })} type="button">{isChinese ? "替换动作" : "Replace"}</button></div></div>
             <span className="exercise-meta">{exercise.target_muscles.join("、")} · {exercise.reps} {isChinese ? "次" : "reps"}</span>
+            {replacementTarget?.exercise_id === exercise.exercise_id ? <div className="replacement-form">
+              <strong>{isChinese ? `替换 ${replacementTarget.name}` : `Replace ${replacementTarget.name}`}</strong>
+              <label>{isChinese ? "替换为" : "Replace with"}<input aria-label={isChinese ? "替换动作名称" : "Replacement exercise"} autoFocus onChange={(event) => setReplacementName(event.target.value)} value={replacementName} /></label>
+              <label>{isChinese ? "调整原因" : "Reason"}<input aria-label={isChinese ? "动作替换原因" : "Exercise replacement reason"} onChange={(event) => setReplacementReason(event.target.value)} value={replacementReason} /></label>
+              <div className="button-row"><button onClick={createReplacementDraft} type="button">{isChinese ? "查看替换草稿" : "Review draft"}</button><button className="ghost" onClick={() => setReplacementTarget(null)} type="button">{isChinese ? "取消" : "Cancel"}</button></div>
+            </div> : null}
             <div className="set-table">
               {Array.from({ length: exercise.sets }, (_, index) => {
                 const key = `${exercise.exercise_id}-${index}`;

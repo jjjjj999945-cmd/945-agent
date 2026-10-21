@@ -81,4 +81,13 @@ test.describe("945 business Today page smoke QA", () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { name: "945 智能教练" })).toBeVisible();
   });
+
+  test("keeps the coach chat actionable with an Enter-to-send input", async ({ page }) => {
+    await page.goto("/");
+    const input = page.getByPlaceholder("今天深蹲做了 4 组，每组 8 次，80kg，感觉很累。");
+    await expect(page.getByRole("button", { name: "发送" })).toBeDisabled();
+    await input.fill("你好");
+    await input.press("Enter");
+    await expect(page.getByText("我已读取你的问题。当前 demo 会优先基于今日计划、记录和建议回答。").last()).toBeVisible();
+  });
 });

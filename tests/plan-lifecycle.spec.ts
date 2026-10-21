@@ -65,7 +65,7 @@ test("refreshes shared plan state after onboarding activates a plan", async ({ p
   const activationResponse = page.waitForResponse((response) =>
     response.url().includes("/api/plans/") && response.url().endsWith("/accept") && response.request().method() === "POST"
   );
-  await page.locator('button[type="submit"]').click();
+  await page.getByRole("button", { name: "创建并启用我的计划" }).click();
   expect((await activationResponse).status()).toBe(200);
   await expect(page).toHaveURL("/");
   await expect.poll(() => refreshedPlanRequests).toBeGreaterThan(0);

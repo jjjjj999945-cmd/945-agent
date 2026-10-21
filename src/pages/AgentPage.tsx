@@ -275,26 +275,32 @@ export function AgentPage({ locale, pendingDraft, onDraftHandled }: { locale: Lo
       <section className="agent-chat-layout">
       <article className="business-panel chat-window">
         <div className="agent-thread">
+          {messages.length === 0 ? <div className="agent-empty-thread">
+            <h2>{isChinese ? "从今天的计划开始" : "Start with today's plan"}</h2>
+            <p>{isChinese ? "选择一个问题，或直接输入你的情况。" : "Choose a question or describe what happened."}</p>
+            <div className="button-row">
+              <button className="ghost" onClick={() => setInput(isChinese ? "我今天练什么？" : "What should I train today?")} type="button">{isChinese ? "今天练什么" : "Today's workout"}</button>
+              <button className="ghost" onClick={() => setInput(isChinese ? "帮我记录今天的训练" : "Help me log today's workout")} type="button">{isChinese ? "记录训练" : "Log workout"}</button>
+              <button className="ghost" onClick={() => setInput(isChinese ? "我想调整今天的计划" : "I want to adjust today's plan")} type="button">{isChinese ? "调整计划" : "Adjust plan"}</button>
+            </div>
+          </div> : null}
           {messages.map((message) => (
             <div className={`agent-message ${message.role}`} key={message.message_id}>
               <div className="agent-message-content">{renderMessageContent(message.content)}</div>
             </div>
           ))}
         </div>
-        <div className="agent-input-row">
+        <form className="agent-input-row" onSubmit={(event) => { event.preventDefault(); void send(); }}>
           <input
+            disabled={isSending}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder={t("agent.inputPlaceholder")}
           />
-          <button disabled={isSending} onClick={() => void send()} type="button">{t("actions.send")}</button>
-        </div>
+          <button disabled={isSending || !input.trim()} type="submit">{t("actions.send")}</button>
+        </form>
       </article>
       <aside className="agent-status-panel">
-        <article aria-live="polite" className="business-panel compact" role="status">
-          <div className="section-heading"><span>{isChinese ? "教练状态" : "Agent Status"}</span><strong>{isSending ? (isChinese ? "分析中" : "Analyzing") : (isChinese ? "在线" : "Active")}</strong></div>
-          <small>{isSending ? (isChinese ? "正在读取当前上下文并生成建议" : "Reading your current context and preparing a suggestion.") : (isChinese ? "上下文：当前计划、训练记录、饮食记录、每日打卡与建议。" : "Context: active plan, workout records, meal records, check-ins, and advice.")}</small>
-        </article>
         <article aria-live="polite" className="business-panel compact" role="status">
           <div className="section-heading">
             <span>{isChinese ? "本次请求" : "Latest request"}</span>

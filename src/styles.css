@@ -1034,6 +1034,23 @@ button {
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
 }
 
+.agent-empty-thread {
+  display: grid;
+  gap: 12px;
+  align-content: center;
+  min-height: 260px;
+  padding: 22px 0;
+}
+
+.agent-empty-thread h2,
+.agent-empty-thread p {
+  margin: 0;
+}
+
+.agent-empty-thread p {
+  color: var(--ink-3);
+}
+
 .confirm-dialog {
   color: #1c2734;
 }
@@ -1674,6 +1691,24 @@ select:focus {
   display: grid;
   gap: 8px;
   margin-top: 10px;
+}
+
+.replacement-form {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(196, 197, 217, 0.45);
+}
+
+.replacement-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.compact-action {
+  padding: 7px 10px !important;
+  font-size: 11px !important;
 }
 
 .workout-set-row {

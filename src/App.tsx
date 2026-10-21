@@ -142,9 +142,9 @@ function renderPage(
     case "plan":
       return <PlanPage locale={locale} onNavigate={navigate} onAgentDraft={onAgentDraftChange} />;
     case "workout":
-      return <WorkoutPage locale={locale} />;
+      return <WorkoutPage locale={locale} onAgentDraft={onAgentDraftChange} onNavigate={navigate} />;
     case "diet":
-      return <DietPage locale={locale} />;
+      return <DietPage locale={locale} onAgentDraft={onAgentDraftChange} onNavigate={navigate} />;
     case "body":
       return <BodyPage locale={locale} />;
     case "advice":

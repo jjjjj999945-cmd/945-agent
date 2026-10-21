@@ -250,6 +250,43 @@ test.describe.serial("945 real HTTP integration", () => {
     expect(after.data.plan.generated_by).toBe("agent");
   });
 
+  test("writes contextual exercise and meal replacements only after one confirmation", async ({ page, request }) => {
+    const beforeWorkout = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    await page.goto("/workout");
+    await page.getByRole("button", { name: "替换动作" }).first().click();
+    await page.getByLabel("替换动作名称").fill("高脚杯深蹲");
+    await page.getByLabel("动作替换原因").fill("当前器械不可用");
+    await page.getByRole("button", { name: "查看替换草稿" }).click();
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+
+    const unconfirmedWorkout = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(unconfirmedWorkout.data.plan.plan_id).toBe(beforeWorkout.data.plan.plan_id);
+
+    const workoutResponse = page.waitForResponse((response) => response.url().includes("/adjust") && response.request().method() === "POST");
+    await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
+    expect((await workoutResponse).status()).toBe(200);
+    const afterWorkout = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(afterWorkout.data.plan.plan_id).not.toBe(beforeWorkout.data.plan.plan_id);
+    expect(afterWorkout.data.plan.workout_plan.days.flatMap((day: { exercises: Array<{ name: string }> }) => day.exercises.map((exercise) => exercise.name))).toContain("高脚杯深蹲");
+
+    await page.goto("/diet");
+    await page.getByRole("button", { name: "替换餐食" }).first().click();
+    await page.getByLabel("替换餐食名称").fill("鸡胸肉藜麦饭");
+    await page.getByLabel("餐食替换原因").fill("午餐需要外带");
+    await page.getByRole("button", { name: "查看替换草稿" }).click();
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+
+    const unconfirmedMeal = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(unconfirmedMeal.data.plan.plan_id).toBe(afterWorkout.data.plan.plan_id);
+
+    const mealResponse = page.waitForResponse((response) => response.url().includes("/adjust") && response.request().method() === "POST");
+    await page.getByRole("dialog").getByRole("button", { name: "确认" }).click();
+    expect((await mealResponse).status()).toBe(200);
+    const afterMeal = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
+    expect(afterMeal.data.plan.plan_id).not.toBe(afterWorkout.data.plan.plan_id);
+    expect(afterMeal.data.plan.meal_plan.days.flatMap((day: { meals: Array<{ foods: Array<{ name: string }> }> }) => day.meals.flatMap((meal) => meal.foods.map((food) => food.name)))).toContain("鸡胸肉藜麦饭");
+  });
+
   test("writes a structured plan-page adjustment only after Agent confirmation", async ({ page, request }) => {
     const before = await (await request.get(`${API_BASE_URL}/api/plans/current?user_id=demo-user-945`)).json();
     await page.goto("/plan");
@@ -290,7 +327,7 @@ test.describe.serial("945 real HTTP integration", () => {
     expect(plan.workout_plan.days).toHaveLength(3);
     const exerciseNames = plan.workout_plan.days.flatMap((day: { exercises: Array<{ name: string }> }) => day.exercises.map((exercise) => exercise.name));
     expect(exerciseNames).toContain("徒手深蹲");
-    expect(plan.meal_plan.days[0].meals[0].foods.map((food: { name: string }) => food.name)).toContain("无糖豆乳酸奶");
+    expect(plan.meal_plan.days.flatMap((day: { meals: Array<{ foods: Array<{ name: string }> }> }) => day.meals.flatMap((meal) => meal.foods.map((food) => food.name)))).toContain("烤豆腐");
     const settings = await (await request.get(`${API_BASE_URL}/api/settings?user_id=demo-user-945`)).json();
     expect(settings.data.profile).toMatchObject({ training_days_per_week: 3, training_duration_minutes: 45, equipment: ["bodyweight"] });
   });

@@ -8,7 +8,7 @@ test.describe("PRD-driven frontend foundation", () => {
       ["/workout", "训练计划中心"],
       ["/diet", "饮食"],
       ["/body", "身体数据"],
-      ["/advice", "建议"],
+      ["/advice", "智能调整分析"],
       ["/agent", "945 智能教练"],
       ["/settings", "设置"]
     ] as const;
@@ -115,6 +115,27 @@ test.describe("PRD-driven frontend foundation", () => {
     await expect(page).toHaveURL(/\/agent$/);
     await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
     await expect(page.getByRole("dialog").getByText("调整类型: skip_workout")).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "取消" }).click();
+  });
+
+  test("creates contextual exercise and meal replacement drafts without changing the plan", async ({ page }) => {
+    await page.goto("/workout");
+    await page.getByRole("button", { name: "替换动作" }).first().click();
+    await page.getByLabel("替换动作名称").fill("高脚杯深蹲");
+    await page.getByLabel("动作替换原因").fill("器械当前不可用");
+    await page.getByRole("button", { name: "查看替换草稿" }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { name: "确认智能教练草稿" })).toBeVisible();
+    await expect(page.getByRole("dialog").getByText("调整类型: swap_exercise")).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "取消" }).click();
+
+    await page.goto("/diet");
+    await page.getByRole("button", { name: "替换餐食" }).first().click();
+    await page.getByLabel("替换餐食名称").fill("鸡胸肉藜麦饭");
+    await page.getByLabel("餐食替换原因").fill("午餐需要外带");
+    await page.getByRole("button", { name: "查看替换草稿" }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("dialog").getByText("调整类型: swap_meal")).toBeVisible();
     await page.getByRole("dialog").getByRole("button", { name: "取消" }).click();
   });
 

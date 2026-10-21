@@ -29,7 +29,7 @@ test("shows an observable coach status while an agent request is running", async
   await expect(requestStatus).toContainText("分析中");
   await send;
   await expect(page.getByText("我已整理好你的训练建议。")).toBeVisible();
-  await expect(page.locator(".agent-status-panel").getByRole("status").filter({ hasText: "教练状态" })).toContainText("在线");
+  await expect(requestStatus).toContainText("等待请求");
 });
 
 test("opens the profile setup form inside the coach workspace", async ({ page }) => {

@@ -5,11 +5,11 @@ import { appToday } from "../services/dateContext";
 import { usePlanContext } from "../contexts/PlanContext";
 import { createTranslator } from "../i18n";
 import { api } from "../services/apiClient";
-import type { DietPageData, Locale, MacroTargets } from "../types/domain";
+import type { DietPageData, Locale, MacroTargets, RecordDraft } from "../types/domain";
 
 const emptyMacros: Record<keyof MacroTargets, string> = { calories: "", protein_g: "", carbs_g: "", fat_g: "" };
 
-export function DietPage({ locale }: { locale: Locale }) {
+export function DietPage({ locale, onAgentDraft, onNavigate }: { locale: Locale; onAgentDraft: (draft: RecordDraft) => void; onNavigate: (path: string) => void }) {
   const t = createTranslator(locale);
   const { currentPlan } = usePlanContext();
   const isChinese = locale === "zh-CN";
@@ -18,6 +18,9 @@ export function DietPage({ locale }: { locale: Locale }) {
   const [manualMeal, setManualMeal] = useState("");
   const [manualMacros, setManualMacros] = useState(emptyMacros);
   const [selectedDate, setSelectedDate] = useState("");
+  const [replacementTarget, setReplacementTarget] = useState<{ meal_id: string; name: string } | null>(null);
+  const [replacementName, setReplacementName] = useState("");
+  const [replacementReason, setReplacementReason] = useState("");
   const manualMealInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { void loadDiet(); }, []);
@@ -69,6 +72,28 @@ export function DietPage({ locale }: { locale: Locale }) {
     await loadDiet();
   }
 
+  function createReplacementDraft() {
+    if (!replacementTarget || !replacementName.trim() || !replacementReason.trim()) {
+      setNotice(isChinese ? "请填写替换餐食和调整原因。" : "Enter a replacement meal and reason.");
+      return;
+    }
+    onAgentDraft({
+      type: "plan_adjustment",
+      requires_confirmation: true,
+      payload: {
+        adjustment_type: "swap_meal",
+        target_date: selectedDay.date,
+        target_meal_id: replacementTarget.meal_id,
+        replacement_name: replacementName.trim(),
+        reason: replacementReason.trim()
+      }
+    });
+    setReplacementTarget(null);
+    setReplacementName("");
+    setReplacementReason("");
+    onNavigate("/");
+  }
+
   if (!data) return <PageLoadState message={notice || t("status.loading")} />;
   const selectedDay = data.plan.meal_plan.days.find((day) => day.date === selectedDate) ?? data.selected_day;
   const macroLabels: Record<keyof MacroTargets, string> = {
@@ -93,7 +118,13 @@ export function DietPage({ locale }: { locale: Locale }) {
           </article>
           <article className="business-panel">
             <div className="section-heading"><span>{t("labels.plannedMeals")}</span><strong>{selectedDay.meals.length}</strong></div>
-            {selectedDay.meals.map((meal) => <div className="meal-row" key={meal.meal_id}><div><strong>{meal.name}</strong><span>{meal.total_macros.calories} {t("metrics.kcal")} · {meal.total_macros.protein_g}{t("metrics.proteinGrams")}</span></div><button onClick={() => void confirmMeal(meal.meal_id)} type="button">{t("actions.confirmPlannedMeal")}</button></div>)}
+            {selectedDay.meals.map((meal) => <div className="meal-row" key={meal.meal_id}><div><strong>{meal.name}</strong><span>{meal.total_macros.calories} {t("metrics.kcal")} · {meal.total_macros.protein_g}{t("metrics.proteinGrams")}</span></div><div className="button-row"><button className="ghost compact-action" onClick={() => setReplacementTarget({ meal_id: meal.meal_id, name: meal.name })} type="button">{isChinese ? "替换餐食" : "Replace"}</button><button onClick={() => void confirmMeal(meal.meal_id)} type="button">{t("actions.confirmPlannedMeal")}</button></div></div>)}
+            {replacementTarget ? <div className="replacement-form">
+              <strong>{isChinese ? `替换 ${replacementTarget.name}` : `Replace ${replacementTarget.name}`}</strong>
+              <label>{isChinese ? "替换为" : "Replace with"}<input aria-label={isChinese ? "替换餐食名称" : "Replacement meal"} autoFocus onChange={(event) => setReplacementName(event.target.value)} value={replacementName} /></label>
+              <label>{isChinese ? "调整原因" : "Reason"}<input aria-label={isChinese ? "餐食替换原因" : "Meal replacement reason"} onChange={(event) => setReplacementReason(event.target.value)} value={replacementReason} /></label>
+              <div className="button-row"><button onClick={createReplacementDraft} type="button">{isChinese ? "查看替换草稿" : "Review draft"}</button><button className="ghost" onClick={() => setReplacementTarget(null)} type="button">{isChinese ? "取消" : "Cancel"}</button></div>
+            </div> : null}
             <button className="ghost add-meal-button" onClick={() => manualMealInputRef.current?.focus()} type="button">{isChinese ? "+ 添加餐食" : "+ Add Meal"}</button>
           </article>
           <article className="business-panel compact">
