@@ -36,34 +36,38 @@ export function OnboardingPage({ embedded = false, locale, onNavigate }: Onboard
   const { refreshPlanState } = usePlanContext();
   const t = createTranslator(locale);
   const zh = locale === "zh-CN";
-  const [age, setAge] = useState(29);
-  const [heightCm, setHeightCm] = useState(175);
-  const [weightKg, setWeightKg] = useState(76);
-  const [goal, setGoal] = useState<Goal>("body_recomposition");
-  const [experience, setExperience] = useState<ExperienceLevel>("novice");
-  const [days, setDays] = useState(4);
-  const [duration, setDuration] = useState(60);
-  const [equipment, setEquipment] = useState<string[]>(["dumbbells", "gym"]);
-  const [dietaryPreferences, setDietaryPreferences] = useState<string[]>(["high_protein"]);
+  const [age, setAge] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [goal, setGoal] = useState<Goal | "">("");
+  const [experience, setExperience] = useState<ExperienceLevel | "">("");
+  const [days, setDays] = useState("");
+  const [duration, setDuration] = useState("");
+  const [equipment, setEquipment] = useState<string[]>([]);
+  const [dietaryPreferences, setDietaryPreferences] = useState<string[]>([]);
   const [allergies, setAllergies] = useState("");
-  const [constraints, setConstraints] = useState<string[]>(["busy_weekdays"]);
+  const [constraints, setConstraints] = useState<string[]>([]);
   const [safetyConfirmed, setSafetyConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    setSaving(true);
     setError("");
+    if (equipment.length === 0 || dietaryPreferences.length === 0) {
+      setError(zh ? "请至少选择一项可用器械和一项饮食偏好。" : "Choose at least one equipment option and dietary preference.");
+      return;
+    }
+    setSaving(true);
     const profile = await api.updateProfile({
       user_id: DEMO_USER_ID,
-      age,
-      height_cm: heightCm,
-      weight_kg: weightKg,
-      goal,
-      experience_level: experience,
-      training_days_per_week: days,
-      training_duration_minutes: duration,
+      age: Number(age),
+      height_cm: Number(heightCm),
+      weight_kg: Number(weightKg),
+      goal: goal as Goal,
+      experience_level: experience as ExperienceLevel,
+      training_days_per_week: Number(days),
+      training_duration_minutes: Number(duration),
       equipment,
       dietary_preferences: dietaryPreferences,
       allergies: allergies.split(/[,，]/).map((item) => item.trim()).filter(Boolean),
@@ -75,7 +79,7 @@ export function OnboardingPage({ embedded = false, locale, onNavigate }: Onboard
       setError(profile.error.message);
       return;
     }
-    const plan = await api.generatePlan({ user_id: DEMO_USER_ID, goal });
+    const plan = await api.generatePlan({ user_id: DEMO_USER_ID, goal: goal as Goal });
     if (plan.error) {
       setSaving(false);
       setError(plan.error.message);
@@ -92,16 +96,17 @@ export function OnboardingPage({ embedded = false, locale, onNavigate }: Onboard
   }
 
   const form = <form className="onboarding-form" onSubmit={submit}>
+      <p className="settings-boundary-copy">{zh ? "请确认并填写以下资料。提交后会作为你的初始档案，用于生成第一份计划。" : "Confirm and complete these details. They become your initial profile for the first plan."}</p>
       <section className="business-panel"><h2>{zh ? "身体与目标" : "Body and goal"}</h2><div className="onboarding-fields">
-        <label>{t("labels.age")}<input aria-label={t("labels.age")} min="14" max="100" required type="number" value={age} onChange={(event) => setAge(Number(event.target.value))} /></label>
-        <label>{t("labels.heightCm")}<input aria-label={t("labels.heightCm")} min="100" max="250" required type="number" value={heightCm} onChange={(event) => setHeightCm(Number(event.target.value))} /></label>
-        <label>{t("labels.weightKg")}<input aria-label={t("labels.weightKg")} min="30" max="300" required step="0.1" type="number" value={weightKg} onChange={(event) => setWeightKg(Number(event.target.value))} /></label>
-        <label>{t("labels.goal")}<select aria-label={t("labels.goal")} value={goal} onChange={(event) => setGoal(event.target.value as Goal)}>{goalOptions.map((option) => <option key={option.value} value={option.value}>{zh ? option.zh : option.en}</option>)}</select></label>
+        <label>{t("labels.age")}<input aria-label={t("labels.age")} min="14" max="100" required type="number" value={age} onChange={(event) => setAge(event.target.value)} /></label>
+        <label>{t("labels.heightCm")}<input aria-label={t("labels.heightCm")} min="100" max="250" required type="number" value={heightCm} onChange={(event) => setHeightCm(event.target.value)} /></label>
+        <label>{t("labels.weightKg")}<input aria-label={t("labels.weightKg")} min="30" max="300" required step="0.1" type="number" value={weightKg} onChange={(event) => setWeightKg(event.target.value)} /></label>
+        <label>{t("labels.goal")}<select aria-label={t("labels.goal")} required value={goal} onChange={(event) => setGoal(event.target.value as Goal)}><option disabled value="">{zh ? "请选择" : "Select"}</option>{goalOptions.map((option) => <option key={option.value} value={option.value}>{zh ? option.zh : option.en}</option>)}</select></label>
       </div></section>
       <section className="business-panel"><h2>{zh ? "训练条件" : "Training setup"}</h2><div className="onboarding-fields">
-        <label>{zh ? "训练经验" : "Experience"}<select aria-label={zh ? "训练经验" : "Experience"} value={experience} onChange={(event) => setExperience(event.target.value as ExperienceLevel)}><option value="beginner">{zh ? "初学者" : "Beginner"}</option><option value="novice">{zh ? "入门" : "Novice"}</option><option value="intermediate">{zh ? "中级" : "Intermediate"}</option><option value="advanced">{zh ? "高级" : "Advanced"}</option></select></label>
-        <label>{zh ? "每周训练天数" : "Days per week"}<input aria-label={zh ? "每周训练天数" : "Days per week"} min="1" max="7" required type="number" value={days} onChange={(event) => setDays(Number(event.target.value))} /></label>
-        <label>{zh ? "每次训练分钟" : "Minutes per session"}<input aria-label={zh ? "每次训练分钟" : "Minutes per session"} min="15" max="240" required step="5" type="number" value={duration} onChange={(event) => setDuration(Number(event.target.value))} /></label>
+        <label>{zh ? "训练经验" : "Experience"}<select aria-label={zh ? "训练经验" : "Experience"} required value={experience} onChange={(event) => setExperience(event.target.value as ExperienceLevel)}><option disabled value="">{zh ? "请选择" : "Select"}</option><option value="beginner">{zh ? "初学者" : "Beginner"}</option><option value="novice">{zh ? "入门" : "Novice"}</option><option value="intermediate">{zh ? "中级" : "Intermediate"}</option><option value="advanced">{zh ? "高级" : "Advanced"}</option></select></label>
+        <label>{zh ? "每周训练天数" : "Days per week"}<input aria-label={zh ? "每周训练天数" : "Days per week"} min="1" max="7" required type="number" value={days} onChange={(event) => setDays(event.target.value)} /></label>
+        <label>{zh ? "每次训练分钟" : "Minutes per session"}<input aria-label={zh ? "每次训练分钟" : "Minutes per session"} min="15" max="240" required step="5" type="number" value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
       </div><fieldset><legend>{zh ? "可用器械" : "Equipment"}</legend>{equipmentOptions.map((option) => <label className="onboarding-choice" key={option.value}><input checked={equipment.includes(option.value)} onChange={() => setEquipment(toggle(equipment, option.value))} type="checkbox" />{zh ? option.zh : option.en}</label>)}</fieldset></section>
       <section className="business-panel"><h2>{zh ? "饮食与限制" : "Nutrition and constraints"}</h2><fieldset><legend>{zh ? "饮食偏好" : "Dietary preferences"}</legend>{dietaryPreferenceOptions.map((option) => <label className="onboarding-choice" key={option.value}><input checked={dietaryPreferences.includes(option.value)} onChange={() => setDietaryPreferences(toggle(dietaryPreferences, option.value))} type="checkbox" />{zh ? option.zh : option.en}</label>)}</fieldset>
         <label>{zh ? "过敏或忌口（用逗号分隔）" : "Allergies or exclusions (comma separated)"}<input aria-label={zh ? "过敏或忌口" : "Allergies or exclusions"} value={allergies} onChange={(event) => setAllergies(event.target.value)} /></label>

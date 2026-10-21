@@ -86,11 +86,19 @@ test.describe("PRD-driven frontend foundation", () => {
 
   test("creates and activates a first plan from the onboarding profile", async ({ page }) => {
     await page.goto("/onboarding");
+    await expect(page.getByText("请确认并填写以下资料。提交后会作为你的初始档案，用于生成第一份计划。")).toBeVisible();
+    await expect(page.getByLabel("年龄")).toHaveValue("");
+    await expect(page.getByLabel("身高 cm")).toHaveValue("");
+    await expect(page.getByLabel("健身房")).not.toBeChecked();
+    await page.getByLabel("年龄").fill("29");
+    await page.getByLabel("身高 cm").fill("175");
     await page.getByLabel("体重 kg").fill("68.5");
     await page.getByLabel("目标").selectOption("muscle_gain");
+    await page.getByLabel("训练经验").selectOption("novice");
     await page.getByLabel("每周训练天数").fill("3");
-    await page.getByLabel("健身房").uncheck();
+    await page.getByLabel("每次训练分钟").fill("45");
     await page.getByLabel("徒手").check();
+    await page.getByLabel("高蛋白").check();
     await page.getByLabel("我已了解健康与训练安全提示").check();
     await page.getByRole("button", { name: "创建并启用我的计划" }).click();
 
@@ -126,10 +134,10 @@ test.describe("PRD-driven frontend foundation", () => {
     await expect(page.getByText("设置已保存：训练目标已切换为增肌")).toBeVisible();
     await page.getByLabel("公制单位").click();
     await expect(page.getByText("设置已保存：单位偏好已更新")).toBeVisible();
-    await page.getByLabel("推送通知").click();
-    await expect(page.getByText("设置已保存：通知偏好已更新")).toBeVisible();
-    await page.getByLabel("严格督促").click();
-    await expect(page.getByText("设置已保存：教练语气已切换为严格督促")).toBeVisible();
+    await expect(page.getByLabel("推送通知")).toBeDisabled();
+    await expect(page.getByLabel("严格督促")).toBeDisabled();
+    await expect(page.getByText("推送服务尚未接入，当前不可用。")).toBeVisible();
+    await expect(page.getByText("教练语气尚未接入 Agent 配置，当前不可用。")).toBeVisible();
   });
 
   test("saves personalization profile settings and generates a plan preview", async ({ page }) => {

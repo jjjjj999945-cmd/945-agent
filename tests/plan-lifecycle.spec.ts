@@ -51,6 +51,15 @@ test("refreshes shared plan state after onboarding activates a plan", async ({ p
   await page.getByRole("button", { name: "\u5f00\u59cb\u521b\u5efa\u8ba1\u5212" }).click();
   await expect(page).toHaveURL("/");
   await expect(page.getByRole("heading", { name: "\u8eab\u4f53\u4e0e\u76ee\u6807" })).toBeVisible();
+  await page.getByLabel("\u5e74\u9f84").fill("29");
+  await page.getByLabel("\u8eab\u9ad8 cm").fill("175");
+  await page.getByLabel("\u4f53\u91cd kg").fill("70");
+  await page.getByLabel("\u76ee\u6807").selectOption("maintenance");
+  await page.getByLabel("\u8bad\u7ec3\u7ecf\u9a8c").selectOption("novice");
+  await page.getByLabel("\u6bcf\u5468\u8bad\u7ec3\u5929\u6570").fill("3");
+  await page.getByLabel("\u6bcf\u6b21\u8bad\u7ec3\u5206\u949f").fill("45");
+  await page.getByLabel("\u5f92\u624b").check();
+  await page.getByLabel("\u9ad8\u86cb\u767d").check();
   await page.getByLabel("\u6211\u5df2\u4e86\u89e3\u5065\u5eb7\u4e0e\u8bad\u7ec3\u5b89\u5168\u63d0\u793a").check();
 
   const activationResponse = page.waitForResponse((response) =>

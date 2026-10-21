@@ -17,7 +17,7 @@ test.describe.serial("945 real HTTP integration", () => {
     await page.getByRole("button", { name: "\u53d1\u9001" }).click();
 
     await expect(page.getByText("Demo user not found.")).toBeHidden();
-    await expect(page.getByText("\u6211\u5df2\u8bfb\u53d6\u4f60\u7684\u95ee\u9898\u3002\u5f53\u524d demo \u4f1a\u4f18\u5148\u57fa\u4e8e\u4eca\u65e5\u8ba1\u5212\u3001\u8bb0\u5f55\u548c\u5efa\u8bae\u56de\u7b54\u3002")).toBeVisible();
+    await expect(page.getByText("\u6211\u5df2\u8bfb\u53d6\u4f60\u7684\u95ee\u9898\u3002\u5f53\u524d demo \u4f1a\u4f18\u5148\u57fa\u4e8e\u4eca\u65e5\u8ba1\u5212\u3001\u8bb0\u5f55\u548c\u5efa\u8bae\u56de\u7b54\u3002").last()).toBeVisible();
   });
 
   test("loads the Today page through FastAPI", async ({ page, request }) => {

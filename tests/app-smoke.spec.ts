@@ -71,4 +71,14 @@ test.describe("945 business Today page smoke QA", () => {
     await expect(page.getByText("智能饮食调整")).toHaveCount(0);
     await expect(page.getByText("采购清单")).toHaveCount(0);
   });
+
+  test("gives the brand and Agent shortcut separate navigation roles", async ({ page }) => {
+    await page.goto("/");
+    await page.getByLabel("945 今日工作台").click();
+    await expect(page).toHaveURL(/\/today$/);
+
+    await page.getByRole("button", { name: "同步教练" }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { name: "945 智能教练" })).toBeVisible();
+  });
 });

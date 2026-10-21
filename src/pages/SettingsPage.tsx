@@ -16,8 +16,6 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
   const [profileDraft, setProfileDraft] = useState<UserProfile | null>(null);
   const [planPreview, setPlanPreview] = useState<Plan | null>(null);
   const [notice, setNotice] = useState("");
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [agentTone, setAgentTone] = useState<"clinical" | "encouraging" | "strict">("encouraging");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [securityNotice, setSecurityNotice] = useState("");
@@ -74,16 +72,6 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
     }
     setData(response.data);
     setNotice(isChinese ? `${t("status.settingsSaved")}：单位偏好已更新` : `${t("status.settingsSaved")}: unit preference updated`);
-  }
-
-  function changeNotifications(enabled: boolean) {
-    setNotificationsEnabled(enabled);
-    setNotice(isChinese ? `${t("status.settingsSaved")}：通知偏好已更新` : `${t("status.settingsSaved")}: notification preference updated`);
-  }
-
-  function changeAgentTone(tone: "clinical" | "encouraging" | "strict", label: string) {
-    setAgentTone(tone);
-    setNotice(isChinese ? `${t("status.settingsSaved")}：教练语气已切换为${label}` : `${t("status.settingsSaved")}: Agent tone changed to ${label}`);
   }
 
   function toggleProfileValue(field: "equipment" | "dietary_preferences" | "allergies" | "constraints", value: string) {
@@ -179,13 +167,12 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
       <section className="settings-layout">
         <div className="settings-main-stack">
         <article className="business-panel user-profile-card">
-          <div className="section-heading"><span>{isChinese ? "用户资料" : "User Profile"}</span><strong>{isChinese ? "更换照片" : "Change Photo"}</strong></div>
+          <div className="section-heading"><span>{isChinese ? "用户资料" : "User Profile"}</span><strong>{t("labels.futureCapability")}</strong></div>
           <div className="profile-form-grid">
             <span className="profile-photo" />
-            <label>{isChinese ? "姓名" : "Full Name"}<input defaultValue={data.user.display_name} /></label>
-            <label>{isChinese ? "邮箱地址" : "Email Address"}<input defaultValue="alex.rivera@example.com" /></label>
+            <div><strong>{data.user.display_name}</strong><small>{isChinese ? "显示名称当前由账号资料提供。" : "Display name is currently supplied by the account profile."}</small></div>
           </div>
-          <label>{isChinese ? "简介 / 目标说明" : "Bio / Goal Statement"}<textarea defaultValue={isChinese ? "备战柏林马拉松，同时维持上肢力量。" : "Preparing for the Berlin Marathon while maintaining upper body strength."} /></label>
+          <p className="settings-boundary-copy">{isChinese ? "邮箱、头像和个人简介尚未接入持久化资料，当前不可编辑。" : "Email, profile photo, and bio are not persisted yet and cannot be edited."}</p>
         </article>
 
         <article className="business-panel training-goals-card">
@@ -270,26 +257,27 @@ export function SettingsPage({ locale, onLocaleChange }: { locale: Locale; onLoc
           </label>
           <label className="toggle-row">
             {isChinese ? "推送通知" : "Push Notifications"}
-            <input checked={notificationsEnabled} onChange={(event) => changeNotifications(event.target.checked)} type="checkbox" />
+            <input aria-describedby="notification-capability" disabled type="checkbox" />
           </label>
+          <small id="notification-capability">{isChinese ? "推送服务尚未接入，当前不可用。" : "Push delivery is not connected yet."}</small>
           <button onClick={() => void exportData()} type="button">{t("labels.dataExport")}</button>
           <small>{t("safety.nonMedical")}</small>
         </article>
         <article className="business-panel compact">
-          <div className="section-heading"><h2>{isChinese ? "教练语气" : "Agent Tone"}</h2><strong>{isChinese ? "本地 demo" : "Local demo"}</strong></div>
+          <div className="section-heading"><h2>{isChinese ? "教练语气" : "Agent Tone"}</h2><strong>{t("labels.futureCapability")}</strong></div>
           <label className="radio-row">
-            <input checked={agentTone === "clinical"} name="tone" onChange={() => changeAgentTone("clinical", isChinese ? "专业精准" : "Clinical & Precise")} type="radio" />
+            <input disabled name="tone" type="radio" />
             {isChinese ? "专业精准" : "Clinical & Precise"}
           </label>
           <label className="radio-row">
-            <input checked={agentTone === "encouraging"} name="tone" onChange={() => changeAgentTone("encouraging", isChinese ? "鼓励式教练" : "Encouraging & Coach-like")} type="radio" />
+            <input disabled name="tone" type="radio" />
             {isChinese ? "鼓励式教练" : "Encouraging & Coach-like"}
           </label>
           <label className="radio-row">
-            <input checked={agentTone === "strict"} name="tone" onChange={() => changeAgentTone("strict", isChinese ? "严格督促" : "Tough Love")} type="radio" />
+            <input disabled name="tone" type="radio" />
             {isChinese ? "严格督促" : "Tough Love"}
           </label>
-          <small>{isChinese ? "当前只影响本地 demo 展示，真实 Agent 语气配置会在后端接入后持久化。" : "Currently affects the local demo only. Real Agent tone persistence belongs to the backend phase."}</small>
+          <small>{isChinese ? "教练语气尚未接入 Agent 配置，当前不可用。" : "Agent tone is not connected to the Agent configuration yet."}</small>
         </article>
         </div>
       </section>

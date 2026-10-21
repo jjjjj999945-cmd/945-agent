@@ -54,7 +54,7 @@ export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, onLo
   return (
     <div className="business-shell">
       <aside className="business-sidebar" aria-label={locale === "zh-CN" ? "945 导航" : "945 navigation"}>
-        <button aria-label={locale === "zh-CN" ? "945 今日工作台" : "945 dashboard"} className="business-logo" onClick={() => onNavigate("/")} type="button">
+        <button aria-label={locale === "zh-CN" ? "945 今日工作台" : "945 dashboard"} className="business-logo" onClick={() => onNavigate("/today")} type="button">
           <span className="rail-icon-base brand-mark" aria-hidden="true">945</span>
           <span aria-hidden="true" className="rail-icon-hover">945</span>
         </button>
@@ -72,7 +72,7 @@ export function AppShell({ activeRoute, locale, onLocaleChange, onNavigate, onLo
       </aside>
       <div className="business-workbench">
         <header className="business-topbar">
-          <button className="business-brand-wordmark" onClick={() => onNavigate("/")} type="button">
+          <button className="business-brand-wordmark" onClick={() => onNavigate("/today")} type="button">
             {locale === "zh-CN" ? "945 健身工作台" : "945 Workbench"}
           </button>
           <nav className="top-nav" aria-label={locale === "zh-CN" ? "主导航" : "Primary"}>
